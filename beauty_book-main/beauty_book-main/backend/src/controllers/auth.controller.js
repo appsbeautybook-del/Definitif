@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import pgClient from '../config/pg.js';
 import { storeCode, verifyStoredCode } from '../services/otpStore.js';
-import { sendOTPEmail, sendOTPEmailViaSupabase } from '../services/emailService.js';
+import { sendOTPEmail } from '../services/emailService.js';
 
 export const sendVerificationCode = async (req, res) => {
   try {
@@ -10,24 +10,10 @@ export const sendVerificationCode = async (req, res) => {
     if (mode === 'email' && email) {
       const code = storeCode(email, 'signup');
 
-      let emailResult;
-      try {
-        emailResult = await sendOTPEmail(email, code);
-      } catch (smtpErr) {
-        console.warn('[OTP] SMTP failed, trying Supabase:', smtpErr.message);
-        try {
-          emailResult = await sendOTPEmailViaSupabase(email, code);
-        } catch (supaErr) {
-          console.error('[OTP] Both SMTP and Supabase failed:', supaErr.message);
-          return res.status(500).json({
-            success: false,
-            error: "Impossible d'envoyer l'email. Vérifiez la configuration SMTP."
-          });
-        }
-      }
+      const emailResult = await sendOTPEmail(email, code);
 
       console.log('[OTP] Code sent to:', email, '| Code:', code);
-      return res.json({ success: true, email_sent: true, previewUrl: emailResult?.previewUrl });
+      return res.json({ success: true, email_sent: true, note: emailResult?.note });
     }
 
     if (mode === 'phone' && phone) {

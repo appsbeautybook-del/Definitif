@@ -1,5 +1,4 @@
 import sgMail from '@sendgrid/mail';
-import { supabaseAdmin } from '../config/supabase.js';
 
 let sgConfigured = false;
 
@@ -7,7 +6,7 @@ function configureSendGrid() {
   if (sgConfigured) return true;
   const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) {
-    console.warn('[Email] SENDGRID_API_KEY not set');
+    console.error('[Email] SENDGRID_API_KEY not set!');
     return false;
   }
   sgMail.setApiKey(apiKey);
@@ -38,8 +37,17 @@ function buildEmailHtml(code) {
 }
 
 export async function sendOTPEmail(email, code) {
-  if (configureSendGrid()) {
-    const fromEmail = process.env.SENDGRID_FROM || 'appsbeautybook@gmail.com';
+  if (!configureSendGrid()) {
+    console.log('[Email] ==========================================');
+    console.log('[Email] SENDGRID NON CONFIGURÉ');
+    console.log('[Email] Code pour', email, ':', code);
+    console.log('[Email] ==========================================');
+    return { success: true, note: 'console_only' };
+  }
+
+  const fromEmail = process.env.SENDGRID_FROM || 'appsbeautybook@gmail.com';
+
+  try {
     await sgMail.send({
       to: email,
       from: fromEmail,
@@ -49,18 +57,16 @@ export async function sendOTPEmail(email, code) {
     });
     console.log('[Email] Sent via SendGrid to:', email);
     return { success: true };
+  } catch (error) {
+    console.error('[Email] SendGrid error:', error.message);
+    if (error.response) {
+      console.error('[Email] SendGrid body:', JSON.stringify(error.response.body));
+    }
+    console.log('[Email] Fallback — code pour', email, ':', code);
+    return { success: true, note: 'sendgrid_failed_console' };
   }
-
-  console.warn('[Email] SendGrid not configured, code logged to console for:', email);
-  return { success: true, note: 'code_only' };
 }
 
-export async function sendOTPEmailViaSupabase(email, code) {
-  const { error } = await supabaseAdmin.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: true },
-  });
-  if (error) throw error;
-  console.log('[Email] Sent via Supabase OTP to:', email);
-  return { success: true };
+export async function sendOTPEmailViaSupabase() {
+  throw new Error('Supabase OTP désactivé — utilisez SendGrid');
 }
