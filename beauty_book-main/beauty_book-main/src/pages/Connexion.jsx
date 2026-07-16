@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
 import { supabase } from "@/api/supabaseClient";
+import { signInWithGoogle } from "@/lib/googleAuth";
 
 const SPLASH_IMG = "https://media.base44.com/images/public/6a0ba7bd3d55dddeb85a8366/39cb4873a_generated_image.png";
 
@@ -160,10 +161,27 @@ export default function Connexion() {
   };
 
   const handleOAuth = async (provider) => {
-    await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
+    if (provider === 'google') {
+      try {
+        setLoading(true);
+        setError("");
+        await signInWithGoogle();
+        localStorage.setItem("bb_onboarded", "1");
+        navigate("/", { replace: true });
+      } catch (err) {
+        console.error('[Google Auth] Error:', err);
+        if (err.message !== 'Cancelled by user') {
+          setError("Erreur lors de la connexion avec Google.");
+        }
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      });
+    }
   };
 
   return (

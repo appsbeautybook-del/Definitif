@@ -5,6 +5,7 @@ import { entities, uploadFile } from '@/api/entities';
 import { useAuth } from "@/lib/AuthContext";
 import { apiClient } from "@/lib/apiClient";
 import { supabase } from '@/api/supabaseClient';
+import { signInWithGoogle } from "@/lib/googleAuth";
 
 const SPLASH_IMG = "https://media.base44.com/images/public/6a0ba7bd3d55dddeb85a8366/39cb4873a_generated_image.png";
 const LOGO_IMG = "https://media.base44.com/images/public/6a0ba7bd3d55dddeb85a8366/47f6dcd4b_generated_image.png";
@@ -120,8 +121,18 @@ function StepSignup({ onNext, onBack }) {
   };
 
   const handleSocialLogin = async (provider) => {
-    sessionStorage.setItem("bb_social_signup", "1");
-    supabase.auth.signInWithOAuth({ provider: provider, options: { redirectTo: window.location.origin + "/auth/callback" } });
+    if (provider === 'google') {
+      try {
+        await signInWithGoogle();
+        localStorage.setItem("bb_onboarded", "1");
+        navigate("/", { replace: true });
+      } catch (err) {
+        console.error('[Google Auth] Error:', err);
+      }
+    } else {
+      sessionStorage.setItem("bb_social_signup", "1");
+      supabase.auth.signInWithOAuth({ provider: provider, options: { redirectTo: window.location.origin + "/auth/callback" } });
+    }
   };
 
   return (
