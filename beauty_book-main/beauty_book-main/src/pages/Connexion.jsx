@@ -162,7 +162,7 @@ export default function Connexion() {
   const handleOAuth = async (provider) => {
     await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   };
 

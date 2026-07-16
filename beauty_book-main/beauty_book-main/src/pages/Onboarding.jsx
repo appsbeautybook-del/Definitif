@@ -121,8 +121,7 @@ function StepSignup({ onNext, onBack }) {
 
   const handleSocialLogin = async (provider) => {
     sessionStorage.setItem("bb_social_signup", "1");
-    // Après login social, rediriger vers /onboarding pour reprendre à l'étape 2
-    supabase.auth.signInWithOAuth({ provider: provider, options: { redirectTo: window.location.origin + "/onboarding" } });
+    supabase.auth.signInWithOAuth({ provider: provider, options: { redirectTo: window.location.origin + "/auth/callback" } });
   };
 
   return (

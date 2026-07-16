@@ -112,6 +112,7 @@ import ShAI from '@/pages/ShAI';
 import Explorer from '@/pages/Explorer';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
+import AuthCallback from '@/pages/AuthCallback';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, isAuthenticated } = useAuth();
@@ -243,6 +244,7 @@ const AuthenticatedApp = () => {
         <Route path="/a-propos" element={<About />} />
         <Route path="/contact" element={<Contact />} />
       </Route>
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/admin/signup" element={<AdminSignup />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />
