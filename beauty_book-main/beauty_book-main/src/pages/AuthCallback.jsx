@@ -20,9 +20,9 @@ export default function AuthCallback() {
 
         if (session?.user) {
           const socialSignup = sessionStorage.getItem('bb_social_signup');
-          sessionStorage.removeItem('bb_social_signup');
 
           if (socialSignup) {
+            sessionStorage.removeItem('bb_social_signup');
             navigate('/onboarding', { replace: true });
           } else {
             localStorage.setItem('bb_onboarded', '1');

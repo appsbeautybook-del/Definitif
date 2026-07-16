@@ -119,11 +119,6 @@ const AuthenticatedApp = () => {
 
   const isSpecialRoute = window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/vendeur');
 
-  // Si l'utilisateur est authentifié (via OAuth ou autre), marquer l'onboarding comme fait
-  if (isAuthenticated && !localStorage.getItem("bb_onboarded")) {
-    localStorage.setItem("bb_onboarded", "1");
-  }
-
   // Redirections automatiques selon le port local
   useEffect(() => {
     const port = window.location.port;
@@ -161,6 +156,7 @@ const AuthenticatedApp = () => {
   if (!hasOnboarded && !isSpecialRoute) {
     return (
       <Routes>
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/connexion" element={<Connexion />} />
         <Route path="*" element={<Navigate to="/onboarding" replace />} />

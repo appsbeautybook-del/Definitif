@@ -326,12 +326,11 @@ function StepVerification({ onNext, onBack }) {
 
       // Si pas d'email (retour OAuth social), récupérer depuis le compte connecté
       if (!currentData.email) {
-        // Retry jusqu'à 5 fois avec 500ms d'intervalle pour attendre que la session OAuth soit établie
         let user = null;
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 8; i++) {
           user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
           if (user?.email) break;
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 750));
         }
         if (user?.email) {
           currentData = { ...currentData, email: user.email, mode: "email" };
@@ -340,15 +339,21 @@ function StepVerification({ onNext, onBack }) {
         }
       }
 
-      // Ne pas appeler si on n'a toujours pas de contact valide
       const contact = currentData.mode === "email" ? currentData.email : currentData.phone;
       if (!contact) return;
 
-      const res = await apiClient.callFunction("sendVerificationCode", {
-        mode: currentData.mode || "email",
-        email: currentData.email,
-        phone: currentData.phone,
-      });
+      try {
+        const res = await apiClient.callFunction("sendVerificationCode", {
+          mode: currentData.mode || "email",
+          email: currentData.email,
+          phone: currentData.phone,
+        });
+        if (!res.data?.success) {
+          console.error('[StepVerification] Send code failed:', res.data);
+        }
+      } catch (e) {
+        console.error('[StepVerification] Send code error:', e);
+      }
     };
 
     sendCode();
