@@ -287,13 +287,28 @@ function StepVerification({ onNext, onBack }) {
   const [error, setError] = useState("");
   const [resending, setResending] = useState(false);
   const [clipboardToast, setClipboardToast] = useState(false);
+  const [resendTimer, setResendTimer] = useState(45);
   const inputs = useRef([]);
+  const timerRef = useRef(null);
 
   const [data, setData] = useState(() => JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}"));
   const contact = data.mode === "email" ? data.email : data.phone;
   const maskedContact = data.mode === "email"
     ? contact?.replace(/(.{2}).+(@.+)/, "$1***$2")
     : contact?.replace(/.(?=.{4})/g, "*");
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setResendTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, []);
 
   // Lire le presse-papier automatiquement à l'arrivée
   useEffect(() => {
@@ -402,11 +417,23 @@ function StepVerification({ onNext, onBack }) {
   };
 
   const handleResend = async () => {
+    if (resendTimer > 0) return;
     setResending(true);
     setError("");
     const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
     await apiClient.callFunction("sendVerificationCode", { mode: currentData.mode || "email", email: currentData.email, phone: currentData.phone });
     setResending(false);
+    setResendTimer(45);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setResendTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   // Auto-verify when all 6 digits are filled
@@ -489,11 +516,14 @@ function StepVerification({ onNext, onBack }) {
         {/* Resend */}
         <button
           onClick={handleResend}
-          disabled={resending}
-          className="flex items-center gap-2 text-[12px] font-black text-gray-400 active:scale-95 transition-all"
+          disabled={resendTimer > 0 || resending}
+          className="flex items-center gap-2 text-[12px] font-black text-gray-400 active:scale-95 transition-all disabled:opacity-50"
         >
           <RotateCcw className={`w-3.5 h-3.5 ${resending ? "animate-spin" : ""}`} />
-          {resending ? "Envoi en cours..." : "Renvoyer le code"}
+          {resendTimer > 0
+            ? `Renvoyer le code dans ${resendTimer}s`
+            : resending ? "Envoi en cours..." : "Renvoyer le code"
+          }
         </button>
       </div>
 

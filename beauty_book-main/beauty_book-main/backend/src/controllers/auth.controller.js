@@ -1,60 +1,38 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import pgClient from '../config/pg.js';
+import { storeCode, verifyStoredCode } from '../services/otpStore.js';
+import { sendOTPEmail, sendOTPEmailViaSupabase } from '../services/emailService.js';
 
 export const sendVerificationCode = async (req, res) => {
   try {
     const { mode, email, phone } = req.body;
 
     if (mode === 'email' && email) {
-      let { error } = await supabaseAdmin.auth.signInWithOtp({
-        email,
-        options: { shouldCreateUser: false },
-      });
+      const code = storeCode(email, 'signup');
 
-      if (error && error.message?.includes('rate')) {
-        return res.status(429).json({
-          success: false,
-          error: 'Trop de demandes. Attendez 30 secondes avant de réessayer.',
-          retryAfter: 30,
-        });
-      }
-
-      if (error && error.message?.includes('not found')) {
-        const { error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email,
-          email_confirm: false,
-          user_metadata: {},
-        });
-        if (!createError) {
-          const retry = await supabaseAdmin.auth.signInWithOtp({
-            email,
-            options: { shouldCreateUser: false },
+      let emailResult;
+      try {
+        emailResult = await sendOTPEmail(email, code);
+      } catch (smtpErr) {
+        console.warn('[OTP] SMTP failed, trying Supabase:', smtpErr.message);
+        try {
+          emailResult = await sendOTPEmailViaSupabase(email, code);
+        } catch (supaErr) {
+          console.error('[OTP] Both SMTP and Supabase failed:', supaErr.message);
+          return res.status(500).json({
+            success: false,
+            error: "Impossible d'envoyer l'email. Vérifiez la configuration SMTP."
           });
-          if (retry.error) {
-            console.error('[OTP] Retry failed:', retry.error.message);
-            return res.status(500).json({ success: false, error: retry.error.message });
-          }
-          console.log('[OTP] Email sent after auto-create to:', email);
-          return res.json({ success: true, email_sent: true });
         }
       }
 
-      if (error) {
-        console.error('[OTP] Supabase error:', error.message);
-        return res.status(500).json({ success: false, error: error.message });
-      }
-
-      console.log('[OTP] Email sent to:', email);
-      return res.json({ success: true, email_sent: true });
+      console.log('[OTP] Code sent to:', email, '| Code:', code);
+      return res.json({ success: true, email_sent: true, previewUrl: emailResult?.previewUrl });
     }
 
     if (mode === 'phone' && phone) {
-      const { error } = await supabaseAdmin.auth.signInWithOtp({ phone });
-      if (error) {
-        console.error('[OTP] Phone error:', error.message);
-        return res.status(500).json({ success: false, error: error.message });
-      }
-      console.log('[OTP] Phone SMS sent to:', phone);
+      const code = storeCode(phone, 'signup');
+      console.log('[OTP] Phone code for', phone, ':', code);
       return res.json({ success: true, email_sent: false });
     }
 
@@ -73,21 +51,11 @@ export const verifyCode = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Clé et code requis' });
     }
 
-    const isEmail = key.includes('@');
+    const result = verifyStoredCode(key, code, 'signup');
 
-    const { data, error } = await supabaseAdmin.auth.verifyOtp({
-      email: isEmail ? key : undefined,
-      phone: !isEmail ? key : undefined,
-      token: code,
-      type: isEmail ? 'email' : 'sms',
-    });
-
-    if (error) {
-      console.error('[OTP] Verify error:', error.message);
-      return res.status(400).json({ success: false, error: 'Code incorrect ou expiré' });
+    if (!result.valid) {
+      return res.status(400).json({ success: false, error: result.error });
     }
-
-    await supabaseAdmin.auth.admin.signOut(data.session?.access_token).catch(() => {});
 
     return res.json({ success: true });
   } catch (error) {
@@ -161,11 +129,10 @@ export const vendeurLogin = async (req, res) => {
 
     if (!role && data.user?.id) {
       try {
-        const targetRole = 'vendeur';
         await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
-          user_metadata: { ...(data.user.user_metadata || {}), role: targetRole }
+          user_metadata: { ...(data.user.user_metadata || {}), role: 'vendeur' }
         });
-        role = targetRole;
+        role = 'vendeur';
       } catch (_) {}
     }
 

@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { supabaseAdmin } from '../config/supabase.js';
 
 let transporter = null;
 
@@ -15,7 +16,7 @@ async function getTransporter() {
         pass: process.env.SMTP_PASS,
       },
     });
-    console.log('[Email] Using custom SMTP:', process.env.SMTP_HOST);
+    console.log('[Email] Using SMTP:', process.env.SMTP_HOST);
     return transporter;
   }
 
@@ -24,19 +25,14 @@ async function getTransporter() {
     host: testAccount.smtp.host,
     port: testAccount.smtp.port,
     secure: testAccount.smtp.secure,
-    auth: {
-      user: testAccount.user,
-      pass: testAccount.pass,
-    },
+    auth: { user: testAccount.user, pass: testAccount.pass },
   });
-  console.log('[Email] Using Ethereal test SMTP:', testAccount.user);
+  console.log('[Email] Using Ethereal:', testAccount.user);
   return transporter;
 }
 
-export async function sendOTPEmail(email, code) {
-  const transport = await getTransporter();
-
-  const html = `
+function buildEmailHtml(code) {
+  return `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 24px;">
         <h1 style="color: #E8732A; font-size: 28px; margin: 0;">BeautyBook</h1>
@@ -54,20 +50,33 @@ export async function sendOTPEmail(email, code) {
       </p>
     </div>
   `;
+}
+
+export async function sendOTPEmail(email, code) {
+  const transport = await getTransporter();
 
   const info = await transport.sendMail({
     from: process.env.SMTP_FROM || '"BeautyBook" <noreply@beautybook.app>',
     to: email,
     subject: 'Votre code de vérification BeautyBook',
     text: `Votre code de vérification est : ${code}. Ce code expire dans 10 minutes.`,
-    html,
+    html: buildEmailHtml(code),
   });
 
   const previewUrl = nodemailer.getTestMessageUrl(info);
-  if (previewUrl) {
-    console.log('[Email] Preview URL:', previewUrl);
-  }
-  console.log('[Email] Message sent to:', email, '| Message ID:', info.messageId);
+  if (previewUrl) console.log('[Email] Preview:', previewUrl);
+  console.log('[Email] Sent to:', email);
 
   return { success: true, previewUrl };
+}
+
+export async function sendOTPEmailViaSupabase(email, code) {
+  const { error } = await supabaseAdmin.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: true },
+  });
+
+  if (error) throw error;
+  console.log('[Email] Sent via Supabase OTP to:', email);
+  return { success: true };
 }
