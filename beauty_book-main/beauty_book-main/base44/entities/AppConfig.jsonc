@@ -1,0 +1,40 @@
+{
+  "name": "AppConfig",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Cl\u00e9 unique de la configuration (ex: payment_settings)"
+    },
+    "value": {
+      "type": "object",
+      "description": "Valeur de la configuration (objet JSON)"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description de la configuration (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

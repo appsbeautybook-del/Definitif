@@ -1,0 +1,114 @@
+[
+    {
+        "AllowMultiple": true,
+        "EndLine": 1826,
+        "ReplacementContent": "                                    <span class=\"text-[9px] font-bold text-gray-900 text-center leading-tight\">Sérums</span>\n                                </div>\n                                <div class=\"flex flex-col items-center gap-2 group cursor-pointer\">\n                                    <div class=\"w-16 h-16 bg-[#F5F6F8] rounded-full overflow-hidden border border-gray-50 p-1 group-active:scale-90 transition-transform\">\n                                        <img src=\"https://lh3.googleusercontent.com/aida-public/AB6AXuAggXxzyKS6DzC--MDagn77e7GkIJSKJqg8jq2BUrqcx1r3E9HyHLdHTZOuFDkF3IkZYgbEUSBwnmdSOBKgDQUu3jW7KimRPh90oI0_JoeMoHZlJm9fxNNNfKiwdXFvpNWqg44uA63JHbKIRxIuaIDlo7IqRxHbzJH9lAgfCD6pwwn2drUID5PUB__c8-891B3qkL9sBqwlfcR7dBGK_aN5y0e10vb2stKiu6rwb3FzmtmKTJoqEd5AKqwfN8Hx4NFg5t3aCxbXxAc\" class=\"w-full h-full object-cover rounded-full\">\n                                    </div>\n                                    <span class=\"text-[9px] font-bold text-gray-900 text-center leading-tight\">Rouge à lèvres</span>\n                                </div>\n                                <div class=\"flex flex-col items-center gap-2 group cursor-pointer\">\n                                    <div class=\"w-16 h-16 bg-[#F5F6F8] rounded-full overflow-hidden border border-gray-50 p-1 group-active:scale-90 transition-transform\">\n                                        <img src=\"https://lh3.googleusercontent.com/aida-public/AB6AXuAaHrR2z3Gb9abtyPyXbWTxj7qV_okvXghMpS18wDN0XCBg4fP_SMJHf1IMIRZ6bv0qtrBVGiyK8W_B1FK6UrjvnMYpt7WgcfsvE8ZS9tP-g43c9pJhw7vc0dPzz4E4n2RD73erjBEz2jp0xgMMtxLZXukoMOtvDyIRbr136s0dbGzawGHofY_4iT1TkIdgxnlwgvQbdYLV5BkAoTLWuWdR-6816OyG5hRJ-VLRO701yepTPvgY-Db36WAcqQocBbGlXKK-u_LRyuY\" class=\"w-full h-full object-cover rounded-full\">\n                                    </div>\n                                    <span class=\"text-[9px] font-bold text-gray-900 text-center leading-tight\">Palettes</span>",
+        "StartLine": 1813,
+        "TargetContent": "                                    <span class=\"text-[9px] font-bold text-gray-900 text-center leading-tight\">SÃ©rums</span>\n                                </div>\n                                <div class=\"flex flex-col items-center gap-2 group cursor-pointer\">\n                                    <div class=\"w-16 h-16 bg-[#F5F6F8] rounded-full overflow-hidden border border-gray-50 p-1 group-active:scale-90 transition-transform\">\n                                        <img src=\"https://lh3.googleusercontent.com/aida-public/AB6AXuAggXxzyKS6DzC--MDagn77e7GkIJSKJqg8jq2BUrqcx1r3E9HyHLdHTZOuFDkF3IkZYgbEUSBwnmdSOBKgDQUu3jW7KimRPh90oI0_JoeMoHZlJm9fxNNNfKiwdXFvpNWqg44uA63JHbKIRxIuaIDlo7IqRxHbzJH9lAgfCD6pwwn2drUID5PUB__c8-891B3qkL9sBqwlfcR7dBGK_aN5y0e10vb2stKiu6rwb3FzmtmKTJoqEd5AKqwfN8Hx4NFg5t3aCxbXxAc\" class=\"w-full h-full object-cover rounded-full\">\n                                    </div>\n                                    <span class=\"text-[9px] font-bold text-gray-900 text-center leading-tight\">Rouge Ã  lÃ¨vres</span>\n                                </div>\n                                <div class=\"flex flex-col items-center gap-2 group cursor-pointer\">\n                                    <div class=\"w-16 h-16 bg-[#F5F6F8] rounded-full overflow-hidden border border-gray-50 p-1 group-active:scale-90 transition-transform\">\n                                        <img src=\"https://lh3.googleusercontent.com/aida-public/AB6AXuAaHrR2z3Gb9abtyPyXbWTxj7qV_okvXghMpS18wDN0XCBg4fP_SMJHf1IMIRZ6bv0qtrBVGiyK8W_B1FK6UrjvnMYpt7WgcfsvE8ZS9tP-g43c9pJhw7vc0dPzz4E4n2RD73erjBEz2jp0xgMMtxLZXukoMOtvDyIRbr136s0dbGzawGHofY_4iT1TkIdgxnlwgvQbdYLV5BkAoTLWuWdR-6816OyG5hRJ-VLRO701yepTPvgY-Db36WAcqQocBbGlXKK-u_LRyuY\" class=\"w-full h-full object-cover rounded-full\">\n                                    </div>\n                                    <span class=\"text-[9px] font-bold text-gray-900 text-center leading-tight\">Palettes</span>"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 1876,
+        "ReplacementContent": "        <div class=\"flex flex-col h-full bg-[#F5F6F8] animate-in fade-in duration-500 overflow-y-auto hide-scrollbar pb-24\">",
+        "StartLine": 1876,
+        "TargetContent": "        <div class= \"flex flex-col h-full bg-[#F5F6F8] animate-in fade-in duration-500 overflow-y-auto hide-scrollbar pb-24\" >"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 1904,
+        "ReplacementContent": "                        <div class=\"flex justify-between items-start\">\n                            <h4 class=\"text-[14px] font-black text-gray-900\">Nouveautés AI</h4>\n                            <span class=\"text-[9px] font-bold text-gray-400\">À l'instant</span>\n                        </div>\n                        <p class=\"text-[12px] text-gray-600 leading-relaxed\">Le filtre \"Sunset Glow\" est maintenant disponible pour vos tests en direct ! ✨</p>\n                        <button class=\"text-[10px] font-black text-primary uppercase tracking-widest mt-2\">Essayer maintenant</button>",
+        "StartLine": 1899,
+        "TargetContent": "                        <div class=\"flex justify-between items-start\">\n                            <h4 class=\"text-[14px] font-black text-gray-900\">NouveautÃ©s AI</h4>\n                            <span class=\"text-[9px] font-bold text-gray-400\">Ã€ l'instant</span>\n                        </div>\n                        <p class=\"text-[12px] text-gray-600 leading-relaxed\">Le filtre \"Sunset Glow\" est maintenant disponible pour vos tests en direct ! âœ¨</p>\n                        <button class=\"text-[10px] font-black text-primary uppercase tracking-widest mt-2\">Essayer maintenant</button>"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 1919,
+        "ReplacementContent": "                        <div class=\"flex justify-between items-start\">\n                            <h4 class=\"text-[14px] font-black text-gray-900\">Commande expédiée</h4>\n                            <span class=\"text-[9px] font-bold text-gray-400\">Il y a 2h</span>\n                        </div>\n                        <p class=\"text-[12px] text-gray-600 leading-relaxed\">Votre colis #BB-992 a été remis au transporteur. Arrivée prévue demain ! 📦</p>",
+        "StartLine": 1914,
+        "TargetContent": "                        <div class=\"flex justify-between items-start\">\n                            <h4 class=\"text-[14px] font-black text-gray-900\">Commande expÃ©diÃ©e</h4>\n                            <span class=\"text-[9px] font-bold text-gray-400\">Il y a 2h</span>\n                        </div>\n                        <p class=\"text-[12px] text-gray-600 leading-relaxed\">Votre colis #BB-992 a Ã©tÃ© remis au transporteur. ArrivÃ©e prÃ©vue demain ! ðŸ“¦</p>"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 1926,
+        "ReplacementContent": "    <div class=\"flex flex-col h-full bg-white animate-in fade-in duration-500 overflow-y-auto hide-scrollbar pb-24\">",
+        "StartLine": 1926,
+        "TargetContent": "    <div class=\"flex flex-col h-full bg-white animate-in fade-in duration-500 overflow-y-auto hide-scrollbar pb-24\" >"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 1986,
+        "ReplacementContent": "        contentArea.innerHTML = '<div class=\"p-8 text-center text-gray-500\">Écran en cours de développement...</div>';",
+        "StartLine": 1985,
+        "TargetContent": "        contentArea.innerHTML = '<div class=\"p-8 text-center text-gray-500\">Ã‰cran en cours de dÃ©veloppement...</div>';"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2026,
+        "ReplacementContent": "        <div class=\"p-6 grid grid-cols-2 gap-3 pb-24 animate-in fade-in duration-300\">",
+        "StartLine": 2026,
+        "TargetContent": "    <div class=\"p-6 grid grid-cols-2 gap-3 pb-24 animate-in fade-in duration-300\" >"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2033,
+        "ReplacementContent": "                            <p class=\"text-primary font-black text-xs\">120 € - 250 €</p>",
+        "StartLine": 2033,
+        "TargetContent": "                            <p class=\"text-primary font-black text-xs\">120 â‚¬ - 250 â‚¬</p>"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2043,
+        "ReplacementContent": "                    <p class=\"text-primary font-black text-xs\">45 € - 80 €</p>",
+        "StartLine": 2043,
+        "TargetContent": "                    <p class=\"text-primary font-black text-xs\">45 â‚¬ - 80 â‚¬</p>"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2051,
+        "ReplacementContent": "        <div class=\"flex flex-col h-full bg-black snap-y snap-mandatory animate-in fade-in duration-300\">",
+        "StartLine": 2051,
+        "TargetContent": "    <div class=\"flex flex-col h-full bg-black snap-y snap-mandatory animate-in fade-in duration-300\" >"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2057,
+        "ReplacementContent": "                    <p class=\"text-white/60 text-[10px] uppercase tracking-widest\">Voir le détail du style</p>",
+        "StartLine": 2057,
+        "TargetContent": "                    <p class=\"text-white/60 text-[10px] uppercase tracking-widest\">Voir le dÃ©tail du style</p>"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2063,
+        "ReplacementContent": "        contentArea.innerHTML = '<div class=\"p-12 text-center text-gray-400 font-bold animate-in zoom-in duration-300\">Section en cours de développement...</div>';",
+        "StartLine": 2063,
+        "TargetContent": "        contentArea.innerHTML = '<div class=\"p-12 text-center text-gray-400 font-bold animate-in zoom-in duration-300\">Section en cours de dÃ©veloppement...</div>';"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2119,
+        "ReplacementContent": "    const data = {\n        soins: ['Visage', 'Corps', 'Solaire', 'Anti-âge', 'Démaquillant', 'Bio'],\n        makeup: ['Teint', 'Lèvres', 'Yeux', 'Sourcils', 'Pinceaux', 'Palettes'],\n        hair: ['Shampoing', 'Soin', 'Masque', 'Huile', 'Styling', 'Coloration'],\n        parfum: ['Eau de Parfum', 'Eau de Toilette', 'Coffret', 'Brume', 'Homme']\n    };",
+        "StartLine": 2115,
+        "TargetContent": "    const data = {\n        soins: ['Visage', 'Corps', 'Solaire', 'Anti-Ã¢ge', 'DÃ©maquillant', 'Bio'],\n        makeup: ['Teint', 'LÃ¨vres', 'Yeux', 'Sourcils', 'Pinceaux', 'Palettes'],\n        hair: ['Shampoing', 'Soin', 'Masque', 'Huile', 'Styling', 'Coloration'],\n        parfum: ['Eau de Parfum', 'Eau de Toilette', 'Coffret', 'Brume', 'Homme']\n    };"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2137,
+        "ReplacementContent": "        const activeCat = document.getElementById(`cat-${categoryId}`);",
+        "StartLine": 2137,
+        "TargetContent": "        const activeCat = document.getElementById(`cat-${ categoryId}`);"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2146,
+        "ReplacementContent": "    <button class=\"px-4 py-2 bg-white border border-gray-100 rounded-full text-[10px] font-black text-gray-500 uppercase tracking-widest whitespace-nowrap active:bg-orange-50 active:text-primary transition-all shadow-sm\">",
+        "StartLine": 2146,
+        "TargetContent": "    <button class=\"px-4 py-2 bg-white border border-gray-100 rounded-full text-[10px] font-black text-gray-500 uppercase tracking-widest whitespace-nowrap active:bg-orange-50 active:text-primary transition-all shadow-sm\" >"
+    },
+    {
+        "AllowMultiple": false,
+        "EndLine": 2148,
+        "ReplacementContent": "        ${sub}",
+        "StartLine": 2147,
+        "TargetContent": "        ${ sub }"
+    }
+]

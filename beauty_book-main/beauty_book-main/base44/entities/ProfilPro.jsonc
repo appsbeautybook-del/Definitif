@@ -1,0 +1,204 @@
+{
+  "name": "ProfilPro",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string"
+    },
+    "salon_name": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string"
+    },
+    "avatar_url": {
+      "type": "string"
+    },
+    "cover_url": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "postal_code": {
+      "type": "string"
+    },
+    "lat": {
+      "type": "number",
+      "description": "Latitude g\u00e9ocod\u00e9e de l'adresse"
+    },
+    "lng": {
+      "type": "number",
+      "description": "Longitude g\u00e9ocod\u00e9e de l'adresse"
+    },
+    "type_activite": {
+      "type": "string",
+      "enum": [
+        "Salon",
+        "Particulier"
+      ],
+      "default": "Salon"
+    },
+    "specialites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "commodites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "seats_count": {
+      "type": "number",
+      "default": 1
+    },
+    "services_additionnels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nom": {
+            "type": "string"
+          },
+          "prix": {
+            "type": "number"
+          }
+        }
+      },
+      "default": []
+    },
+    "menu_restaurant": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "nom": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "prix": {
+            "type": "number"
+          },
+          "image_url": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "services_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "rating": {
+      "type": "number",
+      "default": 0
+    },
+    "reviews_count": {
+      "type": "number",
+      "default": 0
+    },
+    "followers": {
+      "type": "number",
+      "default": 0
+    },
+    "verified": {
+      "type": "boolean",
+      "default": false
+    },
+    "has_diplome": {
+      "type": "boolean",
+      "default": false,
+      "description": "Le professionnel a coch\u00e9 avoir un dipl\u00f4me lors de son parcours Devenir Pro"
+    },
+    "diplomes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Liste des dipl\u00f4mes/certifications s\u00e9lectionn\u00e9s par le pro"
+    },
+    "abonnement": {
+      "type": "string",
+      "enum": [
+        "free",
+        "pro",
+        "premium"
+      ],
+      "default": "free"
+    },
+    "ouverture": {
+      "type": "object"
+    },
+    "gallery": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "actif",
+        "pause"
+      ],
+      "default": "actif"
+    },
+    "travail_nuit": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "user_email",
+    "salon_name"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

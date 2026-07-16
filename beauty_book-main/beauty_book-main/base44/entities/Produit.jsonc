@@ -1,0 +1,131 @@
+{
+  "name": "Produit",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "price": {
+      "type": "number"
+    },
+    "old_price": {
+      "type": "number"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "brand": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Soins Visage",
+        "Cheveux",
+        "Maquillage",
+        "Parfums",
+        "Ongles",
+        "Corps",
+        "V\u00eatements",
+        "Chaussures",
+        "Accessoires",
+        "Hygi\u00e8ne",
+        "Alimentaire",
+        "Divers"
+      ],
+      "default": "Soins Visage"
+    },
+    "sub_category": {
+      "type": "string",
+      "description": "Sous-cat\u00e9gorie du produit"
+    },
+    "stock": {
+      "type": "number",
+      "default": 0
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "featured": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "actif",
+        "inactif"
+      ],
+      "default": "actif"
+    },
+    "external_url": {
+      "type": "string",
+      "description": "Lien externe produit (Shopify, etc.)"
+    },
+    "vente_type": {
+      "type": "string",
+      "enum": [
+        "detail",
+        "grossiste"
+      ],
+      "default": "detail",
+      "description": "Type de vente : d\u00e9tail ou grossiste"
+    },
+    "min_qty": {
+      "type": "number",
+      "description": "Quantit\u00e9 minimum de commande (mode grossiste)"
+    }
+  },
+  "required": [
+    "name",
+    "price"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "data.status": "actif"
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

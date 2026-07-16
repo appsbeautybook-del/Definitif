@@ -1,0 +1,67 @@
+{
+  "name": "Panier",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "produit_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "quantity": {
+            "type": "number",
+            "default": 1
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "total": {
+      "type": "number",
+      "default": 0
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "user_email"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "email": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "data.user_email": "{{user.email}}"
+    },
+    "update": {
+      "data.user_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.user_email": "{{user.email}}"
+    }
+  }
+}

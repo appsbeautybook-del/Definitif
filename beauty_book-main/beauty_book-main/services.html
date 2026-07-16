@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BeautyBook Services - Styles Feed</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#f48c25",
+                        "background-light": "#f8f7f5",
+                        "background-dark": "#221910",
+                        "surface-light": "#ffffff",
+                        "surface-dark": "#2d241b",
+                        "text-main": "#1c140d",
+                        "text-secondary": "#9c7349",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-main dark:text-gray-100 flex flex-col min-h-screen">
+<!-- Top Action Menu -->
+<div class="sticky top-0 z-50 bg-surface-light dark:bg-surface-dark shadow-sm px-4 py-3 flex justify-between items-center overflow-x-auto hide-scrollbar border-b border-gray-100 dark:border-gray-800 gap-2">
+<button class="p-2 text-gray-500 hover:text-primary transition-colors flex flex-col items-center min-w-[3rem]">
+<span class="material-symbols-outlined text-2xl">videocam</span>
+<span class="text-[0.65rem] mt-1 font-medium">Live</span>
+</button>
+<button class="p-2 text-gray-500 hover:text-primary transition-colors flex flex-col items-center min-w-[3rem]">
+<span class="material-symbols-outlined text-2xl">search</span>
+<span class="text-[0.65rem] mt-1 font-medium">Search</span>
+</button>
+<button class="p-2 text-gray-500 hover:text-primary transition-colors flex flex-col items-center min-w-[3rem]">
+<span class="material-symbols-outlined text-2xl">group</span>
+<span class="text-[0.65rem] mt-1 font-medium">Social</span>
+</button>
+<button class="p-2 text-gray-500 hover:text-primary transition-colors flex flex-col items-center min-w-[3rem]">
+<span class="material-symbols-outlined text-2xl">shopping_bag</span>
+<span class="text-[0.65rem] mt-1 font-medium">Shop</span>
+</button>
+<button class="p-2 text-gray-500 hover:text-primary transition-colors flex flex-col items-center min-w-[3rem]">
+<span class="material-symbols-outlined text-2xl">real_estate_agent</span>
+<span class="text-[0.65rem] mt-1 font-medium">Immo</span>
+</button>
+<button class="p-2 text-gray-500 hover:text-primary transition-colors flex flex-col items-center min-w-[3rem]">
+<span class="material-symbols-outlined text-2xl">loyalty</span>
+<span class="text-[0.65rem] mt-1 font-medium">Loyalty</span>
+</button>
+</div>
+<!-- Rubric Tabs -->
+<div class="bg-surface-light dark:bg-surface-dark sticky top-[72px] z-40">
+<div class="flex border-b border-gray-200 dark:border-gray-700 px-4 justify-between overflow-x-auto hide-scrollbar">
+<a class="flex flex-col items-center justify-center border-b-[3px] border-b-primary text-text-main dark:text-white pb-[13px] pt-4 px-4 whitespace-nowrap" href="#">
+<p class="text-sm font-bold leading-normal tracking-[0.015em]">Styles</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-500 hover:text-primary dark:text-gray-400 pb-[13px] pt-4 px-4 whitespace-nowrap" href="#">
+<p class="text-sm font-bold leading-normal tracking-[0.015em]">Services</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-500 hover:text-primary dark:text-gray-400 pb-[13px] pt-4 px-4 whitespace-nowrap" href="#">
+<p class="text-sm font-bold leading-normal tracking-[0.015em]">Salons de beauté</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-500 hover:text-primary dark:text-gray-400 pb-[13px] pt-4 px-4 whitespace-nowrap" href="#">
+<p class="text-sm font-bold leading-normal tracking-[0.015em]">Particuliers</p>
+</a>
+</div>
+</div>
+<!-- Main Content Area -->
+<main class="flex-1 relative bg-background-light dark:bg-background-dark pb-24">
+<!-- Style Card 1 (Main Feature) -->
+<div class="relative h-[calc(100vh-280px)] min-h-[500px] w-full bg-gray-200 dark:bg-gray-800 overflow-hidden group">
+<!-- Full Screen Image -->
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Woman with glowing skin and natural makeup looking serene" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB6Yvetoe62x3vCWKFdQ5a0GwP1zAz55zVjwnTKudlIKgkfsYaRHl0pyuKlfI_iJElct9y5SyFNnAHwsguRtCZ5Qgx4kMEkPwe_puuUXndyG0rMKsojEiBcr6efsKWXeE38Czmh5Ynvfusjo0coEP1v12_ALuSY_6QFrkM1oFr6M3mdVENAjVVLtUZ6n_2LaBNxCu6moGFE_j6YHoP7TzqaOInc_eO45wVZfb9L_53ZsrApSOeyZLGVMf4vpGzYodpNeHQ6RCqx5XE');">
+</div>
+<!-- Gradient Overlay for Text Readability -->
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+<!-- Content Overlay -->
+<div class="absolute bottom-0 left-0 right-0 p-6 flex flex-col gap-4 text-white">
+<div>
+<div class="flex items-center gap-2 mb-2">
+<span class="bg-primary/90 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Trending</span>
+<div class="flex -space-x-2">
+<img alt="Avatar" class="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900" data-alt="User avatar 1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDw_BuBZeO4RgG8CUNEQcJ8wctGPelfdZB---6XifjmRAsYXN_bItLTeo8wYaVJN5QiekeHZNcwKtUZAU1-LoMKjuBhu_1NThqpmdMBGmKZfJat1D0gFhsUqWsoLAldvMXJQBg7b1moQjR3p16LVYR_4wYirD26PptMLVdaHeIyFq0Xg9zJPluudKRsWazU-qHtzBnhHwWGM-rsOx0nZ-Jw-Xx4EVyqQQh4vkwNFVB0HwiTMUG9WWO8dEgSUcFPFs3KgruYa3Xsw88"/>
+<img alt="Avatar" class="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900" data-alt="User avatar 2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXPmMyFtgr9YWGhaPijxW4GZh5eoHaBjUdAIhroz3cOC4CiUW2CRsTfGd7cxie1HMPrD0OJzoVLPmWZh26g7g8cshifN8M7NmpujEivdcM3ZydHyhou_2f_TVuY1gYPUVciQSEdhIysMmhrwoYwRXogY5vNgkNeS1QxVXQ2QMi6DWYp2MezmZvp-SKSbzYQqRV6opDfrGzECJI39fTa-oy_PU1hVYEqQB0G7Iu2GXY9uKODv2FhnskUovHVVKgq0nAue8xp0hRX6c"/>
+<span class="w-6 h-6 rounded-full border-2 border-white dark:border-gray-900 bg-gray-700 text-[8px] flex items-center justify-center font-bold">+12</span>
+</div>
+</div>
+<h2 class="text-3xl font-bold mb-1 tracking-tight">Summer Glow Look</h2>
+<p class="text-gray-200 text-sm line-clamp-2">Un maquillage frais et éclatant, parfait pour les journées ensoleillées. Découvrez les produits utilisés par nos experts.</p>
+</div>
+<button class="w-full bg-primary hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transform transition active:scale-95 flex items-center justify-center gap-2">
+<span>Voir les services associés</span>
+<span class="material-symbols-outlined text-lg">arrow_forward</span>
+</button>
+</div>
+<!-- Side Actions (Like, Share, Save) -->
+<div class="absolute bottom-28 right-4 flex flex-col gap-4 items-center">
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center group-active/btn:scale-90 transition">
+<span class="material-symbols-outlined text-white text-2xl" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</div>
+<span class="text-white text-xs font-medium">2.4k</span>
+</button>
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center group-active/btn:scale-90 transition">
+<span class="material-symbols-outlined text-white text-2xl">chat_bubble</span>
+</div>
+<span class="text-white text-xs font-medium">84</span>
+</button>
+<button class="flex flex-col items-center gap-1 group/btn">
+<div class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center group-active/btn:scale-90 transition">
+<span class="material-symbols-outlined text-white text-2xl">bookmark</span>
+</div>
+</button>
+</div>
+</div>
+<!-- AI Filter Float Button -->
+<div class="fixed bottom-24 right-5 z-40">
+<button class="flex items-center gap-2 bg-surface-light dark:bg-surface-dark text-text-main dark:text-white px-4 py-3 rounded-full shadow-xl border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all active:scale-95">
+<span class="material-symbols-outlined text-primary">auto_awesome</span>
+<span class="font-bold text-sm">Filtre IA</span>
+</button>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<div class="fixed bottom-0 left-0 right-0 bg-surface-light dark:bg-surface-dark border-t border-gray-100 dark:border-gray-800 px-6 pb-6 pt-3 z-50 flex justify-between items-end">
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-gray-400 hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">home</span>
+<p class="text-[10px] font-medium tracking-wide">Accueil</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+<p class="text-[10px] font-medium tracking-wide">Services</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-gray-400 hover:text-primary transition-colors group relative -top-3" href="#">
+<div class="bg-primary rounded-full p-3 shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-white text-2xl">mic</span>
+</div>
+<p class="text-[10px] font-medium tracking-wide mt-1">Assistant</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-gray-400 hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">calendar_month</span>
+<p class="text-[10px] font-medium tracking-wide">RDV</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-gray-400 hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">person</span>
+<p class="text-[10px] font-medium tracking-wide">Profil</p>
+</a>
+</div>
+</body></html>

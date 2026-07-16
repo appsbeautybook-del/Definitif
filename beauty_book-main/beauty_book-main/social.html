@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BeautyBook Social Feed - Conseils</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#f48c25",
+              "background-light": "#f8f7f5",
+              "background-dark": "#221910",
+              "neutral-surface": "#ffffff",
+              "neutral-text": "#1c140d",
+              "neutral-muted": "#9c7349",
+            },
+            fontFamily: {
+              "display": ["Plus Jakarta Sans", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+    }
+    </script>
+<style>
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light text-neutral-text font-display antialiased h-screen overflow-hidden flex flex-col">
+<!-- Top Action Menu & Header -->
+<header class="bg-neutral-surface/90 backdrop-blur-md sticky top-0 z-50 pt-safe-top">
+<div class="flex items-center justify-between px-4 py-3">
+<button class="text-neutral-text p-2 rounded-full hover:bg-background-light transition-colors">
+<span class="material-symbols-outlined text-2xl">photo_camera</span>
+</button>
+<h1 class="text-lg font-bold">Conseils</h1>
+<button class="text-neutral-text p-2 rounded-full hover:bg-background-light transition-colors">
+<span class="material-symbols-outlined text-2xl">search</span>
+</button>
+</div>
+<!-- Feed Tabs -->
+<div class="flex border-b border-gray-100 px-4">
+<a class="flex-1 flex flex-col items-center justify-center py-3 text-neutral-muted hover:text-primary transition-colors" href="#">
+<span class="text-sm font-bold">Réels</span>
+<div class="h-[3px] w-full mt-3 rounded-t-full bg-transparent"></div>
+</a>
+<a class="flex-1 flex flex-col items-center justify-center py-3 text-neutral-text" href="#">
+<span class="text-sm font-bold">Conseils</span>
+<div class="h-[3px] w-full mt-3 rounded-t-full bg-primary"></div>
+</a>
+<a class="flex-1 flex flex-col items-center justify-center py-3 text-neutral-muted hover:text-primary transition-colors" href="#">
+<span class="text-sm font-bold">Tutoriels</span>
+<div class="h-[3px] w-full mt-3 rounded-t-full bg-transparent"></div>
+</a>
+</div>
+</header>
+<!-- Main Content Area: Immersive Feed -->
+<main class="flex-1 relative overflow-y-auto snap-y snap-mandatory hide-scrollbar bg-black">
+<!-- Video Item 1 -->
+<div class="relative w-full h-full snap-start flex items-center justify-center bg-gray-900 overflow-hidden">
+<!-- Background Image simulating video -->
+<div class="absolute inset-0 z-0 bg-cover bg-center" data-alt="Woman applying face serum" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAFmZ_IeKafpfsnSzbTChu9YSd9TEJJfsMJ04BIDiOklfh8cesnSc94vezvXuCuIwAr-SqkOSYCb7U1J6pnBt9fBtLQ2Z4e55U0QBmIeNa2i79g1X97-h3cxxzPShHJJmY39i6ql3wGDHDvPs9XXEmSbutOJ0Qg3jCHNSAoUw8TiXM_Vqn5Sb2KJjeQAuT-GQlHnG4quhHO-cKVeZ51VakrWOQM-8y5KTR1ia6SnZpaHhDzG43pKzJX3cwQgspuLx2K0tTkLHN1tnQ');">
+<div class="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/80"></div>
+</div>
+<!-- Play Button (Overlay) -->
+<div class="absolute z-10 opacity-0 hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white text-6xl drop-shadow-lg">play_circle</span>
+</div>
+<!-- Content Overlay -->
+<div class="absolute bottom-0 left-0 right-0 p-4 pb-6 z-20 flex items-end justify-between">
+<!-- Left Side: Info -->
+<div class="flex flex-col gap-3 w-3/4">
+<!-- Product Tag -->
+<div class="inline-flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 w-fit">
+<span class="material-symbols-outlined text-primary text-sm">shopping_bag</span>
+<div class="flex flex-col">
+<span class="text-white text-xs font-medium">Produit utilisé</span>
+<span class="text-white/80 text-[10px]">Sérum Hydratant Eclat</span>
+</div>
+</div>
+<!-- Creator Info -->
+<div class="flex items-center gap-3">
+<div class="relative w-10 h-10 rounded-full border-2 border-primary overflow-hidden">
+<img alt="Clara Beauty Avatar" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDle_kGifU2Qj0hdJcn9nfBxDef-eEaVdC6zeKcsJWI362sjxlSmWT43kJ-BdwpjIL8mz2bzkAVtFn1cl9Q5H5mHt0oWNTzK16lFtjZmLv9qm7WXRVRVDJ2KoQHwHo8CrpB30vg1ERE0g0ph9zOHklXAk4L0gY1YmxlZk9NhGX8yzflTcu6hLa50fcioGkrDIz9Zpj4ilXxwfJC3su-xR7ISZPY7OnP9REVY2R84v34hMxdH-OsqNt-3oxWRqiMZiVydCY_fxydtJY"/>
+</div>
+<div class="flex flex-col">
+<span class="text-white font-bold text-sm shadow-black drop-shadow-md">Clara Beauty</span>
+<span class="text-white/80 text-xs">Expert Skincare</span>
+</div>
+<button class="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-3 py-1.5 rounded-full ml-1 transition-transform active:scale-95">
+                            Suivre
+                        </button>
+</div>
+<!-- Description -->
+<p class="text-white text-sm line-clamp-2 drop-shadow-md">
+                        Le secret pour une peau lumineuse ✨ Voici ma routine du matin en 3 étapes simples ! #skincare #glow #morningroutine
+                    </p>
+</div>
+<!-- Right Side: Interactions -->
+<div class="flex flex-col items-center gap-5 pb-2">
+<div class="flex flex-col items-center gap-1">
+<button class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform group">
+<span class="material-symbols-outlined text-primary text-2xl group-hover:scale-110 transition-transform" style="font-variation-settings: 'FILL' 1;">favorite</span>
+</button>
+<span class="text-white text-xs font-bold drop-shadow-md">12.5k</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<button class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-white text-2xl">chat_bubble</span>
+</button>
+<span class="text-white text-xs font-bold drop-shadow-md">482</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<button class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-white text-2xl">bookmark</span>
+</button>
+<span class="text-white text-xs font-bold drop-shadow-md">Save</span>
+</div>
+<div class="flex flex-col items-center gap-1">
+<button class="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-white text-2xl">share</span>
+</button>
+<span class="text-white text-xs font-bold drop-shadow-md">Share</span>
+</div>
+<div class="mt-2 w-8 h-8 rounded border border-white/30 overflow-hidden">
+<img alt="Music Cover" class="w-full h-full object-cover animate-[spin_4s_linear_infinite]" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAlNHHTn5F6SlXBPhwyGclwpmHQnEk2U3pZES0GhDnykMFWMUIKhtDxgMurqrYke9iw56Wvcb90qRidvBfll1cwDPNAi2mfgOrN5jsrhsPgo6omsbdZlqvy7ZNiQMJOJcYa8pthGEI-mq1FW4ePDaDaYxCHf58V6kuwCR3k5Mw5v5g4p2JyVxnS50xKyBYd5H9viXCPF_7jsRluuY8HEKDXgz1t62h8q0DDQ0g-RQljd1BralZh4fZhhpcFvCVjqLY8TNQuB0CkvXA"/>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation Bar -->
+<nav class="bg-neutral-surface border-t border-gray-100 pb-safe-bottom">
+<div class="flex justify-around items-end pt-2 pb-3 px-2">
+<!-- Accueil -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-neutral-muted hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">home</span>
+<span class="text-[10px] font-medium tracking-wide">Accueil</span>
+</a>
+<!-- Services -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-neutral-muted hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">grid_view</span>
+<span class="text-[10px] font-medium tracking-wide">Services</span>
+</a>
+<!-- Assistant IA -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-neutral-muted hover:text-primary transition-colors group relative" href="#">
+<div class="bg-primary/10 rounded-full p-1 -mt-4 mb-0.5 group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary text-3xl group-hover:scale-110 transition-transform">mic</span>
+</div>
+<span class="text-[10px] font-medium tracking-wide text-primary">Assistant IA</span>
+</a>
+<!-- Rendez-vous -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-neutral-muted hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">calendar_month</span>
+<span class="text-[10px] font-medium tracking-wide">Rendez-vous</span>
+</a>
+<!-- Profil -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-neutral-muted hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform">person</span>
+<span class="text-[10px] font-medium tracking-wide">Profil</span>
+</a>
+</div>
+</nav>
+</body></html>

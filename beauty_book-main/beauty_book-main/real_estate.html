@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+
+<html lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BeautyBook Immobilier</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#f47b25",
+                        "background-light": "#ffffff",
+                        "background-dark": "#1f2937",
+                        "surface-light": "#f8f7f5",
+                        "surface-dark": "#374151",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.75rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased selection:bg-primary/30">
+<div class="relative flex flex-col h-screen w-full overflow-hidden max-w-md mx-auto shadow-2xl bg-background-light dark:bg-background-dark">
+<!-- Header & Search -->
+<header class="sticky top-0 z-20 bg-background-light dark:bg-background-dark border-b border-slate-100 dark:border-slate-800">
+<!-- Top Bar -->
+<div class="flex items-center justify-between px-4 py-3">
+<button class="p-2 -ml-2 text-slate-900 dark:text-white rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<h1 class="text-lg font-bold text-slate-900 dark:text-white flex-1 text-center pr-8">Immobilier</h1>
+<div class="w-8"></div> <!-- Spacer for centering -->
+</div>
+<!-- Top Action Menu (6 Icons) -->
+<div class="flex justify-between items-center px-4 py-2 gap-2 overflow-x-auto no-scrollbar">
+<button class="flex flex-col items-center gap-1 min-w-[3rem] text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">map</span>
+<span class="text-[10px] font-medium">Carte</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[3rem] text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">tune</span>
+<span class="text-[10px] font-medium">Filtres</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[3rem] text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">sort</span>
+<span class="text-[10px] font-medium">Trier</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[3rem] text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">view_list</span>
+<span class="text-[10px] font-medium">Vue</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[3rem] text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">share</span>
+<span class="text-[10px] font-medium">Partager</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[3rem] text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">favorite</span>
+<span class="text-[10px] font-medium">Favoris</span>
+</button>
+</div>
+<!-- Filter Chips -->
+<div class="flex gap-2 px-4 py-3 overflow-x-auto no-scrollbar border-t border-slate-50 dark:border-slate-800">
+<button class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 px-3 py-1.5 transition-colors hover:border-primary/50 hover:bg-primary/5">
+<span class="text-xs font-medium whitespace-nowrap">Type de bien</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<button class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 px-3 py-1.5 transition-colors hover:border-primary/50 hover:bg-primary/5">
+<span class="text-xs font-medium whitespace-nowrap">Ville</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<button class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 px-3 py-1.5 transition-colors hover:border-primary/50 hover:bg-primary/5">
+<span class="text-xs font-medium whitespace-nowrap">Budget</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+<button class="flex shrink-0 items-center gap-1.5 rounded-full bg-surface-light dark:bg-surface-dark border border-slate-200 dark:border-slate-700 px-3 py-1.5 transition-colors hover:border-primary/50 hover:bg-primary/5">
+<span class="text-xs font-medium whitespace-nowrap">Surface</span>
+<span class="material-symbols-outlined text-[16px]">expand_more</span>
+</button>
+</div>
+</header>
+<!-- Main Content: Listings List -->
+<main class="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-24 bg-surface-light dark:bg-background-dark">
+<!-- Listing Card 1 -->
+<div class="group bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex">
+<!-- Image Side -->
+<div class="w-32 h-32 shrink-0 bg-slate-200 relative overflow-hidden">
+<img alt="Modern bright salon interior with mirrors" class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Modern bright salon interior with mirrors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCysFjJwiUgnubPuD4hQk3BPi4Nfq7YXy_M1v0772a747gjGYo1BSnufYe83ZVt6zGQBgFJjpnzV3BYIgvjxp2Xp-WHNaHdIIX_ftD86vUH7MGQ8WmrBirrB67LauNwV-R9hfFNiCH-y4sqB9ocBFLH3EkML198B9pjXXyWAGIz2FEtzrIRAq6-MuTHoaQjE_Ccq5ANAUF2zdF4QO-ZLH7RH8_NCJrU1xM9WMKKAb4yLju82mIWd_EaC0Umk0jdszDvAHkfTKVrEDY"/>
+<div class="absolute top-2 left-2 bg-slate-900/70 backdrop-blur-sm px-1.5 py-0.5 rounded text-[10px] text-white font-medium">
+                            Pro
+                        </div>
+</div>
+<!-- Content Side -->
+<div class="flex-1 p-3 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">Poste de coiffure à louer</h3>
+<button class="text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+</button>
+</div>
+<p class="text-primary font-bold text-base mb-1">650 € <span class="text-xs font-normal text-slate-500 dark:text-slate-400">/mois</span></p>
+<div class="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs mb-2">
+<span class="material-symbols-outlined text-[14px]">location_on</span>
+<span>Paris 08 • 20m²</span>
+</div>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                            Espace lumineux, tout équipé avec fauteuil barbier. Idéal freelance. Wifi inclus.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Listing Card 2 -->
+<div class="group bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex">
+<div class="w-32 h-32 shrink-0 bg-slate-200 relative overflow-hidden">
+<img alt="Luxury nail salon station" class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Luxury nail salon station" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCn1YiIu6ETGVBZRb1cGjCkzuKUgYVsPatj0Jebz9tTQdu1QH3-7J28EZIECvRpvG07TzBNPKuuG355F0kYzu12BeJu273hqlosUQXAyVzvEwaPLhHTtuYmtXk5i9Ab5-trSb3eVXfAQcxw4aflw2cQVAiowBrWi-bidPuEzph8I2xr9tiGV-QxVuToY2uzlZf6palmymsLifA1AVcU8hEFm6SoYK3Nkvhh6yMQGCAIuE-3cTGMjrfPxHoEoOkNycUX5N0gbH5wSo"/>
+<div class="absolute top-2 left-2 bg-primary/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-[10px] text-white font-medium">
+                            Nouveau
+                        </div>
+</div>
+<div class="flex-1 p-3 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">Espace Onglerie &amp; Manucure</h3>
+<button class="text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+</button>
+</div>
+<p class="text-primary font-bold text-base mb-1">450 € <span class="text-xs font-normal text-slate-500 dark:text-slate-400">/mois</span></p>
+<div class="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs mb-2">
+<span class="material-symbols-outlined text-[14px]">location_on</span>
+<span>Lyon 02 • 12m²</span>
+</div>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                            Coin onglerie dans salon réputé. Table manucure fournie. Clientèle existante.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Listing Card 3 -->
+<div class="group bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex">
+<div class="w-32 h-32 shrink-0 bg-slate-200 relative overflow-hidden">
+<img alt="Private massage therapy room" class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Private massage therapy room" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcOUnX87sKHWNu4XRCFVRgX59O2Fky0ZaxVMdYQ0XHR2g1al-plCI3KXIhyBHYlfNvQ4Jrny8-1iDppUjZgrQ4LoIPsLi5C1235XeZ-Dhfk2bYfZdVvR0sZmSmLSdMGbq79nYMw4AQdkepOxlSxxBzplHBQaiVlw8fwX4q1BJV8oNrzZ8lKoCuJk4VEztqG2oo_tW9OIvRVLiXhwHJa56XjeNQIB-M1bJTJbKkyulVtYwQHgPwZhXM5qvgu6mcitlhqWixGnpHIKw"/>
+</div>
+<div class="flex-1 p-3 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">Cabine Esthétique Privée</h3>
+<button class="text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+</button>
+</div>
+<p class="text-primary font-bold text-base mb-1">800 € <span class="text-xs font-normal text-slate-500 dark:text-slate-400">/mois</span></p>
+<div class="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs mb-2">
+<span class="material-symbols-outlined text-[14px]">location_on</span>
+<span>Bordeaux • 18m²</span>
+</div>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                            Cabine insonorisée pour soins visages et corps. Point d'eau, rangements.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Listing Card 4 -->
+<div class="group bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex">
+<div class="w-32 h-32 shrink-0 bg-slate-200 relative overflow-hidden">
+<img alt="Shared creative workspace area" class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Shared creative workspace area" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnidEP0mu4HQGlIAfH3AaRPokaeYDWhhB8sZfqV9CVxUVRaA2Z62TM5z1jarNt6sp3O3HoHg3Pcu2sJ1yKoCaTTExcAjRzCwFFcjQWTctX09dinCujzmV6UteGJQTeSrhk8USbWO8Q3a_Ax7UXsNKs1sIhlpSCWqZ7oNfRATHq2S-QrSZhqxJnyzLPKQ622a-jUf-t4I5oNGl48RobvWtdxWOg560HoH8xl9wYLxx-LefhGucIiFsQEH0myC5193VIVp9rw9U_pkE"/>
+</div>
+<div class="flex-1 p-3 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">Corner Make-up Artiste</h3>
+<button class="text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+</button>
+</div>
+<p class="text-primary font-bold text-base mb-1">350 € <span class="text-xs font-normal text-slate-500 dark:text-slate-400">/mois</span></p>
+<div class="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs mb-2">
+<span class="material-symbols-outlined text-[14px]">location_on</span>
+<span>Marseille • 8m²</span>
+</div>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                            Miroir Hollywood, chaise haute. Parfait pour essais mariage et cours.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Listing Card 5 -->
+<div class="group bg-white dark:bg-surface-dark rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden hover:shadow-md transition-shadow cursor-pointer">
+<div class="flex">
+<div class="w-32 h-32 shrink-0 bg-slate-200 relative overflow-hidden">
+<img alt="Barber shop chair vintage style" class="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Barber shop chair vintage style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxSUrJ9doMDRn0ewYVVFXc5vB7YqE8J6XuQzLLwE195VuWa3vqt--MUeM32lLiTXB3IrlaKOi6u0f_7BsmbeNkoE3lM6rrtY4KEtF7DuQll11oO83tCj27sCe5hpoJQNWlAtyMKAyPPtXk4Y0MFIpCCvlEnjnIklMZao0ErkY9IhnI2p1YXpTeNZitTdfC0eq4c7lRIqfUVvyDiqRj4R_oVWko1n5VxPsjZjLjqhhbbKL138XneINXk1p4WRLahyzF8iLgWY3t5NE"/>
+</div>
+<div class="flex-1 p-3 flex flex-col justify-between">
+<div>
+<div class="flex justify-between items-start mb-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">Fauteuil Barbier Vintage</h3>
+<button class="text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-[20px]">favorite</span>
+</button>
+</div>
+<p class="text-primary font-bold text-base mb-1">600 € <span class="text-xs font-normal text-slate-500 dark:text-slate-400">/mois</span></p>
+<div class="flex items-center gap-1 text-slate-500 dark:text-slate-400 text-xs mb-2">
+<span class="material-symbols-outlined text-[14px]">location_on</span>
+<span>Nantes • 15m²</span>
+</div>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                            Ambiance industrielle, clientèle masculine. Accès 24/7.
+                        </p>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating CTA Button -->
+<div class="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 w-auto">
+<button class="flex items-center gap-2 bg-primary hover:bg-orange-600 text-white px-6 py-3 rounded-full shadow-lg shadow-orange-500/30 transition-all active:scale-95">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span class="font-bold text-sm tracking-wide">Déposer une annonce</span>
+</button>
+</div>
+<!-- Bottom Navigation Bar -->
+<nav class="bg-background-light dark:bg-background-dark border-t border-slate-100 dark:border-slate-800 pb-safe pt-2 px-4 z-30">
+<div class="flex justify-between items-end gap-2 pb-2">
+<!-- Accueil -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-slate-400 hover:text-primary transition-colors group" href="#">
+<div class="flex h-8 items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[24px]">home</span>
+</div>
+<span class="text-[10px] font-medium leading-normal tracking-wide">Accueil</span>
+</a>
+<!-- Services -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-primary hover:text-primary transition-colors group" href="#">
+<div class="flex h-8 items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[24px] font-variation-settings-fill">business_center</span>
+</div>
+<span class="text-[10px] font-medium leading-normal tracking-wide">Services</span>
+</a>
+<!-- Assistant -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-slate-400 hover:text-primary transition-colors group relative" href="#">
+<!-- Notification Dot -->
+<span class="absolute top-1 right-2 w-2 h-2 bg-red-500 rounded-full"></span>
+<div class="flex h-8 items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[24px]">mic</span>
+</div>
+<span class="text-[10px] font-medium leading-normal tracking-wide">Assistant</span>
+</a>
+<!-- Rendez-vous -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-slate-400 hover:text-primary transition-colors group" href="#">
+<div class="flex h-8 items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[24px]">calendar_month</span>
+</div>
+<span class="text-[10px] font-medium leading-normal tracking-wide">RDV</span>
+</a>
+<!-- Profil -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-slate-400 hover:text-primary transition-colors group" href="#">
+<div class="flex h-8 items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[24px]">account_circle</span>
+</div>
+<span class="text-[10px] font-medium leading-normal tracking-wide">Profil</span>
+</a>
+</div>
+</nav>
+</div>
+</body></html>

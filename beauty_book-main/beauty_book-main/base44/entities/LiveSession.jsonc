@@ -1,0 +1,98 @@
+{
+  "name": "LiveSession",
+  "type": "object",
+  "properties": {
+    "host_email": {
+      "type": "string"
+    },
+    "host_name": {
+      "type": "string"
+    },
+    "host_avatar": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Coiffure",
+        "Maquillage",
+        "Ongles",
+        "Soin",
+        "Barbier",
+        "Tutoriel"
+      ],
+      "default": "Coiffure"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "live",
+        "ended"
+      ],
+      "default": "live"
+    },
+    "viewers": {
+      "type": "number",
+      "default": 0
+    },
+    "thumbnail_url": {
+      "type": "string"
+    },
+    "hls_url": {
+      "type": "string",
+      "description": "URL HLS Mux pour la lecture"
+    },
+    "mux_stream_id": {
+      "type": "string",
+      "description": "ID du stream Mux"
+    },
+    "mux_playback_id": {
+      "type": "string",
+      "description": "Playback ID Mux"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "host_email",
+    "title"
+  ],
+  "rls": {
+    "create": {
+      "data.host_email": "{{user.email}}"
+    },
+    "read": {
+      "data.status": "live"
+    },
+    "update": {
+      "$or": [
+        {
+          "data.host_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.host_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

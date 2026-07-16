@@ -1,0 +1,59 @@
+# Voicebox Docker Deployment
+# GPU requis: docker compose up --build
+# 
+# Prérequis:
+#   - Docker avec NVIDIA GPU support (nvidia-docker2)
+#   - NVIDIA driver installé sur l'hôte
+#
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f voicebox
+
+services:
+  voicebox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voicebox
+    restart: unless-stopped
+    ports:
+      - "17493:17493"
+    environment:
+      # Acceleration GPU
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      # Persistance des modèles et profiles
+      - voicebox_data:/app/backend/data
+      - voicebox_models:/app/backend/models
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:17493/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Optional: nginx reverse proxy with API key auth
+  nginx:
+    image: nginx:alpine
+    container_name: voicebox-proxy
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    depends_on:
+      - voicebox
+
+volumes:
+  voicebox_data:
+  voicebox_models:

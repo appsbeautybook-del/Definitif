@@ -1,0 +1,136 @@
+{
+  "name": "VisiteVirtuelle",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nom de la visite"
+    },
+    "description": {
+      "type": "string"
+    },
+    "cover_url": {
+      "type": "string",
+      "description": "Image de couverture"
+    },
+    "floorplan_url": {
+      "type": "string",
+      "description": "URL du plan 2D / floorplan de l'\u00e9tablissement"
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "floor_x": {
+            "type": "number",
+            "description": "Position X sur le floorplan (0-100%)"
+          },
+          "floor_y": {
+            "type": "number",
+            "description": "Position Y sur le floorplan (0-100%)"
+          },
+          "hotspots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "number"
+                },
+                "y": {
+                  "type": "number"
+                },
+                "target_scene": {
+                  "type": "number"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "actif",
+        "brouillon"
+      ],
+      "default": "brouillon"
+    },
+    "views": {
+      "type": "number",
+      "default": 0
+    },
+    "pro_email": {
+      "type": "string",
+      "description": "Email du professionnel propri\u00e9taire"
+    },
+    "pro_name": {
+      "type": "string",
+      "description": "Nom du professionnel/salon"
+    },
+    "pro_address": {
+      "type": "string",
+      "description": "Adresse du professionnel"
+    },
+    "pro_city": {
+      "type": "string",
+      "description": "Ville du professionnel"
+    }
+  },
+  "required": [
+    "name",
+    "pro_email"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.status": "actif"
+        },
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

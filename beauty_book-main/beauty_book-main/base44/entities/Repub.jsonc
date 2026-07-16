@@ -1,0 +1,89 @@
+{
+  "name": "Repub",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email de l'utilisateur qui a republi\u00e9"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "reel_id": {
+      "type": "string",
+      "description": "ID du reel republi\u00e9"
+    },
+    "reel_title": {
+      "type": "string"
+    },
+    "reel_thumbnail": {
+      "type": "string"
+    },
+    "reel_images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "original_author": {
+      "type": "string"
+    },
+    "original_author_avatar": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "user_email",
+    "reel_id"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

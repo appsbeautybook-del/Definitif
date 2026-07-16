@@ -1,0 +1,63 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "description": "The role of the user in the app",
+      "enum": [
+        "admin",
+        "user"
+      ]
+    },
+    "maria_name": {
+      "type": "string",
+      "description": "Pr\u00e9nom de l'utilisateur tel qu'enregistr\u00e9 par Maria"
+    },
+    "maria_memory": {
+      "type": "object",
+      "description": "M\u00e9moire persistante de Maria : pr\u00e9f\u00e9rences, infos pro, historique condens\u00e9",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "profession": {
+          "type": "string"
+        },
+        "salon_name": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "preferences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pro_draft": {
+          "type": "object"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "last_topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "role"
+  ]
+}

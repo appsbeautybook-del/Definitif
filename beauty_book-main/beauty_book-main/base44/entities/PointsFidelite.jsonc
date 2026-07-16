@@ -1,0 +1,79 @@
+{
+  "name": "PointsFidelite",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email de l'utilisateur"
+    },
+    "points_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Total des points accumul\u00e9s"
+    },
+    "points_depenses": {
+      "type": "number",
+      "default": 0,
+      "description": "Points d\u00e9pens\u00e9s en r\u00e9compenses"
+    },
+    "niveau": {
+      "type": "string",
+      "enum": [
+        "Silver",
+        "Gold",
+        "Platinum"
+      ],
+      "default": "Silver"
+    },
+    "historique": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "pts": {
+            "type": "number"
+          },
+          "date": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "credit",
+              "debit"
+            ]
+          }
+        }
+      },
+      "default": []
+    },
+    "code_parrainage": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "user_email"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "data.user_email": "{{user.email}}"
+    },
+    "update": {
+      "data.user_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.user_email": "{{user.email}}"
+    }
+  }
+}

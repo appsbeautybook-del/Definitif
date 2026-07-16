@@ -1,0 +1,133 @@
+{
+  "name": "RoutineBeaute",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string",
+      "description": "Nom de la routine (ex: Skincare du matin)"
+    },
+    "emoji": {
+      "type": "string",
+      "default": "\u2728"
+    },
+    "color": {
+      "type": "string",
+      "default": "bg-blue-100",
+      "description": "Couleur de fond (classe Tailwind)"
+    },
+    "description": {
+      "type": "string"
+    },
+    "frequency": {
+      "type": "string",
+      "enum": [
+        "quotidien",
+        "hebdomadaire",
+        "personnalise"
+      ],
+      "default": "quotidien"
+    },
+    "days_of_week": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "default": [],
+      "description": "0=Dim, 1=Lun... Pour hebdomadaire/personnalis\u00e9"
+    },
+    "time": {
+      "type": "string",
+      "description": "Heure de la routine HH:MM"
+    },
+    "duration_min": {
+      "type": "number",
+      "default": 20
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "done": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "default": []
+    },
+    "objectif": {
+      "type": "string",
+      "description": "Objectif (ex: Peau lumineuse en 2 mois)"
+    },
+    "objectif_duree_semaines": {
+      "type": "number",
+      "default": 8,
+      "description": "Dur\u00e9e de l'objectif en semaines"
+    },
+    "objectif_debut": {
+      "type": "string",
+      "format": "date",
+      "description": "Date de d\u00e9but de l'objectif"
+    },
+    "sessions_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Nombre total de sessions pr\u00e9vues"
+    },
+    "sessions_faites": {
+      "type": "number",
+      "default": 0,
+      "description": "Nombre de sessions compl\u00e9t\u00e9es"
+    },
+    "streak": {
+      "type": "number",
+      "default": 0,
+      "description": "Jours cons\u00e9cutifs compl\u00e9t\u00e9s"
+    },
+    "last_done_date": {
+      "type": "string",
+      "description": "Derni\u00e8re date de compl\u00e9tion"
+    },
+    "reminder_active": {
+      "type": "boolean",
+      "default": true
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "pause",
+        "terminee"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "user_email",
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "data.user_email": "{{user.email}}"
+    },
+    "update": {
+      "data.user_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.user_email": "{{user.email}}"
+    }
+  }
+}

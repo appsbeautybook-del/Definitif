@@ -1,0 +1,94 @@
+{
+  "name": "Commande",
+  "type": "object",
+  "properties": {
+    "client_email": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "produit_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "image_url": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "subtotal": {
+      "type": "number"
+    },
+    "shipping": {
+      "type": "number",
+      "default": 0
+    },
+    "total": {
+      "type": "number"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "en_attente",
+        "confirme",
+        "en_preparation",
+        "expedie",
+        "livre",
+        "annule",
+        "rembourse"
+      ],
+      "default": "en_attente"
+    },
+    "shipping_address": {
+      "type": "string"
+    },
+    "tracking_number": {
+      "type": "string"
+    },
+    "payment_method": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "client_email",
+    "items",
+    "total"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "email": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "data.client_email": "{{user.email}}"
+    },
+    "update": {
+      "data.client_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.client_email": "{{user.email}}"
+    }
+  }
+}

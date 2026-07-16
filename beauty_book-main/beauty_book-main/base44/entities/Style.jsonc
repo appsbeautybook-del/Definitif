@@ -1,0 +1,164 @@
+{
+  "name": "Style",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Titre du style"
+    },
+    "description": {
+      "type": "string"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Coiffure",
+        "Maquillage",
+        "Ongles",
+        "Soin",
+        "Barbe",
+        "Massage"
+      ],
+      "default": "Coiffure"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "likes": {
+      "type": "number",
+      "default": 0
+    },
+    "views": {
+      "type": "number",
+      "default": 0
+    },
+    "pro_email": {
+      "type": "string",
+      "description": "Email du professionnel"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "publie",
+        "brouillon"
+      ],
+      "default": "publie"
+    },
+    "featured": {
+      "type": "boolean",
+      "default": false
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Images suppl\u00e9mentaires"
+    },
+    "video_url": {
+      "type": "string",
+      "description": "URL vid\u00e9o optionnelle"
+    },
+    "produits_utilises": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          },
+          "image_url": {
+            "type": "string"
+          },
+          "external_url": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "shopify",
+              "stripe",
+              "manuel"
+            ]
+          }
+        }
+      },
+      "default": [],
+      "description": "Produits utilis\u00e9s pour ce style"
+    }
+  },
+  "required": [
+    "title",
+    "image_url"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "data.status": "publie"
+        },
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

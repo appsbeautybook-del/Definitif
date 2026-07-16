@@ -1,0 +1,105 @@
+{
+  "name": "UserMemory",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email de l'utilisateur"
+    },
+    "preferences": {
+      "type": "object",
+      "description": "Pr\u00e9f\u00e9rences apprises (services favoris, cr\u00e9neaux pr\u00e9f\u00e9r\u00e9s, etc.)",
+      "default": {}
+    },
+    "habits": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": [],
+      "description": "Habitudes d\u00e9tect\u00e9es (ex: RDV le samedi matin, pr\u00e9f\u00e8re la coiffure, etc.)"
+    },
+    "frequent_actions": {
+      "type": "object",
+      "description": "Actions fr\u00e9quentes et leur compteur",
+      "default": {}
+    },
+    "last_services": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Derniers services r\u00e9serv\u00e9s"
+    },
+    "last_pros": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Derniers pros consult\u00e9s/r\u00e9serv\u00e9s"
+    },
+    "favorite_categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Cat\u00e9gories beaut\u00e9 pr\u00e9f\u00e9r\u00e9es"
+    },
+    "preferred_time_slots": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Cr\u00e9neaux horaires pr\u00e9f\u00e9r\u00e9s"
+    },
+    "preferred_days": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Jours pr\u00e9f\u00e9r\u00e9s pour les RDV"
+    },
+    "profile_summary": {
+      "type": "string",
+      "description": "R\u00e9sum\u00e9 IA du profil utilisateur mis \u00e0 jour automatiquement"
+    },
+    "pending_workflows": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": [],
+      "description": "Workflows en cours (parcours multi-\u00e9tapes)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes libres sur l'utilisateur"
+    },
+    "last_updated": {
+      "type": "string",
+      "description": "Derni\u00e8re mise \u00e0 jour de la m\u00e9moire"
+    }
+  },
+  "required": [
+    "user_email"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "data.user_email": "{{user.email}}"
+    },
+    "update": {
+      "data.user_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.user_email": "{{user.email}}"
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "name": "CallLog",
+  "type": "object",
+  "properties": {
+    "call_id": {
+      "type": "string"
+    },
+    "caller_email": {
+      "type": "string"
+    },
+    "caller_name": {
+      "type": "string"
+    },
+    "caller_avatar": {
+      "type": "string"
+    },
+    "callee_email": {
+      "type": "string"
+    },
+    "callee_name": {
+      "type": "string"
+    },
+    "callee_avatar": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "missed",
+        "received",
+        "outgoing",
+        "rejected"
+      ],
+      "default": "missed"
+    },
+    "duration_sec": {
+      "type": "number",
+      "default": 0
+    },
+    "started_at": {
+      "type": "string"
+    },
+    "ended_at": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "call_id",
+    "caller_email",
+    "callee_email"
+  ],
+  "rls": {
+    "create": {
+      "data.caller_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.caller_email": "{{user.email}}"
+        },
+        {
+          "data.callee_email": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.caller_email": "{{user.email}}"
+        },
+        {
+          "data.callee_email": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.caller_email": "{{user.email}}"
+        },
+        {
+          "data.callee_email": "{{user.email}}"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>BeautyBook Directs</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#f48c25",
+                        "background-light": "#ffffff",
+                        "background-dark": "#1f2937",
+                        "surface-light": "#f8f7f5",
+                        "text-main": "#1F2937",
+                        "text-sub": "#6B7280"
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "1rem", "lg": "1.5rem", "xl": "2rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .live-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light text-text-main font-display antialiased overflow-x-hidden pb-24">
+<!-- Header / Top Navigation -->
+<div class="sticky top-0 z-50 bg-background-light/95 backdrop-blur-sm border-b border-gray-100">
+<div class="flex items-center justify-between p-4">
+<button class="text-text-main p-2 rounded-full hover:bg-gray-100 transition-colors">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<h1 class="text-lg font-bold text-text-main">BeautyBook Directs</h1>
+<div class="w-10"></div> <!-- Spacer for alignment -->
+</div>
+<!-- Top Action Menu (Horizontal Scroll) -->
+<div class="flex overflow-x-auto gap-4 px-4 pb-4 scrollbar-hide">
+<button class="flex flex-col items-center gap-1 min-w-[64px] group">
+<div class="w-12 h-12 rounded-full bg-surface-light flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-text-sub group-hover:text-primary">search</span>
+</div>
+<span class="text-xs font-medium text-text-sub">Chercher</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[64px] group">
+<div class="w-12 h-12 rounded-full bg-surface-light flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-text-sub group-hover:text-primary">calendar_month</span>
+</div>
+<span class="text-xs font-medium text-text-sub">Agenda</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[64px] group">
+<div class="w-12 h-12 rounded-full bg-surface-light flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-text-sub group-hover:text-primary">notifications</span>
+</div>
+<span class="text-xs font-medium text-text-sub">Alertes</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[64px] group">
+<div class="w-12 h-12 rounded-full bg-surface-light flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-text-sub group-hover:text-primary">favorite</span>
+</div>
+<span class="text-xs font-medium text-text-sub">Favoris</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[64px] group">
+<div class="w-12 h-12 rounded-full bg-surface-light flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-text-sub group-hover:text-primary">share</span>
+</div>
+<span class="text-xs font-medium text-text-sub">Partager</span>
+</button>
+<button class="flex flex-col items-center gap-1 min-w-[64px] group">
+<div class="w-12 h-12 rounded-full bg-surface-light flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-text-sub group-hover:text-primary">more_vert</span>
+</div>
+<span class="text-xs font-medium text-text-sub">Plus</span>
+</button>
+</div>
+</div>
+<!-- Featured Live Preview -->
+<div class="px-4 pt-4 pb-2">
+<div class="relative w-full aspect-[4/5] sm:aspect-video rounded-xl overflow-hidden shadow-lg bg-gray-900 group">
+<!-- Video Background Placeholder -->
+<div class="absolute inset-0 bg-cover bg-center" data-alt="Woman applying makeup in a bright studio setting" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBZjWafTEdQoLLAVZQdcv2YMRATOoGrBEndpLY4ac0hkWQ916zh_1Reqo_aETnJWUUkJOzANZZVDC8QHtJLpBLjuZM3VW9vaITmODnV3G_-o8HbwWogV01tqwnSkBydX5QS1CFeIzoI36BNh_S49j_xAzUN9whIGFOotJ4dylXLH2_PYlCJD6xinW0Jx0GX14uXdYYdRo6GsHPr5PwmSW8aTzhFDSwf681XmGHIwJJTwwFie62YEewFF4TtYqptd4JmLzTchgR2Cv8');"></div>
+<div class="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80"></div>
+<!-- Live Badge & Viewers -->
+<div class="absolute top-4 left-4 flex items-center gap-2">
+<div class="bg-primary text-white text-xs font-bold px-2 py-1 rounded flex items-center gap-1">
+<span class="w-2 h-2 bg-white rounded-full live-pulse"></span>
+                    EN DIRECT
+                </div>
+<div class="bg-black/40 backdrop-blur-md text-white text-xs font-medium px-2 py-1 rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">visibility</span>
+                    1.2k
+                </div>
+</div>
+<!-- Host Info & Chat Overlay -->
+<div class="absolute bottom-0 left-0 w-full p-4 flex flex-col gap-3">
+<!-- Floating Hearts Animation Mockup -->
+<div class="absolute right-4 bottom-20 flex flex-col gap-2 items-center pointer-events-none opacity-80">
+<span class="material-symbols-outlined text-primary text-3xl drop-shadow-lg animate-bounce" style="animation-duration: 2s;">favorite</span>
+<span class="material-symbols-outlined text-primary text-2xl drop-shadow-lg animate-bounce" style="animation-duration: 3s; animation-delay: 0.5s;">favorite</span>
+</div>
+<!-- Chat Bubbles -->
+<div class="space-y-2 mb-2 w-3/4 mask-image-linear-gradient-to-t">
+<div class="flex items-start gap-2">
+<div class="bg-white/10 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-lg border border-white/5">
+<span class="font-bold text-primary mr-1">Julie:</span> Trop beau ce rouge à lèvres ! 😍
+                        </div>
+</div>
+<div class="flex items-start gap-2">
+<div class="bg-white/10 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-lg border border-white/5">
+<span class="font-bold text-primary mr-1">Marc:</span> La technique est top.
+                        </div>
+</div>
+</div>
+<!-- Host Profile & Action -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="relative">
+<img alt="Sarah B Profile" class="w-10 h-10 rounded-full border-2 border-primary object-cover" data-alt="Portrait of Sarah B" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqQFemHqkn3T2UClwQ5Y-BMnbC7FRmGHd0XpQmtpwMfJFwDKhHnWxAZYK9cv2BsZppZ22uor9C-m9achGPOV2oVpcvaIrx0HqYnf2Z-CYUcyPXRj2ZBeMxGSARiF_y8BIrNudiMt1EaL7JlCjSEMR1ZJaeY6L0ISnWeiAO_7PDIn118TT5z-GYFYuVMz4VgDcV8eTy5aUX4-Pp32RdG319kTArFLhgYUsLYF5BsXI-RsJTSi_rtb3V5yrbvI2OAlnL_Tb7nSOQuw4"/>
+<div class="absolute -bottom-1 -right-1 bg-primary text-white text-[10px] font-bold px-1 rounded">PRO</div>
+</div>
+<div class="text-white">
+<h3 class="font-bold text-sm leading-tight">Sarah B.</h3>
+<p class="text-xs text-gray-300">Summer Glow Makeup Tutorial</p>
+</div>
+</div>
+<!-- Shopping Bag Button -->
+<button class="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white p-3 rounded-full border border-white/10 relative shadow-lg transition-all active:scale-95">
+<span class="material-symbols-outlined">shopping_bag</span>
+<div class="absolute -top-1 -right-1 bg-primary text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full font-bold">3</div>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Active Lives Grid -->
+<div class="px-4 py-6">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-lg font-bold text-text-main">Salons &amp; particuliers en direct</h2>
+<button class="text-primary text-sm font-medium">Tout voir</button>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<!-- Card 1 -->
+<div class="flex flex-col gap-2 group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" data-alt="Hair stylist cutting hair in a salon" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCDC_stiXfMOp10dAyPasmBPx_mR-k94-tc0KfIly7lz-Z8wqyu3PzcsFTjROfSt2NGbyTTL1OmlN2V1_-uSme2Q2K-_A-dGxDmTQZQIfFAmJo3x64_u50eNJwFxfVzsmHOAc1PSgDuWThW9l598rXuKgAAsgLRcPaFkSFZDXQRw8aTrszSff1cBp1h-csnJFyhkjK5wrjU-ivgHnsn8LMrGZpmeKkjEswkkue7v3MjSOFskHKaC_OSLTM-UbU7Uxc4C7tJB1jTMBI');"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+<div class="absolute top-2 right-2 bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded">LIVE</div>
+<div class="absolute bottom-2 left-2 flex items-center gap-1 text-white text-xs">
+<span class="material-symbols-outlined text-[14px]">person</span> 842
+                    </div>
+</div>
+<div>
+<h3 class="font-bold text-text-main text-sm truncate">Coiffure Mariage 2024</h3>
+<p class="text-xs text-text-sub">Le Salon Paris</p>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="flex flex-col gap-2 group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" data-alt="Manicure process with colorful nail polish" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAIRVm2Zlj7y1XBhYq-bIla-LPsMa0Zp2jATmWVJzlFUIKFb8eE7kz1hNtMnqMg8VpuyKNjyGVhhLoiyjVzvtK-ImUxcuBJxlLkF9Trc-ktY_QSQESXBCtfynKe4_q_F_8N-OWHhqkBjIfQIS5a6cNVXabR8LzsPcnbeHmVNu4rF8kuJCJzZuuXvVUmZwaUhQcbUcNPK9Snm_IDIgXHIU0x3_Kt1BoDWTit66HGxfgXCZxcVmMG6Yd1V-quQfh4OCElT5z5qslJZY0');"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+<div class="absolute top-2 right-2 bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded">LIVE</div>
+<div class="absolute bottom-2 left-2 flex items-center gap-1 text-white text-xs">
+<span class="material-symbols-outlined text-[14px]">person</span> 315
+                    </div>
+</div>
+<div>
+<h3 class="font-bold text-text-main text-sm truncate">Nail Art Masterclass</h3>
+<p class="text-xs text-text-sub">Jessica Nails</p>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="flex flex-col gap-2 group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" data-alt="Close up of skincare routine application" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD-h35iSX39cJn5UwSc7W1hQa0S7-5OrJO_CFJxi_FQOTWLqDvC-PWX2hZA0v9e2LcUR4QNNmX2OVYoL7yfMt7DX0PQSMULh16x66Osx1SfqCUdPabVRfcKmEBuNY7E9dq2MkF33-aQr8QOuSzOzwYatZonDw31avdoKAEIiJczRuUyZ4EMLVN5ECiYKRDNK0wyT7R5N6yKyHokQ4eIrC2LM6tQcr12wIRaGmmvGzL0Gw6SIsXfyl-SKETqD_-3Ki9PJuOtjQIMrbk');"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+<div class="absolute top-2 right-2 bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded">LIVE</div>
+<div class="absolute bottom-2 left-2 flex items-center gap-1 text-white text-xs">
+<span class="material-symbols-outlined text-[14px]">person</span> 1.5k
+                    </div>
+</div>
+<div>
+<h3 class="font-bold text-text-main text-sm truncate">Routine Soin Visage</h3>
+<p class="text-xs text-text-sub">Dermatologie Pro</p>
+</div>
+</div>
+<!-- Card 4 -->
+<div class="flex flex-col gap-2 group cursor-pointer">
+<div class="relative aspect-[3/4] rounded-xl overflow-hidden">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" data-alt="Barber trimming a beard" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDq9enbIszL6DMaElLNNihSGmAE52Rc1ltNOV9oY7dBXufD-S4PAg8QysjSc7hUgtIpO6sYTZQfDPq6ArKOYdQsrbvFhAAyVSZV-tR5ckFsSHJZA-9s-dAwx_rsHyJfrG-tjN1ziEdaseYHFNHSVdWOkYsjEbLCNG6xvN0qhWoj-MT2heJ536_TUpalgVbPGfW2Tysil2bzsRQ7_m6zFtrdlyHQg1aWq-EzcZbff3Fr1FHZaEj2hMhV9h6VHnO2aSFHij0pF9sKQdU');"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
+<div class="absolute top-2 right-2 bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded">LIVE</div>
+<div class="absolute bottom-2 left-2 flex items-center gap-1 text-white text-xs">
+<span class="material-symbols-outlined text-[14px]">person</span> 56
+                    </div>
+</div>
+<div>
+<h3 class="font-bold text-text-main text-sm truncate">Beard Trim Tips</h3>
+<p class="text-xs text-text-sub">Barber King</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Upcoming Lives Slider -->
+<div class="py-6 bg-surface-light border-t border-gray-100">
+<div class="px-4 mb-4">
+<h2 class="text-lg font-bold text-text-main">À venir bientôt</h2>
+<p class="text-sm text-text-sub">Ne manquez pas vos experts favoris</p>
+</div>
+<div class="flex overflow-x-auto gap-4 px-4 pb-4 scrollbar-hide snap-x">
+<!-- Upcoming Card 1 -->
+<div class="snap-center shrink-0 w-72 bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-3">
+<div class="w-20 h-20 rounded-lg bg-cover bg-center shrink-0" data-alt="Skincare products on a shelf" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA0kMy_DYN3OWLd1or99CfOt_RVan1h9JQoYB52Wn1S2jxKPXYcEkc-OSBtiNFxAbPbPxIbI85u2GqTzaXYaJxvspqsdoGet4I21WKkjXmkEgo9j3Wy1OiDmIFnak-hVqQceGzHiwiQxuMNrep8IbbnWO9p-Lw41lBUPh1v1ZeTaC5DGtCahjMrt2I9tnBphtN7eeWc1w1Yf-sSfKnv3orgLbrT3AHZi0jdolRIHgc6oKF-GwzVklOQU4-Yg1rXhcnf1aAfe8zAizU');"></div>
+<div class="flex flex-col justify-between flex-1">
+<div>
+<div class="text-primary text-xs font-bold mb-1">Aujourd'hui, 18:00</div>
+<h3 class="font-bold text-text-main text-sm leading-tight line-clamp-2">Lancement Nouvelle Gamme Bio</h3>
+</div>
+<button class="mt-2 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors text-xs font-semibold py-1.5 px-3 rounded-full self-start flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">notifications</span>
+                        M'avertir
+                    </button>
+</div>
+</div>
+<!-- Upcoming Card 2 -->
+<div class="snap-center shrink-0 w-72 bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-3">
+<div class="w-20 h-20 rounded-lg bg-cover bg-center shrink-0" data-alt="Abstract makeup palette texture" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA9sMNKGNu3tvsArihP6Uop8owsVoh7eWDYwShAYKNHd6nRIWX6tq0bztWAc8bZWJIJVy6jjenF3FZSqDo5jx0S2iWDBj7x5XfOvBelyvhHxj5ab5XPSL6XiVRC-iSEKzoWn1fu7wUICKaEn1K1Wn52UhDhOby_VRTLhehkFBAISV8YI9IDjzvn-1hVyrBLenpEGiS3iJ1CeOfjCtVdxk77fTxmlaGouq5wCedCgtg7VOvDF2rxJ34Dc3Q2s5lIpdCuDuYfWRkSRBU');"></div>
+<div class="flex flex-col justify-between flex-1">
+<div>
+<div class="text-primary text-xs font-bold mb-1">Demain, 14:30</div>
+<h3 class="font-bold text-text-main text-sm leading-tight line-clamp-2">Masterclass: Le Teint Parfait</h3>
+</div>
+<button class="mt-2 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors text-xs font-semibold py-1.5 px-3 rounded-full self-start flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">notifications</span>
+                        M'avertir
+                    </button>
+</div>
+</div>
+<!-- Upcoming Card 3 -->
+<div class="snap-center shrink-0 w-72 bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex gap-3">
+<div class="w-20 h-20 rounded-lg bg-cover bg-center shrink-0" data-alt="Salon interior with mirrors" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD24CuD5wCXhQ_PAH2Hwyue0QPIg041GFmZkFYSo52GhL5qkKiY9z9l2Vo2wBhMv3MNb6kA4KA7_daUYE1WJWUsrDM3OLaFcgXBZYsGdG1IvGt__Tq6jCj1-H-3maVwHzJki-d7hUGHVba64LGARHqOgXXC8nfOHT39du8uF9bCwIfZ4Zak143kcBEV1FzU6cPvGT5XCk6yu7fi90yHxj2oQMwy5oIFNkNFJ_OyXK55bSTsqe03Ju8WJaHB0bhlj2E3TkB0pQoYzS4');"></div>
+<div class="flex flex-col justify-between flex-1">
+<div>
+<div class="text-primary text-xs font-bold mb-1">Ven. 12 Oct, 10:00</div>
+<h3 class="font-bold text-text-main text-sm leading-tight line-clamp-2">Q&amp;A: Problèmes Capillaires</h3>
+</div>
+<button class="mt-2 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-colors text-xs font-semibold py-1.5 px-3 rounded-full self-start flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">notifications</span>
+                        M'avertir
+                    </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<div class="fixed bottom-0 left-0 right-0 z-50 bg-background-light border-t border-gray-200">
+<div class="flex items-end justify-between px-4 pb-safe pt-2">
+<!-- Accueil -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-text-sub hover:text-primary active:text-primary py-2 group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform filled-icon" style="font-variation-settings: 'FILL' 0;">home</span>
+<span class="text-[10px] font-medium tracking-wide">Accueil</span>
+</a>
+<!-- Services -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-primary py-2 group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform filled-icon" style="font-variation-settings: 'FILL' 1;">cases</span>
+<span class="text-[10px] font-medium tracking-wide">Services</span>
+</a>
+<!-- Assistant (Center Highlight) -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-text-sub hover:text-primary active:text-primary py-2 group relative -top-4" href="#">
+<div class="bg-primary text-white p-3 rounded-full shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-2xl">mic</span>
+</div>
+<span class="text-[10px] font-medium tracking-wide absolute -bottom-1">Assistant</span>
+</a>
+<!-- Rendez-vous -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-text-sub hover:text-primary active:text-primary py-2 group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform filled-icon" style="font-variation-settings: 'FILL' 0;">calendar_month</span>
+<span class="text-[10px] font-medium tracking-wide">Rendez-vous</span>
+</a>
+<!-- Profil -->
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-text-sub hover:text-primary active:text-primary py-2 group" href="#">
+<span class="material-symbols-outlined text-2xl group-hover:scale-110 transition-transform filled-icon" style="font-variation-settings: 'FILL' 0;">person</span>
+<span class="text-[10px] font-medium tracking-wide">Profil</span>
+</a>
+</div>
+<!-- Safe Area Padding for iOS Home Indicator -->
+<div class="h-6 w-full bg-background-light"></div>
+</div>
+</body></html>

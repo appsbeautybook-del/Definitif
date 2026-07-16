@@ -1,0 +1,65 @@
+{
+  "name": "CommentaireStyle",
+  "type": "object",
+  "properties": {
+    "style_id": {
+      "type": "string",
+      "description": "ID du style comment\u00e9"
+    },
+    "user_email": {
+      "type": "string"
+    },
+    "user_name": {
+      "type": "string"
+    },
+    "user_avatar": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "likes": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "style_id",
+    "user_email",
+    "content"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "email": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

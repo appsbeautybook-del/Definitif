@@ -1,0 +1,82 @@
+{
+  "name": "MembreEquipe",
+  "type": "object",
+  "properties": {
+    "pro_email": {
+      "type": "string",
+      "description": "Email du professionnel propri\u00e9taire"
+    },
+    "name": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "Styliste",
+        "Coloriste",
+        "Barbier",
+        "Esth\u00e9ticienne",
+        "Masseur",
+        "Assistant"
+      ],
+      "default": "Styliste"
+    },
+    "specialties": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "experience": {
+      "type": "number",
+      "default": 1
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [
+        "lun",
+        "mar",
+        "mer",
+        "jeu",
+        "ven"
+      ]
+    },
+    "avatar_url": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "available",
+        "pause",
+        "absent"
+      ],
+      "default": "available"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "pro_email",
+    "name"
+  ],
+  "rls": {
+    "create": {
+      "data.pro_email": "{{user.email}}"
+    },
+    "read": {},
+    "update": {
+      "data.pro_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.pro_email": "{{user.email}}"
+    }
+  }
+}

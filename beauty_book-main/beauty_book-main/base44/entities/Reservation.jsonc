@@ -1,0 +1,182 @@
+{
+  "name": "Reservation",
+  "type": "object",
+  "properties": {
+    "client_email": {
+      "type": "string"
+    },
+    "client_name": {
+      "type": "string"
+    },
+    "pro_email": {
+      "type": "string"
+    },
+    "pro_name": {
+      "type": "string"
+    },
+    "service_id": {
+      "type": "string"
+    },
+    "service_name": {
+      "type": "string"
+    },
+    "service_price": {
+      "type": "number"
+    },
+    "date": {
+      "type": "string",
+      "format": "date"
+    },
+    "time_slot": {
+      "type": "string"
+    },
+    "end_time_slot": {
+      "type": "string",
+      "description": "Heure de fin (HH:MM)"
+    },
+    "duration_min": {
+      "type": "number",
+      "default": 60
+    },
+    "persons": {
+      "type": "number",
+      "default": 1
+    },
+    "addons": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "total_price": {
+      "type": "number"
+    },
+    "acompte_amount": {
+      "type": "number",
+      "default": 0,
+      "description": "Montant de l'acompte pay\u00e9 (0 si aucun)"
+    },
+    "payment_type": {
+      "type": "string",
+      "enum": [
+        "full",
+        "acompte",
+        "surplace"
+      ],
+      "default": "surplace",
+      "description": "Mode de paiement choisi"
+    },
+    "crg_code": {
+      "type": "string",
+      "description": "Code \u00e0 4 chiffres de validation client"
+    },
+    "notes": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "en_attente",
+        "confirme",
+        "annule",
+        "termine",
+        "no_show"
+      ],
+      "default": "en_attente"
+    },
+    "payment_status": {
+      "type": "string",
+      "enum": [
+        "non_paye",
+        "acompte_paye",
+        "paye",
+        "rembourse"
+      ],
+      "default": "non_paye"
+    },
+    "salon_name": {
+      "type": "string"
+    },
+    "salon_address": {
+      "type": "string"
+    },
+    "seats_total": {
+      "type": "number",
+      "description": "Si\u00e8ges totaux du salon (snapshot)"
+    },
+    "reminder_scheduled": {
+      "type": "boolean",
+      "default": false
+    },
+    "reminder_sent": {
+      "type": "boolean",
+      "default": false
+    },
+    "completed_at": {
+      "type": "string",
+      "description": "Horodatage de fin de prestation"
+    },
+    "review_requested": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": [
+    "client_email",
+    "pro_email",
+    "service_name",
+    "date",
+    "time_slot"
+  ],
+  "rls": {
+    "create": {
+      "data.client_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.client_email": "{{user.email}}"
+        },
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.client_email": "{{user.email}}"
+        },
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.client_email": "{{user.email}}"
+        },
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

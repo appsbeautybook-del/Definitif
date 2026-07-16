@@ -1,0 +1,42 @@
+{
+  "name": "CatalogueOption",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Nom de l'option payante"
+    },
+    "price": {
+      "type": "number",
+      "default": 0,
+      "description": "Prix de l'option"
+    },
+    "category": {
+      "type": "string",
+      "description": "Cat\u00e9gorie associ\u00e9e (Coiffure, Maquillage...)"
+    },
+    "pro_email": {
+      "type": "string",
+      "description": "Email du pro qui a cr\u00e9\u00e9 l'option"
+    },
+    "usage_count": {
+      "type": "number",
+      "default": 1,
+      "description": "Nombre de fois que cette option a \u00e9t\u00e9 utilis\u00e9e"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "name"
+  ],
+  "rls": {
+    "create": {},
+    "read": {},
+    "update": {},
+    "delete": {}
+  }
+}

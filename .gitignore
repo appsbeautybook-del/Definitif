@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+.vite
+.vercel
+*.log
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+.vscode
+.idea
+*.suo
+*.sw?

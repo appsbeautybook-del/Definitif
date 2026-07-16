@@ -1,0 +1,97 @@
+{
+  "name": "CallSignal",
+  "type": "object",
+  "properties": {
+    "call_id": {
+      "type": "string",
+      "description": "ID unique de l'appel"
+    },
+    "caller_email": {
+      "type": "string"
+    },
+    "caller_name": {
+      "type": "string"
+    },
+    "caller_avatar": {
+      "type": "string"
+    },
+    "callee_email": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "offer",
+        "answer",
+        "ice-candidate",
+        "end",
+        "reject"
+      ],
+      "description": "Type de signal WebRTC"
+    },
+    "payload": {
+      "type": "string",
+      "description": "JSON stringifi\u00e9 du signal SDP ou ICE candidate"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "ringing",
+        "accepted",
+        "rejected",
+        "ended"
+      ],
+      "default": "ringing"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "call_id",
+    "caller_email",
+    "callee_email",
+    "type"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "email": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.caller_email": "{{user.email}}"
+        },
+        {
+          "data.callee_email": "{{user.email}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.caller_email": "{{user.email}}"
+        },
+        {
+          "data.callee_email": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.caller_email": "{{user.email}}"
+        },
+        {
+          "data.callee_email": "{{user.email}}"
+        }
+      ]
+    }
+  }
+}

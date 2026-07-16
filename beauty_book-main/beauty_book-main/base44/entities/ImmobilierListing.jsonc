@@ -1,0 +1,125 @@
+{
+  "name": "ImmobilierListing",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "location",
+        "vente"
+      ],
+      "default": "location"
+    },
+    "price": {
+      "type": "number"
+    },
+    "unit": {
+      "type": "string",
+      "default": "/MOIS"
+    },
+    "surface": {
+      "type": "string"
+    },
+    "location": {
+      "type": "string"
+    },
+    "area": {
+      "type": "string"
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "equip": {
+      "type": "string"
+    },
+    "extra": {
+      "type": "string"
+    },
+    "badge": {
+      "type": "string",
+      "default": "PRO"
+    },
+    "disponible": {
+      "type": "boolean",
+      "default": true
+    },
+    "contact_email": {
+      "type": "string"
+    },
+    "contact_phone": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "actif",
+        "loue",
+        "vendu"
+      ],
+      "default": "actif"
+    }
+  },
+  "required": [
+    "title",
+    "price",
+    "type"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "data.contact_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "$and": [
+        {
+          "data.status": "actif"
+        },
+        {
+          "data.disponible": true
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.contact_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.contact_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

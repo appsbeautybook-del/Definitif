@@ -1,0 +1,101 @@
+{
+  "name": "Avis",
+  "type": "object",
+  "properties": {
+    "reservation_id": {
+      "type": "string",
+      "description": "ID de la r\u00e9servation li\u00e9e"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "client_to_pro",
+        "pro_to_client"
+      ],
+      "description": "Direction de l'avis"
+    },
+    "auteur_email": {
+      "type": "string",
+      "description": "Email de l'auteur de l'avis"
+    },
+    "auteur_nom": {
+      "type": "string"
+    },
+    "auteur_avatar": {
+      "type": "string"
+    },
+    "cible_email": {
+      "type": "string",
+      "description": "Email de la personne not\u00e9e"
+    },
+    "cible_nom": {
+      "type": "string"
+    },
+    "note": {
+      "type": "number",
+      "description": "Note de 1 \u00e0 5"
+    },
+    "commentaire": {
+      "type": "string"
+    },
+    "service_nom": {
+      "type": "string"
+    },
+    "reponse_pro": {
+      "type": "string",
+      "description": "R\u00e9ponse du pro \u00e0 l'avis client"
+    },
+    "criteres": {
+      "type": "object",
+      "description": "Notes par crit\u00e8re (ponctualite, communication, proprete...)",
+      "properties": {
+        "ponctualite": {
+          "type": "number"
+        },
+        "communication": {
+          "type": "number"
+        },
+        "proprete": {
+          "type": "number"
+        }
+      }
+    }
+  },
+  "required": [
+    "type",
+    "auteur_email",
+    "cible_email",
+    "note"
+  ],
+  "rls": {
+    "create": {
+      "data.auteur_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.auteur_email": "{{user.email}}"
+        },
+        {
+          "data.cible_email": "{{user.email}}"
+        },
+        {
+          "data.type": "client_to_pro"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.auteur_email": "{{user.email}}"
+        },
+        {
+          "data.cible_email": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "data.auteur_email": "{{user.email}}"
+    }
+  }
+}

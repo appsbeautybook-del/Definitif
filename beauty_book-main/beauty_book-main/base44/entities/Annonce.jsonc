@@ -1,0 +1,79 @@
+{
+  "name": "Annonce",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "cta_label": {
+      "type": "string",
+      "default": "En savoir plus"
+    },
+    "cta_url": {
+      "type": "string"
+    },
+    "sponsor_name": {
+      "type": "string"
+    },
+    "sponsor_logo": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "feed",
+        "story",
+        "banner"
+      ],
+      "default": "feed"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "actif",
+        "pause",
+        "termine"
+      ],
+      "default": "actif"
+    },
+    "clicks": {
+      "type": "number",
+      "default": 0
+    },
+    "impressions": {
+      "type": "number",
+      "default": 0
+    }
+  },
+  "required": [
+    "title",
+    "image_url",
+    "sponsor_name"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "data.status": "actif"
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

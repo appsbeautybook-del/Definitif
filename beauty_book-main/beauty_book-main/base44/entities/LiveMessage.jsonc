@@ -1,0 +1,57 @@
+{
+  "name": "LiveMessage",
+  "type": "object",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "ID de la session live"
+    },
+    "sender_email": {
+      "type": "string"
+    },
+    "sender_name": {
+      "type": "string"
+    },
+    "sender_avatar": {
+      "type": "string"
+    },
+    "content": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "text",
+        "system",
+        "join"
+      ],
+      "default": "text"
+    }
+  },
+  "required": [
+    "session_id",
+    "sender_email",
+    "content"
+  ],
+  "rls": {
+    "create": {
+      "data.sender_email": "{{user.email}}"
+    },
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "data.sender_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "data.sender_email": "{{user.email}}"
+    }
+  }
+}

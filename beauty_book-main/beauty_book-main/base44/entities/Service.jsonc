@@ -1,0 +1,117 @@
+{
+  "name": "Service",
+  "type": "object",
+  "properties": {
+    "pro_email": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Coiffure",
+        "Maquillage",
+        "Ongles",
+        "Soin",
+        "Barbe",
+        "Massage",
+        "\u00c9pilation"
+      ],
+      "default": "Coiffure"
+    },
+    "price": {
+      "type": "number"
+    },
+    "duration_min": {
+      "type": "number",
+      "default": 60
+    },
+    "image_url": {
+      "type": "string"
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "URLs suppl\u00e9mentaires pour le slider"
+    },
+    "style": {
+      "type": "string",
+      "description": "Titre du style associ\u00e9"
+    },
+    "audience": {
+      "type": "string"
+    },
+    "addons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number"
+          }
+        }
+      },
+      "default": []
+    },
+    "featured": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "actif",
+        "inactif"
+      ],
+      "default": "actif"
+    }
+  },
+  "required": [
+    "pro_email",
+    "title",
+    "price"
+  ],
+  "rls": {
+    "create": {
+      "data.pro_email": "{{user.email}}"
+    },
+    "read": {
+      "data.status": "actif"
+    },
+    "update": {
+      "$or": [
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.pro_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

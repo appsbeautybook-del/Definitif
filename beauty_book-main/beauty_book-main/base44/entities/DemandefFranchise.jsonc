@@ -1,0 +1,93 @@
+{
+  "name": "DemandefFranchise",
+  "type": "object",
+  "properties": {
+    "full_name": {
+      "type": "string"
+    },
+    "email": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "budget": {
+      "type": "string",
+      "enum": [
+        "< 50k\u20ac",
+        "50k\u2013100k\u20ac",
+        "100k\u2013200k\u20ac",
+        "> 200k\u20ac"
+      ]
+    },
+    "experience": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "en_attente",
+        "contact",
+        "accepte",
+        "refuse"
+      ],
+      "default": "en_attente"
+    }
+  },
+  "required": [
+    "full_name",
+    "email",
+    "phone"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "email": {
+          "$exists": true
+        }
+      }
+    },
+    "read": {
+      "$or": [
+        {
+          "data.email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

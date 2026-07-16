@@ -1,0 +1,10 @@
+[2m10:35:11[22m [33m[1m[vite][22m[39m [33m[2m(client)[22m[39m [33mwarning: [33mDuplicate key "height" in object literal[33m
+38 |            height: `${h * 2}px`,
+39 |            transition: "height 0.2s ease",
+40 |            height: active ? `${h * 2}px` : "3px"
+   |            ^
+41 |          }} />
+42 |  
+[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mC:/Users/G15/Desktop/Nouveau dossier (30)/beauty_book-main/beauty_book-main/src/components/maria/InlineVoice.jsx[39m

@@ -1,0 +1,185 @@
+{
+  "name": "DemandeProV2",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email du demandeur"
+    },
+    "salon_name": {
+      "type": "string"
+    },
+    "bio": {
+      "type": "string"
+    },
+    "type_activite": {
+      "type": "string",
+      "enum": [
+        "Salon",
+        "Ind\u00e9pendant",
+        "Mobile"
+      ]
+    },
+    "years_experience": {
+      "type": "number",
+      "default": 0
+    },
+    "seats_count": {
+      "type": "number",
+      "default": 1,
+      "description": "Nombre de si\u00e8ges/postes disponibles en simultan\u00e9"
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "specialites_cheveux": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "username": {
+      "type": "string"
+    },
+    "salon_photo": {
+      "type": "string",
+      "description": "URL photo du salon"
+    },
+    "portfolio": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "URLs portfolio"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "email_pro": {
+      "type": "string"
+    },
+    "siret": {
+      "type": "string"
+    },
+    "doc_identite_recto": {
+      "type": "string",
+      "description": "URL pi\u00e8ce identit\u00e9 recto"
+    },
+    "doc_identite_verso": {
+      "type": "string",
+      "description": "URL pi\u00e8ce identit\u00e9 verso"
+    },
+    "doc_siret": {
+      "type": "string",
+      "description": "URL justificatif SIRET/Kbis"
+    },
+    "doc_assurance": {
+      "type": "string",
+      "description": "URL attestation assurance pro"
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "time_slots": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "commodites": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "se_deplace": {
+      "type": "boolean",
+      "default": false
+    },
+    "travail_nuit": {
+      "type": "boolean",
+      "default": false
+    },
+    "statut": {
+      "type": "string",
+      "enum": [
+        "en_attente",
+        "approuvee",
+        "refusee"
+      ],
+      "default": "en_attente"
+    },
+    "note_admin": {
+      "type": "string",
+      "description": "Commentaire interne de l'admin"
+    },
+    "profil_pro_id": {
+      "type": "string",
+      "description": "ID du ProfilPro cr\u00e9\u00e9 apr\u00e8s approbation"
+    }
+  },
+  "required": [
+    "user_email",
+    "salon_name"
+  ],
+  "rls": {
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

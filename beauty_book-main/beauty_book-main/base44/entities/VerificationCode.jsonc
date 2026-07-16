@@ -1,0 +1,57 @@
+{
+  "name": "VerificationCode",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Email ou t\u00e9l\u00e9phone"
+    },
+    "code": {
+      "type": "string",
+      "description": "Code \u00e0 6 chiffres"
+    },
+    "expires_at": {
+      "type": "number",
+      "description": "Timestamp d'expiration"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "email",
+        "phone"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "key",
+    "code",
+    "expires_at"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

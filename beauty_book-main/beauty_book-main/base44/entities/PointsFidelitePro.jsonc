@@ -1,0 +1,85 @@
+{
+  "name": "PointsFidelitePro",
+  "type": "object",
+  "properties": {
+    "pro_email": {
+      "type": "string",
+      "description": "Email du professionnel"
+    },
+    "points_total": {
+      "type": "number",
+      "default": 0,
+      "description": "Total des points accumul\u00e9s"
+    },
+    "points_depenses": {
+      "type": "number",
+      "default": 0,
+      "description": "Points d\u00e9pens\u00e9s en avantages"
+    },
+    "niveau": {
+      "type": "string",
+      "enum": [
+        "Bronze",
+        "Silver",
+        "Gold",
+        "Elite"
+      ],
+      "default": "Bronze"
+    },
+    "reservations_count": {
+      "type": "number",
+      "default": 0,
+      "description": "Nombre total de r\u00e9servations honor\u00e9es"
+    },
+    "historique": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "pts": {
+            "type": "number"
+          },
+          "date": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "credit",
+              "debit"
+            ]
+          }
+        }
+      },
+      "default": []
+    },
+    "code_parrainage": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description optionnelle (max 1000 caract\u00e8res)",
+      "maxLength": 1000
+    }
+  },
+  "required": [
+    "pro_email"
+  ],
+  "rls": {
+    "create": {
+      "data.pro_email": "{{user.email}}"
+    },
+    "read": {
+      "data.pro_email": "{{user.email}}"
+    },
+    "update": {
+      "data.pro_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.pro_email": "{{user.email}}"
+    }
+  }
+}

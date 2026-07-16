@@ -1,0 +1,152 @@
+{
+  "name": "Reel",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "video_url": {
+      "type": "string"
+    },
+    "thumbnail_url": {
+      "type": "string"
+    },
+    "images": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Liste d'images pour le slider"
+    },
+    "author_email": {
+      "type": "string"
+    },
+    "author_name": {
+      "type": "string"
+    },
+    "author_handle": {
+      "type": "string"
+    },
+    "author_avatar": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "R\u00e9els",
+        "Conseils",
+        "Tutos"
+      ],
+      "default": "R\u00e9els"
+    },
+    "pub_type": {
+      "type": "string",
+      "enum": [
+        "reel",
+        "tuto",
+        "conseil"
+      ],
+      "default": "reel"
+    },
+    "sound": {
+      "type": "string",
+      "default": "Son original - BeautyBook"
+    },
+    "sound_preview_url": {
+      "type": "string",
+      "description": "URL de l'aper\u00e7u 30s du son (iTunes)"
+    },
+    "likes": {
+      "type": "number",
+      "default": 0
+    },
+    "comments": {
+      "type": "number",
+      "default": 0
+    },
+    "shares": {
+      "type": "number",
+      "default": 0
+    },
+    "views": {
+      "type": "number",
+      "default": 0
+    },
+    "product_id": {
+      "type": "string"
+    },
+    "product_name": {
+      "type": "string"
+    },
+    "product_img": {
+      "type": "string"
+    },
+    "service_id": {
+      "type": "string"
+    },
+    "service_name": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "publie",
+        "brouillon",
+        "supprime"
+      ],
+      "default": "publie"
+    }
+  },
+  "required": [
+    "title",
+    "author_email"
+  ],
+  "rls": {
+    "create": {
+      "data.author_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.status": "publie"
+        },
+        {
+          "data.author_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.author_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.author_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
