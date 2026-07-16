@@ -29,12 +29,15 @@ export default function AdminLogin() {
         return;
       }
 
-      const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+      const role = data.user?.user_metadata?.role || data.user?.app_metadata?.role;
       
-      if (!profile || profile.role !== 'admin') {
-        setError("Accès refusé. Vous n'êtes pas administrateur.");
-        setLoading(false);
-        return;
+      if (role !== 'admin') {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single().catch(() => ({ data: null }));
+        if (!profile || profile.role !== 'admin') {
+          setError("Accès refusé. Vous n'êtes pas administrateur.");
+          setLoading(false);
+          return;
+        }
       }
 
       setAdminToken(data.session.access_token);
