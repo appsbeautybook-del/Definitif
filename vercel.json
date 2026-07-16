@@ -2,7 +2,6 @@
   "installCommand": "cd beauty_book-main/beauty_book-main && npm install",
   "buildCommand": "cd beauty_book-main/beauty_book-main && npm run build",
   "outputDirectory": "beauty_book-main/beauty_book-main/dist",
-  "framework": "vite",
   "rewrites": [
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
