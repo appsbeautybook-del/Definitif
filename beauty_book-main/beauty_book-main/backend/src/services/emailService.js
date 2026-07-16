@@ -1,34 +1,19 @@
-import nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import { supabaseAdmin } from '../config/supabase.js';
 
-let transporter = null;
+let sgConfigured = false;
 
-async function getTransporter() {
-  if (transporter) return transporter;
-
-  if (process.env.SMTP_HOST) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-    console.log('[Email] Using SMTP:', process.env.SMTP_HOST);
-    return transporter;
+function configureSendGrid() {
+  if (sgConfigured) return true;
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) {
+    console.warn('[Email] SENDGRID_API_KEY not set');
+    return false;
   }
-
-  const testAccount = await nodemailer.createTestAccount();
-  transporter = nodemailer.createTransport({
-    host: testAccount.smtp.host,
-    port: testAccount.smtp.port,
-    secure: testAccount.smtp.secure,
-    auth: { user: testAccount.user, pass: testAccount.pass },
-  });
-  console.log('[Email] Using Ethereal:', testAccount.user);
-  return transporter;
+  sgMail.setApiKey(apiKey);
+  sgConfigured = true;
+  console.log('[Email] SendGrid configured');
+  return true;
 }
 
 function buildEmailHtml(code) {
@@ -53,21 +38,21 @@ function buildEmailHtml(code) {
 }
 
 export async function sendOTPEmail(email, code) {
-  const transport = await getTransporter();
+  if (configureSendGrid()) {
+    const fromEmail = process.env.SENDGRID_FROM || 'appsbeautybook@gmail.com';
+    await sgMail.send({
+      to: email,
+      from: fromEmail,
+      subject: 'Votre code de vérification BeautyBook',
+      text: `Votre code de vérification est : ${code}. Ce code expire dans 10 minutes.`,
+      html: buildEmailHtml(code),
+    });
+    console.log('[Email] Sent via SendGrid to:', email);
+    return { success: true };
+  }
 
-  const info = await transport.sendMail({
-    from: process.env.SMTP_FROM || '"BeautyBook" <noreply@beautybook.app>',
-    to: email,
-    subject: 'Votre code de vérification BeautyBook',
-    text: `Votre code de vérification est : ${code}. Ce code expire dans 10 minutes.`,
-    html: buildEmailHtml(code),
-  });
-
-  const previewUrl = nodemailer.getTestMessageUrl(info);
-  if (previewUrl) console.log('[Email] Preview:', previewUrl);
-  console.log('[Email] Sent to:', email);
-
-  return { success: true, previewUrl };
+  console.warn('[Email] SendGrid not configured, code logged to console for:', email);
+  return { success: true, note: 'code_only' };
 }
 
 export async function sendOTPEmailViaSupabase(email, code) {
@@ -75,7 +60,6 @@ export async function sendOTPEmailViaSupabase(email, code) {
     email,
     options: { shouldCreateUser: true },
   });
-
   if (error) throw error;
   console.log('[Email] Sent via Supabase OTP to:', email);
   return { success: true };
