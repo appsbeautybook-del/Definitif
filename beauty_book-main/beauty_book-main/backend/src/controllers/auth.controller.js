@@ -1,28 +1,66 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import pgClient from '../config/pg.js';
-import { storeCode, verifyStoredCode } from '../services/otpStore.js';
-import { sendOTPEmail } from '../services/emailService.js';
 
 export const sendVerificationCode = async (req, res) => {
   try {
     const { mode, email, phone } = req.body;
 
     if (mode === 'email' && email) {
-      const code = storeCode(email, 'signup');
-      const result = await sendOTPEmail(email, code);
+      let { error } = await supabaseAdmin.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
+
+      if (error && error.message?.includes('rate')) {
+        return res.status(429).json({
+          success: false,
+          error: 'Trop de demandes. Attendez 30 secondes avant de réessayer.',
+          retryAfter: 30,
+        });
+      }
+
+      if (error && error.message?.includes('not found')) {
+        const { error: createError } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          email_confirm: false,
+          user_metadata: {},
+        });
+        if (!createError) {
+          const retry = await supabaseAdmin.auth.signInWithOtp({
+            email,
+            options: { shouldCreateUser: false },
+          });
+          if (retry.error) {
+            console.error('[OTP] Retry failed:', retry.error.message);
+            return res.status(500).json({ success: false, error: retry.error.message });
+          }
+          console.log('[OTP] Email sent after auto-create to:', email);
+          return res.json({ success: true, email_sent: true });
+        }
+      }
+
+      if (error) {
+        console.error('[OTP] Supabase error:', error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
       console.log('[OTP] Email sent to:', email);
-      return res.json({ success: true, email_sent: true, previewUrl: result.previewUrl });
+      return res.json({ success: true, email_sent: true });
     }
 
     if (mode === 'phone' && phone) {
-      const code = storeCode(phone, 'signup');
-      console.log('[OTP] Phone code for', phone, ':', code);
+      const { error } = await supabaseAdmin.auth.signInWithOtp({ phone });
+      if (error) {
+        console.error('[OTP] Phone error:', error.message);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      console.log('[OTP] Phone SMS sent to:', phone);
       return res.json({ success: true, email_sent: false });
     }
 
     return res.status(400).json({ success: false, error: 'Email or phone required' });
   } catch (error) {
-    console.error('ERREUR sendVerificationCode:', error.message);
+    console.error('[OTP] ERREUR:', error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -36,16 +74,24 @@ export const verifyCode = async (req, res) => {
     }
 
     const isEmail = key.includes('@');
-    const purpose = 'signup';
-    const result = verifyStoredCode(key, code, purpose);
 
-    if (!result.valid) {
-      return res.status(400).json({ success: false, error: result.error });
+    const { data, error } = await supabaseAdmin.auth.verifyOtp({
+      email: isEmail ? key : undefined,
+      phone: !isEmail ? key : undefined,
+      token: code,
+      type: isEmail ? 'email' : 'sms',
+    });
+
+    if (error) {
+      console.error('[OTP] Verify error:', error.message);
+      return res.status(400).json({ success: false, error: 'Code incorrect ou expiré' });
     }
+
+    await supabaseAdmin.auth.admin.signOut(data.session?.access_token).catch(() => {});
 
     return res.json({ success: true });
   } catch (error) {
-    console.error('verifyCode error:', error.message);
+    console.error('[OTP] Verify error:', error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 };
@@ -54,18 +100,12 @@ export const verifyCode = async (req, res) => {
 export const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      return res.status(401).json({ success: false, error: "Identifiants invalides" });
-    }
+    if (error) return res.status(401).json({ success: false, error: "Identifiants invalides" });
 
     let role = data.user?.user_metadata?.role;
-    let profileRole = null;
     try {
       const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', data.user.id).single();
-      if (profile?.role) profileRole = profile.role;
       if (profile?.role && profile.role !== 'user') role = profile.role;
     } catch (_) {}
 
@@ -78,10 +118,7 @@ export const adminLogin = async (req, res) => {
       } catch (_) {}
     }
 
-    if (role !== 'admin') {
-      return res.status(403).json({ success: false, error: "Accès refusé. Vous n'êtes pas administrateur." });
-    }
-
+    if (role !== 'admin') return res.status(403).json({ success: false, error: "Accès refusé." });
     return res.json({ success: true, session: data.session, user: data.user });
   } catch (error) {
     console.error('adminLogin error:', error.message);
@@ -92,28 +129,17 @@ export const adminLogin = async (req, res) => {
 export const adminRegister = async (req, res) => {
   try {
     const { email, password, nom, prenom } = req.body;
-
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+      email, password, email_confirm: true,
       user_metadata: { nom, prenom, role: 'admin' }
     });
-
-    if (error) {
-      return res.status(400).json({ success: false, error: error.message });
-    }
-
+    if (error) return res.status(400).json({ success: false, error: error.message });
     try {
-      const { error: upsertErr } = await supabaseAdmin.from('profiles').upsert({
-        id: data.user.id,
-        email: data.user.email,
-        role: 'admin',
+      await supabaseAdmin.from('profiles').upsert({
+        id: data.user.id, email: data.user.email, role: 'admin',
         full_name: `${prenom} ${nom}`.trim()
       }, { onConflict: 'id' });
-      if (upsertErr) console.warn('profile upsert warning:', upsertErr.message);
     } catch (_) {}
-
     return res.json({ success: true, user: data.user });
   } catch (error) {
     console.error('adminRegister error:', error.message);
@@ -121,28 +147,21 @@ export const adminRegister = async (req, res) => {
   }
 };
 
-// Vendeur Auth
 export const vendeurLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const { data, error } = await supabaseAdmin.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      return res.status(401).json({ success: false, error: "Identifiants invalides" });
-    }
+    if (error) return res.status(401).json({ success: false, error: "Identifiants invalides" });
 
     let role = data.user?.user_metadata?.role;
-    let profileRole = null;
     try {
       const { data: profile } = await supabaseAdmin.from('profiles').select('role').eq('id', data.user.id).single();
-      if (profile?.role) profileRole = profile.role;
       if (profile?.role && profile.role !== 'user') role = profile.role;
     } catch (_) {}
 
     if (!role && data.user?.id) {
       try {
-        const targetRole = (profileRole && profileRole !== 'user') ? profileRole : 'vendeur';
+        const targetRole = 'vendeur';
         await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
           user_metadata: { ...(data.user.user_metadata || {}), role: targetRole }
         });
@@ -150,10 +169,7 @@ export const vendeurLogin = async (req, res) => {
       } catch (_) {}
     }
 
-    if (role !== 'vendeur' && role !== 'admin') {
-      return res.status(403).json({ success: false, error: "Accès refusé. Vous n'êtes pas vendeur." });
-    }
-
+    if (role !== 'vendeur' && role !== 'admin') return res.status(403).json({ success: false, error: "Accès refusé." });
     return res.json({ success: true, session: data.session, user: data.user });
   } catch (error) {
     console.error('vendeurLogin error:', error.message);
@@ -164,28 +180,17 @@ export const vendeurLogin = async (req, res) => {
 export const vendeurRegister = async (req, res) => {
   try {
     const { email, password, prenom, nom, phone } = req.body;
-
     const { data, error } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+      email, password, email_confirm: true,
       user_metadata: { prenom, nom, phone, role: 'vendeur' }
     });
-
-    if (error) {
-      return res.status(400).json({ success: false, error: error.message });
-    }
-
+    if (error) return res.status(400).json({ success: false, error: error.message });
     try {
-      const { error: upsertErr } = await supabaseAdmin.from('profiles').upsert({
-        id: data.user.id,
-        email: data.user.email,
-        role: 'vendeur',
+      await supabaseAdmin.from('profiles').upsert({
+        id: data.user.id, email: data.user.email, role: 'vendeur',
         full_name: `${prenom} ${nom}`.trim()
       }, { onConflict: 'id' });
-      if (upsertErr) console.warn('profile upsert warning:', upsertErr.message);
     } catch (_) {}
-
     return res.json({ success: true, user: data.user });
   } catch (error) {
     console.error('vendeurRegister error:', error.message);
