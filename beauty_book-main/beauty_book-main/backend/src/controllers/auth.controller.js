@@ -1,37 +1,22 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import pgClient from '../config/pg.js';
+import { storeCode, verifyStoredCode } from '../services/otpStore.js';
+import { sendOTPEmail } from '../services/emailService.js';
 
 export const sendVerificationCode = async (req, res) => {
   try {
     const { mode, email, phone } = req.body;
 
     if (mode === 'email' && email) {
-      const { error } = await supabaseAdmin.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: true,
-        },
-      });
-
-      if (error) {
-        console.error('[OTP] Supabase error:', error.message);
-        return res.status(500).json({ success: false, error: error.message });
-      }
-
-      console.log('[OTP] Email OTP sent to:', email);
-      return res.json({ success: true, email_sent: true });
+      const code = storeCode(email, 'signup');
+      const result = await sendOTPEmail(email, code);
+      console.log('[OTP] Code sent to:', email, '| Code:', code);
+      return res.json({ success: true, email_sent: true, note: result?.note });
     }
 
     if (mode === 'phone' && phone) {
-      const { error } = await supabaseAdmin.auth.signInWithOtp({
-        phone,
-        options: { shouldCreateUser: true },
-      });
-      if (error) {
-        console.error('[OTP] Phone error:', error.message);
-        return res.status(500).json({ success: false, error: error.message });
-      }
-      console.log('[OTP] Phone SMS sent to:', phone);
+      const code = storeCode(phone, 'signup');
+      console.log('[OTP] Phone code for', phone, ':', code);
       return res.json({ success: true, email_sent: false });
     }
 
@@ -45,26 +30,14 @@ export const sendVerificationCode = async (req, res) => {
 export const verifyCode = async (req, res) => {
   try {
     const { key, code } = req.body;
-
     if (!key || !code) {
       return res.status(400).json({ success: false, error: 'Clé et code requis' });
     }
 
-    const isEmail = key.includes('@');
-
-    const { data, error } = await supabaseAdmin.auth.verifyOtp({
-      email: isEmail ? key : undefined,
-      phone: !isEmail ? key : undefined,
-      token: code,
-      type: isEmail ? 'email' : 'sms',
-    });
-
-    if (error) {
-      console.error('[OTP] Verify error:', error.message);
-      return res.status(400).json({ success: false, error: 'Code incorrect ou expiré' });
+    const result = verifyStoredCode(key, code, 'signup');
+    if (!result.valid) {
+      return res.status(400).json({ success: false, error: result.error });
     }
-
-    await supabaseAdmin.auth.admin.signOut(data.session?.access_token).catch(() => {});
 
     return res.json({ success: true });
   } catch (error) {

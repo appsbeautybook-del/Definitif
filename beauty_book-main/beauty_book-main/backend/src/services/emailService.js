@@ -1,18 +1,24 @@
-import sgMail from '@sendgrid/mail';
+import nodemailer from 'nodemailer';
 
-let sgConfigured = false;
+let transporter = null;
 
-function configureSendGrid() {
-  if (sgConfigured) return true;
-  const apiKey = process.env.SENDGRID_API_KEY;
-  if (!apiKey) {
-    console.error('[Email] SENDGRID_API_KEY not set!');
-    return false;
+async function getTransporter() {
+  if (transporter) return transporter;
+
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+
+  if (user && pass) {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+    });
+    console.log('[Email] Using Gmail SMTP:', user);
+    return transporter;
   }
-  sgMail.setApiKey(apiKey);
-  sgConfigured = true;
-  console.log('[Email] SendGrid configured');
-  return true;
+
+  console.warn('[Email] GMAIL_USER/GMAIL_APP_PASSWORD not set');
+  return null;
 }
 
 function buildEmailHtml(code) {
@@ -37,36 +43,28 @@ function buildEmailHtml(code) {
 }
 
 export async function sendOTPEmail(email, code) {
-  if (!configureSendGrid()) {
+  const transport = await getTransporter();
+
+  if (!transport) {
     console.log('[Email] ==========================================');
-    console.log('[Email] SENDGRID NON CONFIGURÉ');
-    console.log('[Email] Code pour', email, ':', code);
+    console.log('[Email] GMAIL NON CONFIGURÉ — Code pour', email, ':', code);
     console.log('[Email] ==========================================');
     return { success: true, note: 'console_only' };
   }
 
-  const fromEmail = process.env.SENDGRID_FROM || 'appsbeautybook@gmail.com';
-
   try {
-    await sgMail.send({
+    await transport.sendMail({
+      from: `"BeautyBook" <${process.env.GMAIL_USER}>`,
       to: email,
-      from: fromEmail,
       subject: 'Votre code de vérification BeautyBook',
       text: `Votre code de vérification est : ${code}. Ce code expire dans 10 minutes.`,
       html: buildEmailHtml(code),
     });
-    console.log('[Email] Sent via SendGrid to:', email);
+    console.log('[Email] Sent via Gmail SMTP to:', email);
     return { success: true };
   } catch (error) {
-    console.error('[Email] SendGrid error:', error.message);
-    if (error.response) {
-      console.error('[Email] SendGrid body:', JSON.stringify(error.response.body));
-    }
+    console.error('[Email] Gmail SMTP error:', error.message);
     console.log('[Email] Fallback — code pour', email, ':', code);
-    return { success: true, note: 'sendgrid_failed_console' };
+    return { success: true, note: 'smtp_failed_console' };
   }
-}
-
-export async function sendOTPEmailViaSupabase() {
-  throw new Error('Supabase OTP désactivé — utilisez SendGrid');
 }
