@@ -1,17 +1,32 @@
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-let resend = null;
+let resendClient = null;
+let gmailTransporter = null;
 
 function getResend() {
-  if (resend) return resend;
+  if (resendClient) return resendClient;
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.error('[Email] RESEND_API_KEY not set!');
-    return null;
-  }
-  resend = new Resend(apiKey);
-  console.log('[Email] Resend configured');
-  return resend;
+  if (!apiKey) return null;
+  resendClient = new Resend(apiKey);
+  return resendClient;
+}
+
+async function getGmailTransporter() {
+  if (gmailTransporter) return gmailTransporter;
+  const user = process.env.GMAIL_USER;
+  const pass = process.env.GMAIL_APP_PASSWORD;
+  if (!user || !pass) return null;
+  gmailTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+    pool: true,
+    maxConnections: 1,
+    rateDelta: 1000,
+    rateLimit: 5,
+  });
+  console.log('[Email] Gmail SMTP ready');
+  return gmailTransporter;
 }
 
 function buildEmailHtml(code) {
@@ -36,28 +51,48 @@ function buildEmailHtml(code) {
 }
 
 export async function sendOTPEmail(email, code) {
-  const client = getResend();
+  const html = buildEmailHtml(code);
+  const text = `Votre code de vérification est : ${code}. Ce code expire dans 10 minutes.`;
+  const subject = 'Votre code de vérification BeautyBook';
 
-  if (!client) {
-    console.log('[Email] ==========================================');
-    console.log('[Email] RESEND NON CONFIGURÉ — Code pour', email, ':', code);
-    console.log('[Email] ==========================================');
-    return { success: true, note: 'console_only' };
+  // Essayer Resend d'abord
+  const resend = getResend();
+  if (resend) {
+    try {
+      await resend.emails.send({
+        from: 'BeautyBook <onboarding@resend.dev>',
+        to: email,
+        subject,
+        text,
+        html,
+      });
+      console.log('[Email] Sent via Resend to:', email);
+      return { success: true };
+    } catch (err) {
+      console.warn('[Email] Resend failed:', err.message);
+    }
   }
 
-  try {
-    await client.emails.send({
-      from: 'BeautyBook <onboarding@resend.dev>',
-      to: email,
-      subject: 'Votre code de vérification BeautyBook',
-      text: `Votre code de vérification est : ${code}. Ce code expire dans 10 minutes.`,
-      html: buildEmailHtml(code),
-    });
-    console.log('[Email] Sent via Resend to:', email);
-    return { success: true };
-  } catch (error) {
-    console.error('[Email] Resend error:', error.message);
-    console.log('[Email] Fallback — code pour', email, ':', code);
-    return { success: true, note: 'resend_failed_console' };
+  // Fallback Gmail SMTP
+  const gmail = await getGmailTransporter();
+  if (gmail) {
+    try {
+      await gmail.sendMail({
+        from: `"BeautyBook" <${process.env.GMAIL_USER}>`,
+        to: email,
+        subject,
+        text,
+        html,
+      });
+      console.log('[Email] Sent via Gmail SMTP to:', email);
+      return { success: true };
+    } catch (err) {
+      console.error('[Email] Gmail SMTP error:', err.message);
+    }
   }
+
+  console.log('[Email] ==========================================');
+  console.log('[Email] AUCUN SMTP — Code pour', email, ':', code);
+  console.log('[Email] ==========================================');
+  return { success: true, note: 'console_only' };
 }
