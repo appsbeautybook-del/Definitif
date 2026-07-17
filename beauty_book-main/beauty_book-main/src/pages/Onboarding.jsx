@@ -348,9 +348,22 @@ function StepVerification({ onNext, onBack }) {
   useEffect(() => {
     const sendCode = async () => {
       let currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
+      const isSocial = sessionStorage.getItem("bb_social_signup_processed") === "1";
 
-      // Si pas d'email dans bb_signup_data (OAuth social sans formulaire), récupérer depuis le compte connecté
-      if (!currentData.email) {
+      // Pour OAuth social : TOUJOURS l'email du compte Google sélectionné, pas celui du formulaire
+      if (isSocial) {
+        let user = null;
+        for (let i = 0; i < 8; i++) {
+          user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
+          if (user?.email) break;
+          await new Promise(r => setTimeout(r, 750));
+        }
+        if (user?.email) {
+          currentData = { ...currentData, email: user.email, mode: "email" };
+          sessionStorage.setItem("bb_signup_data", JSON.stringify(currentData));
+          setData(currentData);
+        }
+      } else if (!currentData.email) {
         let user = null;
         for (let i = 0; i < 8; i++) {
           user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
@@ -807,6 +820,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(() => {
     if (sessionStorage.getItem("bb_social_signup") === "1") {
       sessionStorage.removeItem("bb_social_signup");
+      sessionStorage.setItem("bb_social_signup_processed", "1");
       return 2;
     }
     // Si on vient de "Créer un compte" depuis la page connexion, démarrer à l'étape 1
@@ -820,6 +834,7 @@ export default function Onboarding() {
   const done = () => {
     localStorage.setItem("bb_onboarded", "1");
     sessionStorage.removeItem("bb_signup_data");
+    sessionStorage.removeItem("bb_social_signup_processed");
     window.location.href = "/";
   };
 
