@@ -120,6 +120,16 @@ function StepSignup({ onNext, onBack }) {
   };
 
   const handleSocialLogin = async (provider) => {
+    if (form.email || form.prenom || form.nom) {
+      const contact = mode === "email" ? form.email : `+33${form.phone.replace(/\s/g, "")}`;
+      sessionStorage.setItem("bb_signup_data", JSON.stringify({
+        prenom: form.prenom,
+        nom: form.nom,
+        email: form.email,
+        phone: contact,
+        mode,
+      }));
+    }
     sessionStorage.setItem("bb_social_signup", "1");
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
@@ -339,7 +349,7 @@ function StepVerification({ onNext, onBack }) {
     const sendCode = async () => {
       let currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
 
-      // Si pas d'email (retour OAuth social), récupérer depuis le compte connecté
+      // Si pas d'email dans bb_signup_data (OAuth social sans formulaire), récupérer depuis le compte connecté
       if (!currentData.email) {
         let user = null;
         for (let i = 0; i < 8; i++) {
