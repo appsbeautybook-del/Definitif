@@ -1,24 +1,17 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-let transporter = null;
+let resend = null;
 
-async function getTransporter() {
-  if (transporter) return transporter;
-
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-
-  if (user && pass) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user, pass },
-    });
-    console.log('[Email] Using Gmail SMTP:', user);
-    return transporter;
+function getResend() {
+  if (resend) return resend;
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error('[Email] RESEND_API_KEY not set!');
+    return null;
   }
-
-  console.warn('[Email] GMAIL_USER/GMAIL_APP_PASSWORD not set');
-  return null;
+  resend = new Resend(apiKey);
+  console.log('[Email] Resend configured');
+  return resend;
 }
 
 function buildEmailHtml(code) {
@@ -43,28 +36,28 @@ function buildEmailHtml(code) {
 }
 
 export async function sendOTPEmail(email, code) {
-  const transport = await getTransporter();
+  const client = getResend();
 
-  if (!transport) {
+  if (!client) {
     console.log('[Email] ==========================================');
-    console.log('[Email] GMAIL NON CONFIGURÉ — Code pour', email, ':', code);
+    console.log('[Email] RESEND NON CONFIGURÉ — Code pour', email, ':', code);
     console.log('[Email] ==========================================');
     return { success: true, note: 'console_only' };
   }
 
   try {
-    await transport.sendMail({
-      from: `"BeautyBook" <${process.env.GMAIL_USER}>`,
+    await client.emails.send({
+      from: 'BeautyBook <onboarding@resend.dev>',
       to: email,
       subject: 'Votre code de vérification BeautyBook',
       text: `Votre code de vérification est : ${code}. Ce code expire dans 10 minutes.`,
       html: buildEmailHtml(code),
     });
-    console.log('[Email] Sent via Gmail SMTP to:', email);
+    console.log('[Email] Sent via Resend to:', email);
     return { success: true };
   } catch (error) {
-    console.error('[Email] Gmail SMTP error:', error.message);
+    console.error('[Email] Resend error:', error.message);
     console.log('[Email] Fallback — code pour', email, ':', code);
-    return { success: true, note: 'smtp_failed_console' };
+    return { success: true, note: 'resend_failed_console' };
   }
 }
