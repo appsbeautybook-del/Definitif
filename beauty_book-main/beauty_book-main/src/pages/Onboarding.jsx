@@ -527,7 +527,7 @@ function StepVerification({ onNext, onBack }) {
         <button
           onClick={handleResend}
           disabled={resendTimer > 0 || resending}
-          className="flex items-center gap-2 text-[12px] font-black text-gray-400 active:scale-95 transition-all disabled:opacity-50"
+          className={`flex items-center gap-2 text-[12px] font-black active:scale-95 transition-all ${resendTimer > 0 ? 'text-gray-400 opacity-50' : 'text-[#E8732A]'}`}
         >
           <RotateCcw className={`w-3.5 h-3.5 ${resending ? "animate-spin" : ""}`} />
           {resendTimer > 0
