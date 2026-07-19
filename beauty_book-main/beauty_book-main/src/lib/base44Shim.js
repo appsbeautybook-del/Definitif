@@ -3,7 +3,7 @@
  * Loaded before any component mounts.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
 
 async function invokeLLMBackend({ prompt, response_json_schema, file_urls, model }) {
   const res = await fetch(`${API_BASE}/api/ai/invoke-llm`, {

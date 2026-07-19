@@ -8,7 +8,7 @@ import { supabase } from '@/api/supabaseClient';
  * - Writes (create/update/delete) → backend /api/crud (service_role, bypasses RLS)
  */
 
-const CRUD_API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+const CRUD_API = import.meta.env.VITE_BACKEND_URL || '';
 
 const parseOrder = (orderBy) => {
   if (!orderBy) return { column: 'created_at', ascending: false };
@@ -278,7 +278,7 @@ export const entities = {
   profiles:           createEntity('profiles'),
 };
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
 
 import { compressMedia } from '@/lib/compressMedia';
 

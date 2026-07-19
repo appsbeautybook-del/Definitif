@@ -3,7 +3,7 @@ import { supabase } from '@/api/supabaseClient';
 import { apiClient } from "@/lib/apiClient";
 import { Search, CheckCircle, XCircle, FileText, ChevronRight, X, ExternalLink, AlertTriangle } from "lucide-react";
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
 
 const FILTERS = ["Tous", "En attente", "Approuvés", "Refusés"];
 
