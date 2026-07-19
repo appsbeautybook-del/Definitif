@@ -1,6 +1,11 @@
 import { supabase } from '../api/supabaseClient';
+import { clientSendVerificationCode, clientVerifyCode } from './clientOtp';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+
+function isBackendAvailable() {
+  return !window.location.hostname.includes('vercel.app');
+}
 
 export const apiClient = {
   async get(endpoint) {
@@ -140,9 +145,18 @@ export const apiClient = {
 
     const route = endpointMap[functionName];
     if (!route) {
-      // Functions not yet migrated — return mock so frontend doesn't crash
       console.warn(`[apiClient.callFunction] "${functionName}" not yet migrated — returning mock`);
       return { data: { success: true, message: `Mock for ${functionName}` } };
+    }
+
+    // Sur Vercel: OTP directement via Supabase côté client
+    if (!isBackendAvailable()) {
+      if (functionName === 'sendVerificationCode') {
+        return this._sendOtpClient(payload);
+      }
+      if (functionName === 'verifyCode') {
+        return this._verifyOtpClient(payload);
+      }
     }
 
     const options = { method: route.method };
@@ -162,7 +176,20 @@ export const apiClient = {
       console.error(`[apiClient.callFunction] Error calling "${functionName}":`, error);
       throw error;
     }
-  }
+  },
+
+  async _sendOtpClient(payload) {
+    const result = await clientSendVerificationCode(payload.email);
+    return { data: result };
+  },
+
+  async _verifyOtpClient(payload) {
+    const result = clientVerifyCode(payload.key, payload.code);
+    if (!result.valid) {
+      return { data: { success: false, error: result.error } };
+    }
+    return { data: { success: true } };
+  },
 };
 
 export { apiClient as default };
