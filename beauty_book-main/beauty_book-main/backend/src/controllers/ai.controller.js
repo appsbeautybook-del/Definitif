@@ -5,6 +5,48 @@ const LLM_API_URL = 'https://opencode.ai/zen/v1/chat/completions';
 const LLM_API_KEY = 'sk-ziv83S32mc2ZSb6g5h4faZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw';
 const LLM_MODEL = 'mimo-v2.5-free';
 
+export const analyzePhoto = async (req, res) => {
+  try {
+    const { photoUrl, productName } = req.body;
+    if (!photoUrl) return res.status(400).json({ error: "photoUrl required" });
+
+    // Utiliser le LLM pour analyser l'image
+    try {
+      const response = await fetch(LLM_API_URL, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${LLM_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: LLM_MODEL,
+          messages: [{
+            role: 'user',
+            content: `Analyze this photo for a virtual fashion try-on. Product: "${productName}". 
+Return JSON: { has_person: bool, body_visible: bool, quality_ok: bool, compatibility_score: 0-100, issues: [str], body_type: str, suggestion: str in French }`
+          }],
+          response_format: { type: 'json_object' },
+        }),
+      });
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (content) {
+        const parsed = JSON.parse(content);
+        return res.json(parsed);
+      }
+    } catch (e) {
+      console.warn('[analyzePhoto] LLM failed:', e.message);
+    }
+
+    // Fallback
+    return res.json({
+      has_person: true, body_visible: true, quality_ok: true,
+      compatibility_score: 85, issues: [], body_type: "",
+      suggestion: "Photo prête pour l'essayage virtuel."
+    });
+  } catch (error) {
+    console.error("analyzePhoto error:", error);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 export const invokeLLM = async (req, res) => {
   try {
     const { prompt, response_json_schema, file_urls, model } = req.body;

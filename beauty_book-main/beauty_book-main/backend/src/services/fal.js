@@ -1,10 +1,9 @@
 const FAL_BASE = 'https://queue.fal.run';
-const FAL_KEY = process.env.FAL_KEY || '';
+const FAL_KEY = process.env.FAL_KEY || 'de3603a5-a149-478c-934a-fce750c5c695:f5a17f75c35612bb9064a41059e49027';
 
 export async function submitFalModel(endpoint, payload) {
   if (!FAL_KEY) throw new Error('FAL_KEY non configuré');
 
-  // 1. Submit
   const submitRes = await fetch(`${FAL_BASE}/${endpoint}`, {
     method: 'POST',
     headers: { 'Authorization': `Key ${FAL_KEY}`, 'Content-Type': 'application/json' },
@@ -17,7 +16,6 @@ export async function submitFalModel(endpoint, payload) {
   const { request_id, response_url, status_url } = await submitRes.json();
   if (!request_id) throw new Error('Pas de request_id retourné par fal.ai');
 
-  // 2. Poll until completed
   const maxAttempts = 60;
   for (let i = 0; i < maxAttempts; i++) {
     const statusRes = await fetch(`${FAL_BASE}/${endpoint}/requests/${request_id}/status`, {
@@ -29,7 +27,6 @@ export async function submitFalModel(endpoint, payload) {
     }
     const status = await statusRes.json();
     if (status.status === 'COMPLETED') {
-      // 3. Get result
       const resultRes = await fetch(response_url || `${FAL_BASE}/${endpoint}/requests/${request_id}`, {
         headers: { 'Authorization': `Key ${FAL_KEY}` },
       });

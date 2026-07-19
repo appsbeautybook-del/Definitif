@@ -123,6 +123,7 @@ export const apiClient = {
       mariaAutoReply: { path: '/ai/maria-autoreply', method: 'POST' },
       shAiImageSearch: { path: '/ai/image-search', method: 'POST' },
       simulateHairstyle: { path: '/ai/simulate-hairstyle', method: 'POST' },
+      analyzePhoto: { path: '/ai/analyze-photo', method: 'POST' },
       generateVeoVideo: { path: '/ai/generate-video', method: 'POST' },
       
       stripeWebhook: { path: '/webhooks/stripe', method: 'POST' },

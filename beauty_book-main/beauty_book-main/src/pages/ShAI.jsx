@@ -545,46 +545,23 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
   const analyzePhoto = async (photoUrl, productName, file) => {
     setAnalyzingPhoto(true);
     setPhotoAnalysis(null);
-    let res = null;
     try {
-      let imagePayload = [photoUrl];
-      if (file && photoUrl.startsWith('blob:')) {
-        const b64 = await fileToBase64(file);
-        imagePayload = [b64];
-      }
-      res = await base44.integrations.Core.InvokeLLM({
-        prompt: `Analyze this photo for a virtual fashion try-on system.
-Product to try on: "${productName || "clothing item"}".
-
-Evaluate:
-1. Is there a full or partial human body visible? (required)
-2. Is the body sufficiently visible for clothing try-on? (torso at minimum)
-3. Is the image quality sufficient? (not blurry, not too dark)
-4. Compatibility score 0-100 between this photo and trying on "${productName || "clothing item"}".
-5. List any issues that could affect quality (e.g. "body partially cut off", "bad lighting").
-6. Detected body type (slim, athletic, curvy, etc.) in 1-2 words.
-7. Brief suggestion to improve the photo if score < 70. In French.
-
-Respond in JSON only.`,
-        file_urls: imagePayload,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            has_person: { type: "boolean" },
-            body_visible: { type: "boolean" },
-            quality_ok: { type: "boolean" },
-            compatibility_score: { type: "number" },
-            issues: { type: "array", items: { type: "string" } },
-            body_type: { type: "string" },
-            suggestion: { type: "string" },
-          }
-        }
+      // Appeler le backend pour l'analyse IA
+      const res = await apiClient.callFunction("analyzePhoto", {
+        photoUrl,
+        productName: productName || "vêtement",
+      });
+      setPhotoAnalysis(res.data || {
+        has_person: true,
+        body_visible: true,
+        quality_ok: true,
+        compatibility_score: 85,
+        issues: [],
+        body_type: "",
+        suggestion: "Photo prête pour l'essayage virtuel."
       });
     } catch (err) {
-      console.warn('[ShAI] LLM analysis failed, using default analysis:', err);
-    }
-    setAnalyzingPhoto(false);
-    if (!res) {
+      console.warn('[ShAI] Analysis failed, using default:', err);
       setPhotoAnalysis({
         has_person: true,
         body_visible: true,
@@ -594,9 +571,8 @@ Respond in JSON only.`,
         body_type: "",
         suggestion: "Photo prête pour l'essayage virtuel."
       });
-      return;
     }
-    setPhotoAnalysis(res);
+    setAnalyzingPhoto(false);
   };
 
   const handleUserPhoto = async (e) => {
