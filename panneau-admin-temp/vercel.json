@@ -1,6 +1,9 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
+  "name": "beautybook-admin",
   "installCommand": "npm install",
-  "framework": "vite"
+  "buildCommand": "npx vite build --config vite.admin.config.js --outDir dist",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  ]
 }

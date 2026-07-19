@@ -1,8 +1,12 @@
 {
-  "installCommand": "cd beauty_book-main/beauty_book-main && npm install",
-  "buildCommand": "cd beauty_book-main/beauty_book-main && npm run build",
+  "installCommand": "cd beauty_book-main/beauty_book-main && npm install && cd ../../panneau-admin-temp && npm install && cd ../panneau-vendeur-temp && npm install",
+  "buildCommand": "cd beauty_book-main/beauty_book-main && npm run build && cd ../../panneau-admin-temp && npm run build -- --config vite.admin.config.js --outDir ../../beauty_book-main/beauty_book-main/dist/admin && cd ../panneau-vendeur-temp && npm run build -- --outDir ../../beauty_book-main/beauty_book-main/dist/vendeur",
   "outputDirectory": "beauty_book-main/beauty_book-main/dist",
   "rewrites": [
+    { "source": "/admin/assets/(.*)", "destination": "/admin/assets/$1" },
+    { "source": "/admin/(.*)", "destination": "/admin/index.html" },
+    { "source": "/vendeur/assets/(.*)", "destination": "/vendeur/assets/$1" },
+    { "source": "/vendeur/(.*)", "destination": "/vendeur/index.html" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ]
 }
