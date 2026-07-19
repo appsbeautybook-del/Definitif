@@ -45,10 +45,11 @@ export default function AdminStyles() {
 
   const autoSaveDraft = async (data) => {
     try {
+      const styleData = { ...data, pro_email: data.pro_email || "admin@beautybook.fr" };
       if (draftId) {
-        await entities.Style.update(draftId, { ...data, status: "brouillon" });
+        await entities.Style.update(draftId, { ...styleData, status: "brouillon" });
       } else {
-        const res = await entities.Style.create({ ...data, status: "brouillon" });
+        const res = await entities.Style.create({ ...styleData, status: "brouillon" });
         if (res.data?.style?.id) setDraftId(res.data.style.id);
       }
     } catch {}
@@ -215,8 +216,8 @@ export default function AdminStyles() {
          const res = await entities.Style.update(draftId, { ...form, status });
          savedStyle = res?.data?.style || res?.result || res || { ...form, id: draftId, status };
          setStyles(prev => prev.map(s => s.id === draftId ? savedStyle : s));
-       } else {
-         const res = await entities.Style.create({ ...form, status });
+        } else {
+          const res = await entities.Style.create({ ...form, pro_email: form.pro_email || "admin@beautybook.fr", status });
          savedStyle = res?.data?.style || res?.result || res;
          if (!savedStyle) throw new Error("Création échouée");
          setStyles(prev => [savedStyle, ...prev]);
