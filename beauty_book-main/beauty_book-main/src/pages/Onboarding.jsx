@@ -430,15 +430,21 @@ function StepVerification({ onNext, onBack }) {
     setLoading(true);
     setError("");
     const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
-    const key = currentData.mode === "email" ? currentData.email : currentData.phone;
-    if (!key) { setError("Contact introuvable. Recommencez depuis le début."); setLoading(false); return; }
-    const res = await apiClient.callFunction("verifyCode", { key, code: fullCode });
-    if (res.data?.success) {
-      onNext();
-    } else {
-      setError(res.data?.error || "Code incorrect ou expiré.");
+    const email = currentData.email;
+    if (!email) { setError("Email introuvable. Recommencez depuis le début."); setLoading(false); return; }
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: fullCode,
+      type: 'email',
+    });
+
+    if (verifyError) {
+      setError("Code incorrect ou expiré.");
       setCode(["", "", "", "", "", ""]);
       inputs.current[0]?.focus();
+    } else {
+      onNext();
     }
     setLoading(false);
   };
@@ -463,33 +469,12 @@ function StepVerification({ onNext, onBack }) {
     }, 1000);
   };
 
-  // Auto-verify when all 6 digits are filled
-  const handleCodeComplete = async (newCode) => {
-    if (newCode.join("").length === 6) {
-      setLoading(true);
-      setError("");
-      const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
-      const key = currentData.mode === "email" ? currentData.email : currentData.phone;
-      if (!key) { setError("Contact introuvable. Recommencez depuis le début."); setLoading(false); return; }
-      const res = await apiClient.callFunction("verifyCode", { key, code: newCode.join("") });
-      if (res.data?.success) {
-        onNext();
-      } else {
-        setError(res.data?.error || "Code incorrect ou expiré.");
-        setCode(["", "", "", "", "", ""]);
-        inputs.current[0]?.focus();
-      }
-      setLoading(false);
-    }
-  };
-
   const handleChangeAuto = (i, val) => {
     if (!/^\d?$/.test(val)) return;
     const next = [...code];
     next[i] = val;
     setCode(next);
     if (val && i < 5) inputs.current[i + 1]?.focus();
-    handleCodeComplete(next);
   };
 
   return (
