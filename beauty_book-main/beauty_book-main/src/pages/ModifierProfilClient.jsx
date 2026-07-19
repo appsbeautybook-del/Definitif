@@ -4,42 +4,18 @@ import { ArrowLeft, Camera, Image } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from '@/api/supabaseClient';
 import { useProfileMedia } from "@/hooks/useProfileMedia";
-import { compressMedia } from "@/lib/compressMedia";
 
 const DEFAULT_AVATAR = "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=200";
 const DEFAULT_BANNER = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=800";
 const bioMax = 160;
-const API = 'http://localhost:3000/api';
 
-async function apiPost(endpoint, body, timeoutMs = 15000) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(`${API}${endpoint}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error || `Erreur ${res.status}`);
-    return json;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function uploadToBackend(file) {
-  const compressed = await compressMedia(file);
-  const toBase64 = (f) => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(f);
-  });
-  const content = await toBase64(compressed);
-  const json = await apiPost('/upload', { name: compressed.name, type: compressed.type, content }, 30000);
-  return json.file_url;
+async function uploadToSupabase(file) {
+  const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filePath = `avatars/${Date.now()}_${safeName}`;
+  const { error } = await supabase.storage.from('uploads').upload(filePath, file, { contentType: file.type, upsert: true });
+  if (error) throw new Error(error.message);
+  const { data } = supabase.storage.from('uploads').getPublicUrl(filePath);
+  return data.publicUrl;
 }
 
 export default function ModifierProfilClient() {
@@ -64,7 +40,6 @@ export default function ModifierProfilClient() {
   useEffect(() => {
     const loadForm = async () => {
       if (!user?.id) return;
-      // Fetch fresh profile data directly from Supabase
       const { data } = await supabase.from('profiles').select('full_name, username, bio').eq('id', user.id).maybeSingle();
       if (data) {
         setForm({
@@ -104,15 +79,15 @@ export default function ModifierProfilClient() {
         return;
       }
 
-      const profileData = {};
-      if (form.fullName) profileData.full_name = form.fullName;
-      if (form.username) profileData.username = form.username;
+      const profileData = { id: authUser.id, updated_at: new Date().toISOString() };
+      if (form.fullName !== undefined) profileData.full_name = form.fullName;
+      if (form.username !== undefined) profileData.username = form.username;
       if (form.bio !== undefined) profileData.bio = form.bio;
 
-      // Upload avatar
+      // Upload avatar via Supabase Storage
       if (pendingAvatarRef.current) {
         try {
-          const url = await uploadToBackend(pendingAvatarRef.current);
+          const url = await uploadToSupabase(pendingAvatarRef.current);
           if (url) profileData.avatar_url = url;
         } catch (e) {
           console.error('Avatar upload error:', e);
@@ -123,10 +98,10 @@ export default function ModifierProfilClient() {
         pendingAvatarRef.current = null;
       }
 
-      // Upload cover
+      // Upload cover via Supabase Storage
       if (pendingCoverRef.current) {
         try {
-          const url = await uploadToBackend(pendingCoverRef.current);
+          const url = await uploadToSupabase(pendingCoverRef.current);
           if (url) profileData.cover_url = url;
         } catch (e) {
           console.error('Cover upload error:', e);
@@ -137,10 +112,19 @@ export default function ModifierProfilClient() {
         pendingCoverRef.current = null;
       }
 
-      // Update profiles table
-      if (Object.keys(profileData).length > 0) {
-        await apiPost('/crud/update', { table: 'profiles', id: authUser.id, data: profileData });
+      // Upsert direct dans Supabase
+      const { error: upsertError } = await supabase.from('profiles').upsert(profileData, { onConflict: 'id' });
+      if (upsertError) {
+        console.error('Profile save error:', upsertError);
+        setError("Erreur sauvegarde: " + upsertError.message);
+        setSaving(false);
+        return;
       }
+
+      // Mettre à jour aussi user_metadata
+      await supabase.auth.updateUser({
+        data: { full_name: profileData.full_name, username: profileData.username }
+      });
 
       setSaving(false);
       setSaved(true);
