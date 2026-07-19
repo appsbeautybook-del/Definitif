@@ -76,6 +76,26 @@ const stripUnknownColumns = async (tableName, payload) => {
 
 const createEntity = (tableName) => ({
   filter: async (filters = {}, orderBy = '-created_at', limit = 1000) => {
+    // Aller directement à Supabase si pas de backend
+    if (!CRUD_API) {
+      try {
+        let query = supabase.from(tableName).select('*');
+        if (orderBy) {
+          const desc = orderBy.startsWith('-');
+          const raw = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
+          const colMap = { created_date: 'created_at', updated_date: 'updated_at', created_at: 'created_at', updated_at: 'updated_at' };
+          query = query.order(colMap[raw] || raw, { ascending: !desc });
+        }
+        query = query.limit(limit);
+        const { data, error } = await query;
+        if (error) return [];
+        let result = data || [];
+        if (filters && Object.keys(filters).length > 0) {
+          result = result.filter(row => Object.entries(filters).every(([k, v]) => row[k] === v));
+        }
+        return result;
+      } catch { return []; }
+    }
     try {
       const res = await fetch(`${CRUD_API}/crud/list`, {
         method: 'POST',
@@ -90,22 +110,35 @@ const createEntity = (tableName) => ({
       }
       return data;
     } catch (e) {
-      console.warn(`[entities.${tableName}.filter] backend failed, trying Supabase:`, e.message);
       try {
-        const { column, ascending } = parseOrder(orderBy);
-        let query = supabase.from(tableName).select('*').order(column, { ascending });
-        if (limit) query = query.limit(limit);
-        Object.entries(filters).forEach(([key, val]) => {
-          if (val !== undefined && val !== null) query = query.eq(key, val);
-        });
+        let query = supabase.from(tableName).select('*');
+        if (orderBy) {
+          const desc = orderBy.startsWith('-');
+          const raw = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
+          const colMap = { created_date: 'created_at', updated_date: 'updated_at', created_at: 'created_at', updated_at: 'updated_at' };
+          query = query.order(colMap[raw] || raw, { ascending: !desc });
+        }
+        query = query.limit(limit);
         const { data, error } = await query;
         if (error) return [];
-        return data || [];
+        let result = data || [];
+        if (filters && Object.keys(filters).length > 0) {
+          result = result.filter(row => Object.entries(filters).every(([k, v]) => row[k] === v));
+        }
+        return result;
       } catch { return []; }
     }
   },
 
   list: async (orderBy = '-created_at', limit = 1000) => {
+    if (!CRUD_API) {
+      try {
+        const { column, ascending } = parseOrder(orderBy);
+        const { data, error } = await supabase.from(tableName).select('*').order(column, { ascending }).limit(limit);
+        if (error) return [];
+        return data || [];
+      } catch { return []; }
+    }
     try {
       const res = await fetch(`${CRUD_API}/crud/list`, {
         method: 'POST',
@@ -116,7 +149,6 @@ const createEntity = (tableName) => ({
       const { result } = await res.json();
       return result || [];
     } catch (e) {
-      console.warn(`[entities.${tableName}.list] backend failed, trying Supabase:`, e.message);
       try {
         const { column, ascending } = parseOrder(orderBy);
         const { data, error } = await supabase.from(tableName).select('*').order(column, { ascending }).limit(limit);
@@ -127,6 +159,13 @@ const createEntity = (tableName) => ({
   },
 
   get: async (id) => {
+    if (!CRUD_API) {
+      try {
+        const { data, error } = await supabase.from(tableName).select('*').eq('id', id).single();
+        if (error) return null;
+        return data;
+      } catch { return null; }
+    }
     try {
       const res = await fetch(`${CRUD_API}/crud/list`, {
         method: 'POST',
@@ -137,7 +176,6 @@ const createEntity = (tableName) => ({
       const { result } = await res.json();
       return (result || []).find(r => r.id === id) || null;
     } catch (e) {
-      console.warn(`[entities.${tableName}.get] backend failed, trying Supabase:`, e.message);
       try {
         const { data, error } = await supabase.from(tableName).select('*').eq('id', id).single();
         if (error) return null;
@@ -147,10 +185,16 @@ const createEntity = (tableName) => ({
   },
 
   create: async (data) => {
-    try {
-      const payload = { ...data };
-      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+    const payload = { ...data };
+    Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
+    if (!CRUD_API) {
+      const cleanPayload = await stripUnknownColumns(tableName, payload);
+      const { data: result, error } = await supabase.from(tableName).insert(cleanPayload).select().single();
+      if (error) throw error;
+      return { data: { [tableName.toLowerCase()]: result }, result };
+    }
+    try {
       const res = await fetch(`${CRUD_API}/crud/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,22 +207,24 @@ const createEntity = (tableName) => ({
       const { result } = await res.json();
       return result;
     } catch (e) {
-      console.warn(`[entities.${tableName}.create] backend failed, trying direct Supabase:`, e.message);
-      const payload = { ...data };
-      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
       const cleanPayload = await stripUnknownColumns(tableName, payload);
       const { data: result, error } = await supabase.from(tableName).insert(cleanPayload).select().single();
       if (error) throw error;
-      const wrapped = { data: { [tableName.toLowerCase()]: result }, result };
-      return wrapped;
+      return { data: { [tableName.toLowerCase()]: result }, result };
     }
   },
 
   update: async (id, data) => {
-    try {
-      const payload = { ...data };
-      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+    const payload = { ...data };
+    Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
+    if (!CRUD_API) {
+      const cleanPayload = await stripUnknownColumns(tableName, payload);
+      const { data: result, error } = await supabase.from(tableName).update(cleanPayload).eq('id', id).select().single();
+      if (error) throw error;
+      return { data: { [tableName.toLowerCase()]: result }, result };
+    }
+    try {
       const res = await fetch(`${CRUD_API}/crud/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -191,18 +237,19 @@ const createEntity = (tableName) => ({
       const { result } = await res.json();
       return result;
     } catch (e) {
-      console.warn(`[entities.${tableName}.update] backend failed, trying direct Supabase:`, e.message);
-      const payload = { ...data };
-      Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
       const cleanPayload = await stripUnknownColumns(tableName, payload);
       const { data: result, error } = await supabase.from(tableName).update(cleanPayload).eq('id', id).select().single();
       if (error) throw error;
-      const wrapped = { data: { [tableName.toLowerCase()]: result }, result };
-      return wrapped;
+      return { data: { [tableName.toLowerCase()]: result }, result };
     }
   },
 
   delete: async (id) => {
+    if (!CRUD_API) {
+      const { error } = await supabase.from(tableName).delete().eq('id', id);
+      if (error) throw error;
+      return true;
+    }
     try {
       const res = await fetch(`${CRUD_API}/crud/delete`, {
         method: 'POST',
@@ -215,8 +262,9 @@ const createEntity = (tableName) => ({
       }
       return true;
     } catch (e) {
-      console.error(`[entities.${tableName}.delete] exception`, e);
-      throw e;
+      const { error } = await supabase.from(tableName).delete().eq('id', id);
+      if (error) throw error;
+      return true;
     }
   },
   subscribe: (callback) => {
