@@ -207,14 +207,13 @@ export default function Profil() {
 
       // Check DemandeProV2 status for "Devenir Pro" button
       try {
-        const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
-        const res = await fetch(`${API_BASE}/demande-pro/status?email=${encodeURIComponent(user.email)}`);
-        const json = await res.json();
-        if (json.demande) {
-          setDemandeStatus(json.demande.statut);
-        } else {
-          setDemandeStatus(null);
-        }
+        const { data } = await supabase.from('DemandeProV2')
+          .select('statut')
+          .eq('user_email', user.email)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setDemandeStatus(data?.statut || null);
       } catch { setDemandeStatus(null); }
     }
     } catch (e) { console.error('[Profil] loadData error:', e); }

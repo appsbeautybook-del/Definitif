@@ -1283,14 +1283,17 @@ export default function DevenirPro() {
           ? await entities.DemandeProV2.filter({ user_email: user.email }, "-created_at", 1).catch(() => [])
           : [];
 
-        const API_BASE = 'http://localhost:3000/api';
-        const res = await fetch(`${API_BASE}/demande-pro`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(demandeData),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || 'Erreur serveur');
+        // Upsert direct dans Supabase
+        const { error: upsertError } = await supabase.from('DemandeProV2').upsert({
+          ...demandeData,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'id' });
+
+        if (upsertError) {
+          // Si pas de colonne id, essayer insert
+          const { error: insertError } = await supabase.from('DemandeProV2').insert(demandeData);
+          if (insertError) throw new Error(insertError.message || 'Erreur sauvegarde');
+        }
 
         // Nettoyer le brouillon après soumission réussie
         localStorage.removeItem(DRAFT_KEY);
