@@ -1,4 +1,5 @@
-import { supabase } from '../api/supabaseClient';
+const SUPABASE_URL = 'https://vimusrczrjvefsbljtmf.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpbXVzcmN6cmp2ZWZzYmxqdG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5ODg1MDksImV4cCI6MjA5NzU2NDUwOX0.2fSiqWfYKs3fadwRkS9Nvdq9b9JqnsmtMTHg-wN5m6k';
 
 const OTP_PREFIX = 'bb_otp_';
 
@@ -7,21 +8,31 @@ function generateCode() {
 }
 
 export async function clientSendVerificationCode(email) {
-  // Essayer Supabase OTP en premier (si configuré en mode OTP dans le dashboard)
+  // Essayer l'API REST Supabase avec type=email pour forcer l'envoi de codes OTP
   try {
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { shouldCreateUser: false },
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: email,
+        type: 'email',
+        gotrue_meta_security: {},
+      }),
     });
 
-    if (!error) {
+    const data = await response.json();
+
+    if (response.ok) {
       console.log('[OTP Client] Supabase OTP sent to:', email);
       return { success: true, method: 'supabase' };
     }
 
-    console.warn('[OTP Client] Supabase OTP failed:', error.message);
+    console.warn('[OTP Client] Supabase OTP error:', data);
   } catch (e) {
-    console.warn('[OTP Client] Supabase OTP error:', e.message);
+    console.warn('[OTP Client] Supabase fetch error:', e.message);
   }
 
   // Fallback: générer le code côté client et le stocker en localStorage
