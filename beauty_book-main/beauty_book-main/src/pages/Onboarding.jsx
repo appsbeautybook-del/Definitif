@@ -664,24 +664,42 @@ function StepPhoto({ onNext, onBack }) {
     setLoading(true);
     try {
       const data = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
-      const user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
-      if (user) {
-        const updates = {
-          gender: data.gender || null,
-          beauty_interests: data.interests || [],
-        };
-        if (photoFile) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const updates = {
+        id: user.id,
+        email: user.email,
+        gender: data.gender || null,
+        beauty_interests: data.interests || [],
+        full_name: [data.prenom, data.nom].filter(Boolean).join(' ') || user.user_metadata?.full_name || '',
+        updated_at: new Date().toISOString(),
+      };
+
+      if (photoFile) {
+        try {
           const { file_url } = await uploadFile({ file: photoFile });
           updates.avatar_url = file_url;
-        }
-        if (bannerFile) {
+        } catch (e) { console.error('[StepPhoto] Upload avatar failed:', e); }
+      }
+
+      if (bannerFile) {
+        try {
           const { file_url } = await uploadFile({ file: bannerFile });
           updates.cover_url = file_url;
-        }
-        await supabase.auth.getUser().then(async ({ data }) => { if (data?.user) await entities.User.update(data.user.id, updates); });
+        } catch (e) { console.error('[StepPhoto] Upload banner failed:', e); }
       }
+
+      // Upsert direct dans la table profiles
+      const { error } = await supabase.from('profiles').upsert(updates, { onConflict: 'id' });
+      if (error) console.error('[StepPhoto] Profile upsert error:', error);
+
+      // Aussi mettre à jour user_metadata
+      await supabase.auth.updateUser({
+        data: { full_name: updates.full_name, gender: updates.gender, beauty_interests: updates.beauty_interests }
+      });
     } catch (e) {
-      // silently continue
+      console.error('[StepPhoto] Error:', e);
     } finally {
       setLoading(false);
       onNext();
@@ -810,47 +828,56 @@ function StepSuccess({ onDone }) {
 }
 
 // ── STEP 5 — Autorisation Notifications ──────────────────────────────────────
-function StepNotifications({ onNext, onBack }) {
-  const [granted, setGranted] = useState(false);
-  const [loading, setLoading] = useState(false);
+function StepNotifications({ onNext }) {
+  const [status, setStatus] = useState('idle');
 
   const handleAllow = async () => {
-    setLoading(true);
+    if (!('Notification' in window)) { setStatus('unavailable'); setTimeout(onNext, 1500); return; }
+    if (Notification.permission === 'granted') { setStatus('granted'); setTimeout(onNext, 800); return; }
+    setStatus('loading');
     try {
       const result = await Notification.requestPermission();
-      if (result === 'granted') setGranted(true);
-    } catch (_) {}
-    setLoading(false);
-    setTimeout(() => onNext(), granted ? 500 : 0);
+      setStatus(result === 'granted' ? 'granted' : 'denied');
+    } catch (_) { setStatus('denied'); }
+    setTimeout(onNext, 1200);
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
+    <div className="min-h-screen bg-gradient-to-b from-[#FFF5ED] to-white flex flex-col px-6 pt-10 pb-8">
       <ProgressBar step={5} total={8} />
       <StepLabel step={5} total={8} />
-
-      <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
-        <div className="w-24 h-24 bg-orange-50 rounded-3xl flex items-center justify-center">
-          <span className="text-[48px]">🔔</span>
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-8">
+        <div className="w-28 h-28 bg-white rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-100">
+          <span className="text-[56px]">🔔</span>
         </div>
         <div>
-          <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-2">Notifications</h2>
-          <p className="text-[14px] text-gray-400 font-medium leading-relaxed max-w-[300px] mx-auto">
-            Recevez des alertes pour vos réservations, nouveaux messages et offres exclusives.
+          <h2 className="text-[36px] font-black text-gray-900 leading-tight mb-3">Notifications</h2>
+          <p className="text-[15px] text-gray-400 font-medium leading-relaxed max-w-[320px] mx-auto">
+            Recevez des alertes pour vos réservations, messages et offres exclusives.
           </p>
         </div>
+        {status === 'granted' && (
+          <div className="flex items-center gap-2 bg-green-50 px-5 py-3 rounded-full">
+            <span className="text-green-500 text-[20px]">✓</span>
+            <span className="text-green-600 text-[13px] font-bold">Notifications activées</span>
+          </div>
+        )}
+        {status === 'denied' && (
+          <div className="flex items-center gap-2 bg-red-50 px-5 py-3 rounded-full">
+            <span className="text-red-500 text-[20px]">✕</span>
+            <span className="text-red-500 text-[13px] font-bold">Autorisation refusée</span>
+          </div>
+        )}
       </div>
-
       <div className="space-y-3 mt-6">
-        <button
-          onClick={handleAllow}
-          disabled={loading}
-          className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all"
-          style={{ background: "#E8732A", boxShadow: "0 0 30px rgba(232,115,42,0.35)" }}
-        >
-          {loading ? "Activation..." : granted ? "Activé ✓" : "Activer les notifications"}
-        </button>
-        <button onClick={onNext} className="w-full text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">
+        {status === 'idle' || status === 'loading' ? (
+          <button onClick={handleAllow} disabled={status === 'loading'}
+            className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all shadow-lg shadow-orange-200"
+            style={{ background: "#E8732A" }}>
+            {status === 'loading' ? "En attente..." : "Activer les notifications"}
+          </button>
+        ) : null}
+        <button onClick={onNext} className="w-full py-3 text-center text-[12px] font-black text-gray-400 uppercase tracking-widest active:scale-95 transition-all">
           Passer
         </button>
       </div>
@@ -859,12 +886,12 @@ function StepNotifications({ onNext, onBack }) {
 }
 
 // ── STEP 6 — Autorisation Localisation ───────────────────────────────────────
-function StepLocation({ onNext, onBack }) {
-  const [granted, setGranted] = useState(false);
-  const [loading, setLoading] = useState(false);
+function StepLocation({ onNext }) {
+  const [status, setStatus] = useState('idle');
 
   const handleAllow = async () => {
-    setLoading(true);
+    if (!navigator.geolocation) { setStatus('unavailable'); setTimeout(onNext, 1500); return; }
+    setStatus('loading');
     try {
       const result = await new Promise((resolve) => {
         navigator.geolocation.getCurrentPosition(
@@ -873,39 +900,58 @@ function StepLocation({ onNext, onBack }) {
           { timeout: 10000 }
         );
       });
-      if (result === 'granted') setGranted(true);
-    } catch (_) {}
-    setLoading(false);
-    setTimeout(() => onNext(), granted ? 500 : 0);
+      setStatus(result);
+      // Sauvegarder la position si autorisée
+      if (result === 'granted') {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase.from('profiles').upsert({
+              id: user.id, latitude: pos.coords.latitude, longitude: pos.coords.longitude, updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+          }
+        }, () => {}, { enableHighAccuracy: false });
+      }
+    } catch (_) { setStatus('denied'); }
+    setTimeout(onNext, 1200);
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
+    <div className="min-h-screen bg-gradient-to-b from-[#FFF5ED] to-white flex flex-col px-6 pt-10 pb-8">
       <ProgressBar step={6} total={8} />
       <StepLabel step={6} total={8} />
-
-      <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
-        <div className="w-24 h-24 bg-orange-50 rounded-3xl flex items-center justify-center">
-          <span className="text-[48px]">📍</span>
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-8">
+        <div className="w-28 h-28 bg-white rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-100">
+          <span className="text-[56px]">📍</span>
         </div>
         <div>
-          <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-2">Localisation</h2>
-          <p className="text-[14px] text-gray-400 font-medium leading-relaxed max-w-[300px] mx-auto">
-            Trouvez les salons et professionnels les plus proches de chez vous.
+          <h2 className="text-[36px] font-black text-gray-900 leading-tight mb-3">Localisation</h2>
+          <p className="text-[15px] text-gray-400 font-medium leading-relaxed max-w-[320px] mx-auto">
+            Trouvez les salons et professionnels beauté les plus proches de chez vous.
           </p>
         </div>
+        {status === 'granted' && (
+          <div className="flex items-center gap-2 bg-green-50 px-5 py-3 rounded-full">
+            <span className="text-green-500 text-[20px]">✓</span>
+            <span className="text-green-600 text-[13px] font-bold">Localisation activée</span>
+          </div>
+        )}
+        {status === 'denied' && (
+          <div className="flex items-center gap-2 bg-red-50 px-5 py-3 rounded-full">
+            <span className="text-red-500 text-[20px]">✕</span>
+            <span className="text-red-500 text-[13px] font-bold">Autorisation refusée</span>
+          </div>
+        )}
       </div>
-
       <div className="space-y-3 mt-6">
-        <button
-          onClick={handleAllow}
-          disabled={loading}
-          className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all"
-          style={{ background: "#E8732A", boxShadow: "0 0 30px rgba(232,115,42,0.35)" }}
-        >
-          {loading ? "Activation..." : granted ? "Activé ✓" : "Activer la localisation"}
-        </button>
-        <button onClick={onNext} className="w-full text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">
+        {status === 'idle' || status === 'loading' ? (
+          <button onClick={handleAllow} disabled={status === 'loading'}
+            className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all shadow-lg shadow-orange-200"
+            style={{ background: "#E8732A" }}>
+            {status === 'loading' ? "En attente..." : "Activer la localisation"}
+          </button>
+        ) : null}
+        <button onClick={onNext} className="w-full py-3 text-center text-[12px] font-black text-gray-400 uppercase tracking-widest active:scale-95 transition-all">
           Passer
         </button>
       </div>
@@ -914,62 +960,72 @@ function StepLocation({ onNext, onBack }) {
 }
 
 // ── STEP 7 — Autorisation Caméra & Micro ─────────────────────────────────────
-function StepCameraMic({ onNext, onBack }) {
-  const [cameraGranted, setCameraGranted] = useState(false);
-  const [micGranted, setMicGranted] = useState(false);
-  const [loading, setLoading] = useState(false);
+function StepCameraMic({ onNext }) {
+  const [camStatus, setCamStatus] = useState('idle');
+  const [micStatus, setMicStatus] = useState('idle');
 
   const handleAllow = async () => {
-    setLoading(true);
+    setCamStatus('loading');
+    setMicStatus('loading');
+
+    // Caméra
     try {
-      const camResult = await navigator.mediaDevices?.getUserMedia({ video: true })
-        .then((stream) => { stream.getTracks().forEach(t => t.stop()); return 'granted'; })
-        .catch(() => 'denied');
-      const micResult = await navigator.mediaDevices?.getUserMedia({ audio: true })
-        .then((stream) => { stream.getTracks().forEach(t => t.stop()); return 'granted'; })
-        .catch(() => 'denied');
-      if (camResult === 'granted') setCameraGranted(true);
-      if (micResult === 'granted') setMicGranted(true);
-    } catch (_) {}
-    setLoading(false);
-    setTimeout(() => onNext(), 500);
+      const stream = await navigator.mediaDevices?.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
+      setCamStatus('granted');
+      // Sauvegarder dans le profil
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) await supabase.from('profiles').upsert({ id: user.id, camera_enabled: true, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    } catch (_) { setCamStatus('denied'); }
+
+    // Micro
+    try {
+      const stream = await navigator.mediaDevices?.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      setMicStatus('granted');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) await supabase.from('profiles').upsert({ id: user.id, mic_enabled: true, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    } catch (_) { setMicStatus('denied'); }
+
+    setTimeout(onNext, 1200);
   };
 
+  const bothGranted = camStatus === 'granted' && micStatus === 'granted';
+  const anyDenied = camStatus === 'denied' || micStatus === 'denied';
+  const isIdle = camStatus === 'idle';
+
   return (
-    <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
+    <div className="min-h-screen bg-gradient-to-b from-[#FFF5ED] to-white flex flex-col px-6 pt-10 pb-8">
       <ProgressBar step={7} total={8} />
       <StepLabel step={7} total={8} />
-
-      <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
-        <div className="w-24 h-24 bg-orange-50 rounded-3xl flex items-center justify-center">
-          <span className="text-[48px]">📸</span>
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-8">
+        <div className="w-28 h-28 bg-white rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-100">
+          <span className="text-[56px]">📸</span>
         </div>
         <div>
-          <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-2">Caméra & Micro</h2>
-          <p className="text-[14px] text-gray-400 font-medium leading-relaxed max-w-[300px] mx-auto">
-            Prenez des photos, enregistrez des reels et utilisez l'assistant vocal IA.
+          <h2 className="text-[36px] font-black text-gray-900 leading-tight mb-3">Caméra & Micro</h2>
+          <p className="text-[15px] text-gray-400 font-medium leading-relaxed max-w-[320px] mx-auto">
+            Prenez des photos, enregistrez des reels et utilisez l'assistant vocal.
           </p>
         </div>
-        <div className="flex gap-4 mt-2">
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-bold ${cameraGranted ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-            📷 Caméra {cameraGranted ? '✓' : ''}
+        <div className="flex gap-3">
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all ${camStatus === 'granted' ? 'bg-green-50 text-green-600 border border-green-200' : camStatus === 'denied' ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-50 text-gray-400 border border-gray-200'}`}>
+            📷 {camStatus === 'granted' ? 'Activé' : camStatus === 'denied' ? 'Refusé' : 'Caméra'}
           </div>
-          <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-bold ${micGranted ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-            🎙️ Micro {micGranted ? '✓' : ''}
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all ${micStatus === 'granted' ? 'bg-green-50 text-green-600 border border-green-200' : micStatus === 'denied' ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-50 text-gray-400 border border-gray-200'}`}>
+            🎙️ {micStatus === 'granted' ? 'Activé' : micStatus === 'denied' ? 'Refusé' : 'Micro'}
           </div>
         </div>
       </div>
-
       <div className="space-y-3 mt-6">
-        <button
-          onClick={handleAllow}
-          disabled={loading}
-          className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all"
-          style={{ background: "#E8732A", boxShadow: "0 0 30px rgba(232,115,42,0.35)" }}
-        >
-          {loading ? "Activation..." : (cameraGranted && micGranted) ? "Activé ✓" : "Autoriser l'accès"}
-        </button>
-        <button onClick={onNext} className="w-full text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">
+        {isIdle ? (
+          <button onClick={handleAllow}
+            className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all shadow-lg shadow-orange-200"
+            style={{ background: "#E8732A" }}>
+            Autoriser l'accès
+          </button>
+        ) : null}
+        <button onClick={onNext} className="w-full py-3 text-center text-[12px] font-black text-gray-400 uppercase tracking-widest active:scale-95 transition-all">
           Passer
         </button>
       </div>
