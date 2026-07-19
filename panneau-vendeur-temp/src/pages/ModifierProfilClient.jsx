@@ -35,6 +35,8 @@ export default function ModifierProfilClient() {
     fullName: "",
     username: "",
     bio: "",
+    email: "",
+    phone: "",
   });
 
   useEffect(() => {
@@ -46,6 +48,8 @@ export default function ModifierProfilClient() {
           fullName: data.full_name || "",
           username: data.username || "",
           bio: data.bio || "",
+          email: data.email || user?.email || "",
+          phone: data.phone || "",
         });
       }
     };
@@ -82,6 +86,8 @@ export default function ModifierProfilClient() {
       const profileData = { id: authUser.id, updated_at: new Date().toISOString() };
       if (form.fullName !== undefined) profileData.full_name = form.fullName;
       if (form.username !== undefined) profileData.username = form.username;
+      if (form.email !== undefined) profileData.email = form.email;
+      if (form.phone !== undefined) profileData.phone = form.phone;
 
       // Upload avatar via Supabase Storage
       if (pendingAvatarRef.current) {
@@ -198,6 +204,19 @@ export default function ModifierProfilClient() {
               <span className="text-[15px] text-gray-400 font-medium mr-1 select-none">@</span>
               <input id="username-input" value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
                 placeholder="elena_beauté" className="flex-1 bg-transparent text-[15px] font-medium text-gray-800 outline-none" />
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Adresse e-mail</p>
+            <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              placeholder="votre@email.com" className="w-full bg-gray-100 rounded-2xl px-4 py-3.5 text-[15px] font-medium text-gray-800 outline-none" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Numéro de téléphone</p>
+            <div className="flex items-center bg-gray-100 rounded-2xl px-4 py-3.5">
+              <span className="text-[15px] text-gray-400 font-medium mr-1 select-none">📱</span>
+              <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                placeholder="+33 6 12 34 56 78" className="flex-1 bg-transparent text-[15px] font-medium text-gray-800 outline-none" />
             </div>
           </div>
           <div>
