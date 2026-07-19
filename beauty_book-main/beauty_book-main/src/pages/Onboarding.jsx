@@ -145,8 +145,8 @@ function StepSignup({ onNext, onBack }) {
 
   return (
     <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
-      <ProgressBar step={1} total={5} />
-      <StepLabel step={1} total={5} />
+      <ProgressBar step={1} total={8} />
+      <StepLabel step={1} total={8} />
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Faisons<br />connaissance</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-6">Parlez-nous un peu de vous pour commencer l'aventure.</p>
@@ -494,8 +494,8 @@ function StepVerification({ onNext, onBack }) {
 
   return (
     <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
-      <ProgressBar step={2} total={5} />
-      <StepLabel step={2} total={5} />
+      <ProgressBar step={2} total={8} />
+      <StepLabel step={2} total={8} />
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Vérifiez<br />votre {data.mode === "email" ? "email" : "numéro"}</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-8">
@@ -598,8 +598,8 @@ function StepBeautyProfile({ onNext, onBack }) {
 
   return (
     <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
-      <ProgressBar step={3} total={5} />
-      <StepLabel step={3} total={5} />
+      <ProgressBar step={3} total={8} />
+      <StepLabel step={3} total={8} />
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Votre Profil<br />Beauté</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-6">Ces détails nous aident à personnaliser votre feed.</p>
@@ -705,8 +705,8 @@ function StepPhoto({ onNext, onBack }) {
 
   return (
     <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
-      <ProgressBar step={4} total={5} />
-      <StepLabel step={4} total={5} />
+      <ProgressBar step={4} total={8} />
+      <StepLabel step={4} total={8} />
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Personnalisez<br />votre profil</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-6">Ajoutez une photo et une bannière pour vous identifier.</p>
@@ -824,6 +824,174 @@ function StepSuccess({ onDone }) {
   );
 }
 
+// ── STEP 5 — Autorisation Notifications ──────────────────────────────────────
+function StepNotifications({ onNext, onBack }) {
+  const [granted, setGranted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleAllow = async () => {
+    setLoading(true);
+    try {
+      const result = await Notification.requestPermission();
+      if (result === 'granted') setGranted(true);
+    } catch (_) {}
+    setLoading(false);
+    setTimeout(() => onNext(), granted ? 500 : 0);
+  };
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
+      <ProgressBar step={5} total={8} />
+      <StepLabel step={5} total={8} />
+
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
+        <div className="w-24 h-24 bg-orange-50 rounded-3xl flex items-center justify-center">
+          <span className="text-[48px]">🔔</span>
+        </div>
+        <div>
+          <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-2">Notifications</h2>
+          <p className="text-[14px] text-gray-400 font-medium leading-relaxed max-w-[300px] mx-auto">
+            Recevez des alertes pour vos réservations, nouveaux messages et offres exclusives.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-3 mt-6">
+        <button
+          onClick={handleAllow}
+          disabled={loading}
+          className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all"
+          style={{ background: "#E8732A", boxShadow: "0 0 30px rgba(232,115,42,0.35)" }}
+        >
+          {loading ? "Activation..." : granted ? "Activé ✓" : "Activer les notifications"}
+        </button>
+        <button onClick={onNext} className="w-full text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">
+          Passer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── STEP 6 — Autorisation Localisation ───────────────────────────────────────
+function StepLocation({ onNext, onBack }) {
+  const [granted, setGranted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleAllow = async () => {
+    setLoading(true);
+    try {
+      const result = await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          () => resolve('granted'),
+          () => resolve('denied'),
+          { timeout: 10000 }
+        );
+      });
+      if (result === 'granted') setGranted(true);
+    } catch (_) {}
+    setLoading(false);
+    setTimeout(() => onNext(), granted ? 500 : 0);
+  };
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
+      <ProgressBar step={6} total={8} />
+      <StepLabel step={6} total={8} />
+
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
+        <div className="w-24 h-24 bg-orange-50 rounded-3xl flex items-center justify-center">
+          <span className="text-[48px]">📍</span>
+        </div>
+        <div>
+          <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-2">Localisation</h2>
+          <p className="text-[14px] text-gray-400 font-medium leading-relaxed max-w-[300px] mx-auto">
+            Trouvez les salons et professionnels les plus proches de chez vous.
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-3 mt-6">
+        <button
+          onClick={handleAllow}
+          disabled={loading}
+          className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all"
+          style={{ background: "#E8732A", boxShadow: "0 0 30px rgba(232,115,42,0.35)" }}
+        >
+          {loading ? "Activation..." : granted ? "Activé ✓" : "Activer la localisation"}
+        </button>
+        <button onClick={onNext} className="w-full text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">
+          Passer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── STEP 7 — Autorisation Caméra & Micro ─────────────────────────────────────
+function StepCameraMic({ onNext, onBack }) {
+  const [cameraGranted, setCameraGranted] = useState(false);
+  const [micGranted, setMicGranted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleAllow = async () => {
+    setLoading(true);
+    try {
+      const camResult = await navigator.mediaDevices?.getUserMedia({ video: true })
+        .then((stream) => { stream.getTracks().forEach(t => t.stop()); return 'granted'; })
+        .catch(() => 'denied');
+      const micResult = await navigator.mediaDevices?.getUserMedia({ audio: true })
+        .then((stream) => { stream.getTracks().forEach(t => t.stop()); return 'granted'; })
+        .catch(() => 'denied');
+      if (camResult === 'granted') setCameraGranted(true);
+      if (micResult === 'granted') setMicGranted(true);
+    } catch (_) {}
+    setLoading(false);
+    setTimeout(() => onNext(), 500);
+  };
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
+      <ProgressBar step={7} total={8} />
+      <StepLabel step={7} total={8} />
+
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-6">
+        <div className="w-24 h-24 bg-orange-50 rounded-3xl flex items-center justify-center">
+          <span className="text-[48px]">📸</span>
+        </div>
+        <div>
+          <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-2">Caméra & Micro</h2>
+          <p className="text-[14px] text-gray-400 font-medium leading-relaxed max-w-[300px] mx-auto">
+            Prenez des photos, enregistrez des reels et utilisez l'assistant vocal IA.
+          </p>
+        </div>
+        <div className="flex gap-4 mt-2">
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-bold ${cameraGranted ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+            📷 Caméra {cameraGranted ? '✓' : ''}
+          </div>
+          <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-bold ${micGranted ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
+            🎙️ Micro {micGranted ? '✓' : ''}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 mt-6">
+        <button
+          onClick={handleAllow}
+          disabled={loading}
+          className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all"
+          style={{ background: "#E8732A", boxShadow: "0 0 30px rgba(232,115,42,0.35)" }}
+        >
+          {loading ? "Activation..." : (cameraGranted && micGranted) ? "Activé ✓" : "Autoriser l'accès"}
+        </button>
+        <button onClick={onNext} className="w-full text-center text-[11px] font-black text-gray-400 uppercase tracking-widest">
+          Passer
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Onboarding ───────────────────────────────────────────────────────────
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -856,7 +1024,10 @@ export default function Onboarding() {
       {step === 2 && <StepVerification onNext={() => setStep(3)} onBack={() => setStep(1)} />}
       {step === 3 && <StepBeautyProfile onNext={() => setStep(4)} onBack={() => setStep(2)} />}
       {step === 4 && <StepPhoto onNext={() => setStep(5)} onBack={() => setStep(3)} />}
-      {step === 5 && <StepSuccess onDone={done} />}
+      {step === 5 && <StepNotifications onNext={() => setStep(6)} onBack={() => setStep(4)} />}
+      {step === 6 && <StepLocation onNext={() => setStep(7)} onBack={() => setStep(5)} />}
+      {step === 7 && <StepCameraMic onNext={() => setStep(8)} onBack={() => setStep(6)} />}
+      {step === 8 && <StepSuccess onDone={done} />}
     </div>
   );
 }
