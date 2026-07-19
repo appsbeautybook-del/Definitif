@@ -292,7 +292,7 @@ function StepSignup({ onNext, onBack }) {
 
 // ── STEP 1.5 — Vérification du code ──────────────────────────────────────────
 function StepVerification({ onNext, onBack }) {
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const [code, setCode] = useState(["", "", "", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [resending, setResending] = useState(false);
@@ -406,7 +406,7 @@ function StepVerification({ onNext, onBack }) {
     const next = [...code];
     next[i] = val;
     setCode(next);
-    if (val && i < 5) inputs.current[i + 1]?.focus();
+    if (val && i < 7) inputs.current[i + 1]?.focus();
   };
 
   const handleKeyDown = (i, e) => {
@@ -416,17 +416,17 @@ function StepVerification({ onNext, onBack }) {
   };
 
   const handlePaste = (e) => {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (pasted.length === 6) {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 8);
+    if (pasted.length === 8) {
       setCode(pasted.split(""));
-      inputs.current[5]?.focus();
+      inputs.current[7]?.focus();
     }
   };
 
   const fullCode = code.join("");
 
   const handleVerify = async () => {
-    if (fullCode.length < 6 || loading) return;
+    if (fullCode.length < 8 || loading) return;
     setLoading(true);
     setError("");
     const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
@@ -437,7 +437,7 @@ function StepVerification({ onNext, onBack }) {
       onNext();
     } else {
       setError(res.data?.error || "Code incorrect ou expiré.");
-      setCode(["", "", "", "", "", ""]);
+      setCode(["", "", "", "", "", "", "", ""]);
       inputs.current[0]?.focus();
     }
     setLoading(false);
@@ -463,9 +463,9 @@ function StepVerification({ onNext, onBack }) {
     }, 1000);
   };
 
-  // Auto-verify when all 6 digits are filled
+  // Auto-verify when all 8 digits are filled
   const handleCodeComplete = async (newCode) => {
-    if (newCode.join("").length === 6) {
+    if (newCode.join("").length === 8) {
       setLoading(true);
       setError("");
       const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
@@ -476,7 +476,7 @@ function StepVerification({ onNext, onBack }) {
         onNext();
       } else {
         setError(res.data?.error || "Code incorrect ou expiré.");
-        setCode(["", "", "", "", "", ""]);
+        setCode(["", "", "", "", "", "", "", ""]);
         inputs.current[0]?.focus();
       }
       setLoading(false);
@@ -488,7 +488,7 @@ function StepVerification({ onNext, onBack }) {
     const next = [...code];
     next[i] = val;
     setCode(next);
-    if (val && i < 5) inputs.current[i + 1]?.focus();
+    if (val && i < 7) inputs.current[i + 1]?.focus();
     handleCodeComplete(next);
   };
 
@@ -499,7 +499,7 @@ function StepVerification({ onNext, onBack }) {
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Vérifiez<br />votre {data.mode === "email" ? "email" : "numéro"}</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-8">
-        Nous avons envoyé un code à 6 chiffres à{" "}
+        Nous avons envoyé un code à{" "}
         <span className="font-black text-gray-700">{maskedContact}</span>
       </p>
 
@@ -512,7 +512,7 @@ function StepVerification({ onNext, onBack }) {
         )}
 
         {/* Code input */}
-        <div className="flex gap-3" onPaste={handlePaste}>
+        <div className="flex gap-2 flex-wrap justify-center" onPaste={handlePaste}>
           {code.map((digit, i) => (
             <input
               key={i}
@@ -525,7 +525,7 @@ function StepVerification({ onNext, onBack }) {
               value={digit}
               onChange={e => handleChangeAuto(i, e.target.value)}
               onKeyDown={e => handleKeyDown(i, e)}
-              className="w-12 h-14 text-center text-[24px] font-black bg-gray-100 rounded-2xl outline-none transition-all"
+              className="w-10 h-12 text-center text-[20px] font-black bg-gray-100 rounded-xl outline-none transition-all"
               style={{
                 border: digit ? "2px solid #E8732A" : "2px solid transparent",
                 color: "#E8732A"
@@ -564,9 +564,9 @@ function StepVerification({ onNext, onBack }) {
       <div className="space-y-3 mt-6">
         <button
           onClick={handleVerify}
-          disabled={fullCode.length < 6 || loading}
+          disabled={fullCode.length < 8 || loading}
           className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white transition-all active:scale-95"
-          style={{ background: fullCode.length === 6 && !loading ? "#E8732A" : "#d1d5db" }}
+          style={{ background: fullCode.length === 8 && !loading ? "#E8732A" : "#d1d5db" }}
         >
           {loading ? "Vérification..." : "Confirmer"}
         </button>

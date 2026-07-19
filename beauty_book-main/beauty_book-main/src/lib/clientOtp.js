@@ -8,7 +8,6 @@ function generateCode() {
 }
 
 export async function clientSendVerificationCode(email) {
-  // Essayer Supabase OTP REST API avec type=email
   try {
     const response = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
       method: 'POST',
@@ -16,23 +15,12 @@ export async function clientSendVerificationCode(email) {
         'apikey': SUPABASE_ANON_KEY,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        email,
-        type: 'email',
-        gotrue_meta_security: {},
-      }),
+      body: JSON.stringify({ email, type: 'email', gotrue_meta_security: {} }),
     });
 
     const data = await response.json();
 
-    if (response.ok) {
-      // Supabase peut retourner le token dans la réponse
-      const otpCode = data?.otp || data?.token || data?.data?.otp || data?.data?.token;
-      if (otpCode) {
-        localStorage.setItem(`${OTP_PREFIX}${email}`, JSON.stringify({ code: String(otpCode), expiry: Date.now() + 10 * 60 * 1000 }));
-        console.log('[OTP] Supabase returned code:', otpCode);
-        return { success: true, method: 'supabase', code: String(otpCode) };
-      }
+    if (response.ok || data?.error_code === 'over_email_send_rate_limit') {
       console.log('[OTP] Supabase OTP sent to:', email);
       return { success: true, method: 'supabase' };
     }
@@ -42,7 +30,6 @@ export async function clientSendVerificationCode(email) {
     console.warn('[OTP] Fetch error:', e.message);
   }
 
-  // Fallback: générer le code côté client
   const code = generateCode();
   const expiry = Date.now() + 10 * 60 * 1000;
   localStorage.setItem(`${OTP_PREFIX}${email}`, JSON.stringify({ code, expiry }));
@@ -50,7 +37,8 @@ export async function clientSendVerificationCode(email) {
   return { success: true, method: 'client', code };
 }
 
-export function clientVerifyCode(email, code) {
+export async function clientVerifyCode(email, code) {
+  // 1. Vérifier localStorage (code généré côté client)
   const stored = localStorage.getItem(`${OTP_PREFIX}${email}`);
   if (stored) {
     const { code: storedCode, expiry } = JSON.parse(stored);
@@ -65,14 +53,25 @@ export function clientVerifyCode(email, code) {
     return { valid: true };
   }
 
-  return { valid: false, error: 'Aucun code trouvé.' };
-}
+  // 2. Vérifier via Supabase verifyOtp
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, token: code, type: 'email' }),
+    });
 
-export function getClientOtpCode(email) {
-  const stored = localStorage.getItem(`${OTP_PREFIX}${email}`);
-  if (stored) {
-    const { code } = JSON.parse(stored);
-    return code;
+    const data = await response.json();
+
+    if (response.ok && data?.session) {
+      return { valid: true };
+    }
+
+    return { valid: false, error: data?.msg || 'Code incorrect ou expiré.' };
+  } catch (e) {
+    return { valid: false, error: 'Erreur de vérification.' };
   }
-  return null;
 }
