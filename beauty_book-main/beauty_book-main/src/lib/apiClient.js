@@ -1,5 +1,5 @@
 import { supabase } from '../api/supabaseClient';
-import { clientSendVerificationCode, clientVerifyCode } from './clientOtp';
+import { clientSendVerificationCode, clientVerifyCode, getClientOtpCode } from './clientOtp';
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
 
@@ -180,7 +180,8 @@ export const apiClient = {
 
   async _sendOtpClient(payload) {
     const result = await clientSendVerificationCode(payload.email);
-    return { data: result };
+    const code = result.code || getClientOtpCode(payload.email);
+    return { data: { ...result, code } };
   },
 
   async _verifyOtpClient(payload) {

@@ -298,6 +298,7 @@ function StepVerification({ onNext, onBack }) {
   const [resending, setResending] = useState(false);
   const [clipboardToast, setClipboardToast] = useState(false);
   const [resendTimer, setResendTimer] = useState(45);
+  const [otpCode, setOtpCode] = useState(null);
   const inputs = useRef([]);
   const timerRef = useRef(null);
 
@@ -388,6 +389,9 @@ function StepVerification({ onNext, onBack }) {
         });
         if (!res.data?.success) {
           console.error('[StepVerification] Send code failed:', res.data);
+        }
+        if (res.data?.code) {
+          setOtpCode(res.data.code);
         }
       } catch (e) {
         console.error('[StepVerification] Send code error:', e);
@@ -529,6 +533,13 @@ function StepVerification({ onNext, onBack }) {
             />
           ))}
         </div>
+
+        {otpCode && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 w-full text-center">
+            <p className="text-[11px] text-orange-600 font-bold mb-1">Code de vérification :</p>
+            <p className="text-[28px] font-black text-[#E8732A] tracking-[6px]">{otpCode}</p>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3 w-full text-center">

@@ -8,7 +8,7 @@ function generateCode() {
 }
 
 export async function clientSendVerificationCode(email) {
-  // Essayer l'API REST Supabase avec type=email pour forcer l'envoi de codes OTP
+  // Essayer Supabase OTP REST API avec type=email
   try {
     const response = await fetch(`${SUPABASE_URL}/auth/v1/otp`, {
       method: 'POST',
@@ -17,7 +17,7 @@ export async function clientSendVerificationCode(email) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email: email,
+        email,
         type: 'email',
         gotrue_meta_security: {},
       }),
@@ -26,25 +26,31 @@ export async function clientSendVerificationCode(email) {
     const data = await response.json();
 
     if (response.ok) {
-      console.log('[OTP Client] Supabase OTP sent to:', email);
+      // Supabase peut retourner le token dans la réponse
+      const otpCode = data?.otp || data?.token || data?.data?.otp || data?.data?.token;
+      if (otpCode) {
+        localStorage.setItem(`${OTP_PREFIX}${email}`, JSON.stringify({ code: String(otpCode), expiry: Date.now() + 10 * 60 * 1000 }));
+        console.log('[OTP] Supabase returned code:', otpCode);
+        return { success: true, method: 'supabase', code: String(otpCode) };
+      }
+      console.log('[OTP] Supabase OTP sent to:', email);
       return { success: true, method: 'supabase' };
     }
 
-    console.warn('[OTP Client] Supabase OTP error:', data);
+    console.warn('[OTP] Supabase error:', data);
   } catch (e) {
-    console.warn('[OTP Client] Supabase fetch error:', e.message);
+    console.warn('[OTP] Fetch error:', e.message);
   }
 
-  // Fallback: générer le code côté client et le stocker en localStorage
+  // Fallback: générer le code côté client
   const code = generateCode();
   const expiry = Date.now() + 10 * 60 * 1000;
   localStorage.setItem(`${OTP_PREFIX}${email}`, JSON.stringify({ code, expiry }));
-  console.log('[OTP Client] Code generated for', email, ':', code);
-  return { success: true, method: 'client' };
+  console.log('[OTP] Code pour', email, ':', code);
+  return { success: true, method: 'client', code };
 }
 
 export function clientVerifyCode(email, code) {
-  // Vérifier d'abord en localStorage (fallback client)
   const stored = localStorage.getItem(`${OTP_PREFIX}${email}`);
   if (stored) {
     const { code: storedCode, expiry } = JSON.parse(stored);
@@ -60,4 +66,13 @@ export function clientVerifyCode(email, code) {
   }
 
   return { valid: false, error: 'Aucun code trouvé.' };
+}
+
+export function getClientOtpCode(email) {
+  const stored = localStorage.getItem(`${OTP_PREFIX}${email}`);
+  if (stored) {
+    const { code } = JSON.parse(stored);
+    return code;
+  }
+  return null;
 }
