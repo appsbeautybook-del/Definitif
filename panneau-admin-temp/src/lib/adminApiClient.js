@@ -148,7 +148,7 @@ export const adminApi = {
   deleteProduit: (id) => entities.Produit.delete(id),
 
   // AppConfig
-  getConfig: (key) => entities.AppConfig.filter({ key }, "-created_at", 1),
+  getConfig: (key) => entities.AppConfig.filter({ key }, "-created_at", 50),
   updateConfig: (id, data) => entities.AppConfig.update(id, data),
   createConfig: (data) => entities.AppConfig.create(data),
 

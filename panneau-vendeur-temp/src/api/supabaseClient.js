@@ -1,28 +1,24 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://vimusrczrjvefsbljtmf.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpbXVzcmN6cmp2ZWZzYmxqdG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE5ODg1MDksImV4cCI6MjA5NzU2NDUwOX0.2fSiqWfYKs3fadwRkS9Nvdq9b9JqnsmtMTHg-wN5m6k';
 
-if (!supabaseUrl || !supabaseAnonKey || supabaseUrl === 'https://VOTRE-PROJET.supabase.co') {
-  console.error(
-    '[Supabase] Configuration manquante !\n' +
-    '→ Créez le fichier .env.local à la racine du projet avec :\n' +
-    '  VITE_SUPABASE_URL=https://votre-projet.supabase.co\n' +
-    '  VITE_SUPABASE_ANON_KEY=votre_cle_anon\n' +
-    '→ Sans ces variables, les uploads de médias et les opérations en base ne fonctionneront pas.'
-  );
+if (!import.meta.env.VITE_SUPABASE_URL) {
+  console.warn('[Supabase] Using hardcoded fallback credentials. Set VITE_SUPABASE_URL in your .env.local for production.');
 }
 
-export const supabase = (supabaseUrl && supabaseAnonKey && supabaseUrl !== 'https://VOTRE-PROJET.supabase.co')
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
+export const supabase = createClient(supabaseUrl, supabaseAnonKey,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'implicit',
+    },
+    realtime: {
+      params: {
+        eventsPerSecond: 10,
       },
-      realtime: {
-        params: {
-          eventsPerSecond: 10,
-        },
-      },
-    })
-  : null;
+    },
+  }
+);

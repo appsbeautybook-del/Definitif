@@ -1,9 +1,9 @@
 /**
- * Shim: override base44.integrations.Core.InvokeLLM → backend /api/ai/invoke-llm (GLM)
+ * Shim: override base44.integrations.Core.InvokeLLM → backend /api/ai/invoke-llm (MiMo V2.5)
  * Loaded before any component mounts.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
 
 async function invokeLLMBackend({ prompt, response_json_schema, file_urls, model }) {
   const res = await fetch(`${API_BASE}/api/ai/invoke-llm`, {
@@ -28,7 +28,7 @@ function patchBase44() {
   if (typeof window !== 'undefined' && window.base44?.integrations?.Core) {
     window.base44.integrations.Core.InvokeLLM = invokeLLMBackend;
     window.base44.integrations.Core.GenerateSpeech = generateSpeechBackend;
-    console.log('[Maria GLM] base44.integrations.Core patched → GLM backend');
+    console.log('[BeautyBook AI] base44.integrations.Core patched → MiMo V2.5 backend');
   }
 }
 
