@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/api/supabaseClient";
-import { ArrowLeft, Sparkles, BarChart3, MessageSquare, Calendar, TrendingUp, ExternalLink, Check, Loader2, X, ArrowUpRight, ArrowDownRight, Clock, Users, Zap, Eye } from "lucide-react";
+import { ArrowLeft, Sparkles, BarChart3, MessageSquare, Calendar, TrendingUp, ExternalLink, Check, Loader2, X, Settings, Eye, EyeOff, Save, AlertCircle, Key } from "lucide-react";
 
 const PLATFORMS = [
   {
@@ -10,81 +10,78 @@ const PLATFORMS = [
     name: "Instagram",
     handle: "@votre_salon",
     color: "#E1306C",
-    gradient: "from-pink-500 via-purple-500 to-orange-400",
     bgLight: "bg-gradient-to-br from-pink-50 to-purple-50",
     borderColor: "border-pink-200",
     apiPath: "/api/social/instagram/auth",
+    fields: [
+      { key: "app_id", label: "App ID Facebook/Instagram", placeholder: "Ex: 123456789", type: "text" },
+      { key: "app_secret", label: "App Secret", placeholder: "Votre App Secret", type: "password" },
+      { key: "redirect_uri", label: "Redirect URI", placeholder: "https://votre-domaine.com/auth/callback", type: "text" },
+    ],
+    docs: "https://developers.facebook.com/docs/instagram-api/getting-started",
   },
   {
     id: "facebook",
     name: "Facebook",
     handle: "Page Votre Salon",
     color: "#1877F2",
-    gradient: "from-blue-600 to-blue-500",
     bgLight: "bg-gradient-to-br from-blue-50 to-indigo-50",
     borderColor: "border-blue-200",
     apiPath: "/api/social/facebook/auth",
+    fields: [
+      { key: "app_id", label: "App ID Facebook", placeholder: "Ex: 123456789", type: "text" },
+      { key: "app_secret", label: "App Secret", placeholder: "Votre App Secret", type: "password" },
+      { key: "redirect_uri", label: "Redirect URI", placeholder: "https://votre-domaine.com/auth/callback", type: "text" },
+    ],
+    docs: "https://developers.facebook.com/docs//pages-api/getting-started",
   },
   {
     id: "tiktok",
     name: "TikTok",
     handle: "@votre_salon",
     color: "#000000",
-    gradient: "from-gray-900 to-gray-700",
     bgLight: "bg-gradient-to-br from-gray-50 to-slate-50",
     borderColor: "border-gray-200",
     apiPath: "/api/social/tiktok/auth",
+    fields: [
+      { key: "client_key", label: "Client Key", placeholder: "Votre Client Key TikTok", type: "text" },
+      { key: "client_secret", label: "Client Secret", placeholder: "Votre Client Secret", type: "password" },
+      { key: "redirect_uri", label: "Redirect URI", placeholder: "https://votre-domaine.com/auth/callback", type: "text" },
+    ],
+    docs: "https://developers.tiktok.com/doc/getting-started-create-an-app",
   },
   {
     id: "messenger",
     name: "Messenger",
     handle: "Page Votre Salon",
     color: "#00B2FF",
-    gradient: "from-cyan-400 to-blue-500",
     bgLight: "bg-gradient-to-br from-cyan-50 to-blue-50",
     borderColor: "border-cyan-200",
     apiPath: "/api/social/messenger/auth",
+    fields: [
+      { key: "app_id", label: "App ID Facebook", placeholder: "Ex: 123456789", type: "text" },
+      { key: "app_secret", label: "App Secret", placeholder: "Votre App Secret", type: "password" },
+      { key: "page_access_token", label: "Page Access Token", placeholder: "Token de votre page Facebook", type: "password" },
+      { key: "page_id", label: "Page ID", placeholder: "ID de votre page Facebook", type: "text" },
+    ],
+    docs: "https://developers.facebook.com/docs/messenger-platform/getting-started",
   },
   {
     id: "whatsapp",
     name: "WhatsApp Business",
     handle: "+33 6 00 00 00 00",
     color: "#25D366",
-    gradient: "from-green-500 to-emerald-500",
     bgLight: "bg-gradient-to-br from-green-50 to-emerald-50",
     borderColor: "border-green-200",
     apiPath: "/api/social/whatsapp/auth",
-  },
-];
-
-const FEATURES = [
-  {
-    icon: MessageSquare,
-    title: "Réponses auto",
-    desc: "Maria répond 24h/24",
-    color: "text-orange-500",
-    bg: "bg-orange-50",
-  },
-  {
-    icon: TrendingUp,
-    title: "Conversion",
-    desc: "Prospects → Clients",
-    color: "text-emerald-500",
-    bg: "bg-emerald-50",
-  },
-  {
-    icon: Calendar,
-    title: "Réservation",
-    desc: "Créneaux automatiques",
-    color: "text-blue-500",
-    bg: "bg-blue-50",
-  },
-  {
-    icon: Zap,
-    title: "Relance",
-    desc: "Prospects froids",
-    color: "text-purple-500",
-    bg: "bg-purple-50",
+    fields: [
+      { key: "app_id", label: "App ID Facebook", placeholder: "Ex: 123456789", type: "text" },
+      { key: "app_secret", label: "App Secret", placeholder: "Votre App Secret", type: "password" },
+      { key: "access_token", label: "WhatsApp Access Token", placeholder: "Token WhatsApp Business", type: "password" },
+      { key: "phone_number_id", label: "Phone Number ID", placeholder: "ID du numéro de téléphone", type: "text" },
+      { key: "verify_token", label: "Verify Token (Webhook)", placeholder: "Token de vérification webhook", type: "text" },
+    ],
+    docs: "https://developers.facebook.com/docs/whatsapp/cloud-api/get-started",
   },
 ];
 
@@ -126,13 +123,158 @@ function PlatformIcon({ id, size = 24 }) {
   return icons[id] || null;
 }
 
+// ── Modal de configuration des credentials ─────────────────────────────────
+function CredentialsModal({ platform, onClose, onSave, existingCreds }) {
+  const [formData, setFormData] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [showPasswords, setShowPasswords] = useState({});
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (existingCreds) {
+      setFormData(existingCreds);
+    }
+  }, [existingCreds]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+
+    // Vérifier que tous les champs requis sont remplis
+    const requiredFields = platform.fields.filter(f => !f.key.includes('redirect_uri'));
+    const missingFields = requiredFields.filter(f => !formData[f.key]);
+    if (missingFields.length > 0) {
+      setError(`Veuillez remplir: ${missingFields.map(f => f.label).join(', ')}`);
+      setSaving(false);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/social/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          platform: platform.id,
+          credentials: formData,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Erreur lors de la sauvegarde');
+
+      onSave(formData);
+      onClose();
+    } catch (e) {
+      setError(e.message);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between rounded-t-3xl">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 ${platform.bgLight} rounded-xl flex items-center justify-center border ${platform.borderColor}`}>
+              <PlatformIcon id={platform.id} size={20} />
+            </div>
+            <div>
+              <h3 className="text-[16px] font-black text-gray-900">{platform.name}</h3>
+              <p className="text-[11px] text-gray-400">Configuration des identifiants</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Info */}
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-[12px] text-blue-700 font-medium">Identifiants requis</p>
+              <p className="text-[11px] text-blue-500 mt-0.5">
+                Récupérez vos clés depuis le{' '}
+                <a href={platform.docs} target="_blank" rel="noopener" className="underline font-bold">
+                  tableau de bord développeur
+                </a>
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+              <p className="text-[12px] text-red-600 font-medium">{error}</p>
+            </div>
+          )}
+
+          {/* Champs */}
+          {platform.fields.map(field => (
+            <div key={field.key}>
+              <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block">
+                {field.label}
+              </label>
+              <div className="relative">
+                <input
+                  type={field.type === 'password' && !showPasswords[field.key] ? 'password' : 'text'}
+                  value={formData[field.key] || ''}
+                  onChange={e => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                  placeholder={field.placeholder}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[13px] text-gray-800 outline-none focus:border-[#E8732A] transition-colors pr-10"
+                />
+                {field.type === 'password' && (
+                  <button
+                    onClick={() => setShowPasswords(prev => ({ ...prev, [field.key]: !prev[field.key] }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  >
+                    {showPasswords[field.key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {/* Bouton sauvegarder */}
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full py-4 rounded-2xl font-black text-[13px] uppercase tracking-widest text-white transition-all active:scale-95 disabled:opacity-50"
+            style={{ background: saving ? '#d1d5db' : platform.color === '#000000' ? '#1a1a1a' : platform.color }}
+          >
+            {saving ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" /> Sauvegarde...
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <Save className="w-4 h-4" /> Enregistrer les identifiants
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const FEATURES = [
+  { icon: MessageSquare, title: "Réponses auto", desc: "Maria répond 24h/24", color: "text-orange-500", bg: "bg-orange-50" },
+  { icon: TrendingUp, title: "Conversion", desc: "Prospects → Clients", color: "text-emerald-500", bg: "bg-emerald-50" },
+  { icon: Calendar, title: "Réservation", desc: "Créneaux auto", color: "text-blue-500", bg: "bg-blue-50" },
+  { icon: Zap, title: "Relance", desc: "Prospects froids", color: "text-purple-500", bg: "bg-purple-50" },
+];
+
 export default function SocialMedia() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [platforms, setPlatforms] = useState(PLATFORMS.map(p => ({ ...p, connected: false, loading: false })));
+  const [platforms, setPlatforms] = useState(PLATFORMS.map(p => ({ ...p, connected: false, loading: false, hasCredentials: false })));
   const [stats, setStats] = useState(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [showStats, setShowStats] = useState(false);
+  const [configModal, setConfigModal] = useState(null);
+  const [allCredentials, setAllCredentials] = useState({});
 
   useEffect(() => {
     if (!user?.email) return;
@@ -150,7 +292,26 @@ export default function SocialMedia() {
         }
       }).catch(() => {});
 
-    // Charger les stats
+    // Charger les credentials
+    fetch('/api/social/credentials', {
+      headers: { 'Content-Type': 'application/json' },
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.credentials) {
+          const credsMap = {};
+          data.credentials.forEach(c => {
+            credsMap[c.platform] = c.credentials;
+          });
+          setAllCredentials(credsMap);
+          setPlatforms(prev => prev.map(p => ({
+            ...p,
+            hasCredentials: !!credsMap[p.id],
+          })));
+        }
+      })
+      .catch(() => {});
+
     loadStats();
   }, [user?.email]);
 
@@ -166,27 +327,23 @@ export default function SocialMedia() {
       if (data) {
         const now = new Date();
         const today = now.toISOString().split('T')[0];
-        const thisWeek = data.filter(m => {
-          const d = new Date(m.timestamp);
-          const diff = (now - d) / (1000 * 60 * 60 * 24);
-          return diff <= 7;
-        });
+        const thisWeek = data.filter(m => (now - new Date(m.timestamp)) / (1000 * 60 * 60 * 24) <= 7);
         const thisMonth = data.filter(m => {
           const d = new Date(m.timestamp);
           return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
         });
 
-        // Messages par jour (7 derniers jours)
         const messagesByDay = [];
         for (let i = 6; i >= 0; i--) {
-          const date = new Date(now);
-          date.setDate(date.getDate() - i);
+          const date = new Date(now); date.setDate(date.getDate() - i);
           const dateStr = date.toISOString().split('T')[0];
-          const count = data.filter(m => m.timestamp?.startsWith(dateStr))?.length || 0;
-          messagesByDay.push({ date: dateStr, label: date.toLocaleDateString('fr-FR', { weekday: 'short' }), count });
+          messagesByDay.push({
+            date: dateStr,
+            label: date.toLocaleDateString('fr-FR', { weekday: 'short' }),
+            count: data.filter(m => m.timestamp?.startsWith(dateStr))?.length || 0,
+          });
         }
 
-        // Par plateforme
         const byPlatform = {};
         data.forEach(m => { byPlatform[m.platform] = (byPlatform[m.platform] || 0) + 1; });
 
@@ -198,43 +355,35 @@ export default function SocialMedia() {
           responseRate: data.length > 0 ? Math.round((data.filter(m => m.reply).length / data.length) * 100) : 0,
           messagesByDay,
           byPlatform,
-          avgResponseTime: '< 2 min',
         });
       }
-    } catch (e) {
-      console.error('Stats error:', e);
-    }
+    } catch (e) { console.error('Stats error:', e); }
     setLoadingStats(false);
   };
 
   const handleConnect = async (platform) => {
+    // Vérifier si l'utilisateur a configuré ses credentials
+    if (!platform.hasCredentials) {
+      setConfigModal(platform);
+      return;
+    }
+
     setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, loading: true } : p));
 
     try {
-      // Appeler le backend pour obtenir l'URL OAuth
-      const res = await fetch(platform.apiPath, {
-        headers: { 'Content-Type': 'application/json' },
-      });
+      const res = await fetch(platform.apiPath);
       const data = await res.json();
-
       if (data.url) {
-        // Rediriger vers l'OAuth
         window.location.href = data.url;
-      } else {
-        // Fallback: simuler la connexion
-        setTimeout(() => {
-          setPlatforms(prev => prev.map(p =>
-            p.id === platform.id ? { ...p, connected: true, loading: false } : p
-          ));
-        }, 1500);
+      } else if (data.setup_required) {
+        setConfigModal(platform);
+        setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, loading: false } : p));
       }
     } catch (e) {
-      // Fallback si le backend n'est pas disponible
       setTimeout(() => {
         setPlatforms(prev => prev.map(p =>
           p.id === platform.id ? { ...p, connected: true, loading: false } : p
         ));
-        // Sauvegarder en base
         if (user?.email) {
           supabase.from('SocialConnections').upsert({
             user_email: user.email,
@@ -256,6 +405,11 @@ export default function SocialMedia() {
         .eq('platform', platform.id)
         .catch(() => {});
     }
+  };
+
+  const handleSaveCredentials = (platformId, creds) => {
+    setAllCredentials(prev => ({ ...prev, [platformId]: creds }));
+    setPlatforms(prev => prev.map(p => p.id === platformId ? { ...p, hasCredentials: true } : p));
   };
 
   const connectedCount = platforms.filter(p => p.connected).length;
@@ -280,9 +434,8 @@ export default function SocialMedia() {
             </div>
           </div>
 
-          {/* Stats rapides */}
           <div className="grid grid-cols-3 gap-3">
-            <button onClick={() => setShowStats(!showStats)} className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10 active:scale-95 transition-all">
+            <button onClick={() => setShowStats(!showStats)} className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10 active:scale-95">
               <p className="text-[22px] font-black text-white">{connectedCount}</p>
               <p className="text-[9px] font-bold text-white/60 uppercase tracking-wider">Connectées</p>
             </button>
@@ -306,8 +459,7 @@ export default function SocialMedia() {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <p className="text-[13px] text-gray-600 font-medium leading-relaxed">
-              Connectez vos réseaux sociaux pour que Maria AI puisse gérer vos messages entrants,
-              qualifier les prospects et transformer les conversations en clients.
+              Configurez vos identifiants API pour chaque plateforme, puis connectez-les pour que Maria AI gère automatiquement vos messages.
             </p>
           </div>
         </div>
@@ -333,64 +485,77 @@ export default function SocialMedia() {
                           <Check className="w-3 h-3" /> Connecté
                         </span>
                       )}
+                      {!p.connected && p.hasCredentials && (
+                        <span className="flex items-center gap-1 bg-blue-50 text-blue-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          <Key className="w-3 h-3" /> Configuré
+                        </span>
+                      )}
                     </div>
                     <p className="text-[12px] text-gray-400 truncate">{p.handle}</p>
                   </div>
-                  {p.connected ? (
+                  <div className="flex items-center gap-2">
+                    {/* Bouton configurer */}
                     <button
-                      onClick={() => handleDisconnect(p)}
-                      className="px-4 py-2.5 rounded-xl text-[11px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-all active:scale-95"
+                      onClick={() => setConfigModal(p)}
+                      className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors"
+                      title="Configurer les identifiants"
                     >
-                      Déconnecter
+                      <Settings className="w-4 h-4 text-gray-500" />
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => handleConnect(p)}
-                      disabled={p.loading}
-                      className="px-5 py-2.5 rounded-xl text-[11px] font-bold text-white transition-all active:scale-95 disabled:opacity-50"
-                      style={{ background: p.color === '#000000' ? '#1a1a1a' : p.color }}
-                    >
-                      {p.loading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <span className="flex items-center gap-1.5">
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          Connecter
-                        </span>
-                      )}
-                    </button>
-                  )}
+
+                    {p.connected ? (
+                      <button
+                        onClick={() => handleDisconnect(p)}
+                        className="px-4 py-2.5 rounded-xl text-[11px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-all active:scale-95"
+                      >
+                        Déconnecter
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleConnect(p)}
+                        disabled={p.loading}
+                        className="px-5 py-2.5 rounded-xl text-[11px] font-bold text-white transition-all active:scale-95 disabled:opacity-50"
+                        style={{ background: p.color === '#000000' ? '#1a1a1a' : p.color }}
+                      >
+                        {p.loading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <span className="flex items-center gap-1.5">
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            Connecter
+                          </span>
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Fonctionnalités Maria AI */}
+        {/* Fonctionnalités */}
         <div>
           <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3 px-1">Fonctionnalités Maria AI</p>
           <div className="grid grid-cols-2 gap-3">
             {FEATURES.map((f, i) => {
               const Icon = f.icon;
               return (
-                <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div key={i} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
                   <div className={`w-10 h-10 ${f.bg} rounded-xl flex items-center justify-center mb-3`}>
                     <Icon className={`w-5 h-5 ${f.color}`} />
                   </div>
                   <p className="text-[13px] font-black text-gray-900 mb-1">{f.title}</p>
-                  <p className="text-[11px] text-gray-400 font-medium leading-relaxed">{f.desc}</p>
+                  <p className="text-[11px] text-gray-400 font-medium">{f.desc}</p>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Statistiques détaillées */}
+        {/* Statistiques */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <button
-            onClick={() => setShowStats(!showStats)}
-            className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors"
-          >
+          <button onClick={() => setShowStats(!showStats)} className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors">
             <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center">
               <BarChart3 className="w-5 h-5 text-white" />
             </div>
@@ -401,62 +566,32 @@ export default function SocialMedia() {
           {showStats && (
             <div className="px-4 pb-4 space-y-4 border-t border-gray-100 pt-4">
               {loadingStats ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
-                </div>
+                <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 text-orange-500 animate-spin" /></div>
               ) : stats ? (
                 <>
-                  {/* Stats Overview */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-gray-50 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <MessageSquare className="w-4 h-4 text-orange-500" />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Total</span>
-                      </div>
+                      <div className="flex items-center gap-2 mb-1"><MessageSquare className="w-4 h-4 text-orange-500" /><span className="text-[10px] font-bold text-gray-400 uppercase">Total</span></div>
                       <p className="text-[20px] font-black text-gray-900">{stats.totalMessages}</p>
                       <p className="text-[10px] text-gray-400">messages</p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Clock className="w-4 h-4 text-blue-500" />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Temps rép.</span>
-                      </div>
-                      <p className="text-[20px] font-black text-gray-900">{stats.avgResponseTime}</p>
-                      <p className="text-[10px] text-gray-400">moyen</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <TrendingUp className="w-4 h-4 text-green-500" />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Cette semaine</span>
-                      </div>
+                      <div className="flex items-center gap-2 mb-1"><TrendingUp className="w-4 h-4 text-green-500" /><span className="text-[10px] font-bold text-gray-400 uppercase">Semaine</span></div>
                       <p className="text-[20px] font-black text-gray-900">{stats.weekMessages}</p>
-                      <p className="text-[10px] text-gray-400">messages</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Users className="w-4 h-4 text-purple-500" />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase">Ce mois</span>
-                      </div>
-                      <p className="text-[20px] font-black text-gray-900">{stats.monthMessages}</p>
                       <p className="text-[10px] text-gray-400">messages</p>
                     </div>
                   </div>
 
-                  {/* Graphique par jour */}
                   <div>
                     <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3">Messages (7 jours)</p>
                     <div className="flex items-end gap-2 h-32">
                       {stats.messagesByDay.map((day, i) => {
-                        const maxCount = Math.max(...stats.messagesByDay.map(d => d.count), 1);
-                        const height = (day.count / maxCount) * 100;
+                        const max = Math.max(...stats.messagesByDay.map(d => d.count), 1);
                         return (
                           <div key={i} className="flex-1 flex flex-col items-center gap-1">
                             <span className="text-[9px] font-bold text-gray-500">{day.count}</span>
                             <div className="w-full bg-gray-100 rounded-lg overflow-hidden" style={{ height: '80px' }}>
-                              <div
-                                className="w-full bg-gradient-to-t from-orange-500 to-orange-400 rounded-lg transition-all duration-500"
-                                style={{ height: `${Math.max(height, 4)}%`, marginTop: 'auto' }}
-                              />
+                              <div className="w-full bg-gradient-to-t from-orange-500 to-orange-400 rounded-lg transition-all duration-500" style={{ height: `${Math.max((day.count / max) * 100, 4)}%`, marginTop: 'auto' }} />
                             </div>
                             <span className="text-[8px] font-bold text-gray-400 uppercase">{day.label}</span>
                           </div>
@@ -464,50 +599,27 @@ export default function SocialMedia() {
                       })}
                     </div>
                   </div>
-
-                  {/* Par plateforme */}
-                  {Object.keys(stats.byPlatform).length > 0 && (
-                    <div>
-                      <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3">Par plateforme</p>
-                      <div className="space-y-2">
-                        {Object.entries(stats.byPlatform).sort((a, b) => b[1] - a[1]).map(([platform, count]) => {
-                          const p = PLATFORMS.find(pl => pl.id === platform);
-                          const maxCount = Math.max(...Object.values(stats.byPlatform));
-                          return (
-                            <div key={platform} className="flex items-center gap-3">
-                              <div className={`w-8 h-8 ${p?.bgLight || 'bg-gray-100'} rounded-lg flex items-center justify-center`}>
-                                {p && <PlatformIcon id={platform} size={16} />}
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[12px] font-bold text-gray-700">{p?.name || platform}</span>
-                                  <span className="text-[11px] font-bold text-gray-500">{count}</span>
-                                </div>
-                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full"
-                                    style={{ width: `${(count / maxCount) * 100}%` }}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="text-center py-8">
                   <BarChart3 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-[13px] text-gray-400 font-medium">Aucune donnée pour le moment</p>
-                  <p className="text-[11px] text-gray-300">Connectez vos réseaux pour voir les stats</p>
+                  <p className="text-[13px] text-gray-400">Aucune donnée</p>
                 </div>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Modal Configuration */}
+      {configModal && (
+        <CredentialsModal
+          platform={configModal}
+          existingCreds={allCredentials[configModal.id]}
+          onClose={() => setConfigModal(null)}
+          onSave={(creds) => handleSaveCredentials(configModal.id, creds)}
+        />
+      )}
     </div>
   );
 }

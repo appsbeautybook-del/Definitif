@@ -262,6 +262,53 @@ app.listen(PORT, async () => {
       `CREATE POLICY "ufav_all" ON user_favorite FOR ALL USING (true) WITH CHECK (true)`,
 
       `DO $$ BEGIN ALTER TABLE reel_comment ADD COLUMN reactions JSONB DEFAULT NULL; EXCEPTION WHEN duplicate_column THEN NULL; END $$`,
+
+      // Social media credentials per user
+      `CREATE TABLE IF NOT EXISTS "SocialCredentials" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_email TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        credentials JSONB DEFAULT '{}',
+        updated_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE(user_email, platform)
+      )`,
+      `ALTER TABLE "SocialCredentials" ENABLE ROW LEVEL SECURITY`,
+      `DROP POLICY IF EXISTS "sc_all" ON "SocialCredentials"`,
+      `CREATE POLICY "sc_all" ON "SocialCredentials" FOR ALL USING (true) WITH CHECK (true)`,
+
+      // Social connections per user
+      `CREATE TABLE IF NOT EXISTS "SocialConnections" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_email TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        access_token TEXT,
+        refresh_token TEXT,
+        page_id TEXT,
+        page_name TEXT,
+        handle TEXT,
+        display_name TEXT,
+        avatar_url TEXT,
+        connected_at TIMESTAMPTZ DEFAULT now(),
+        UNIQUE(user_email, platform)
+      )`,
+      `ALTER TABLE "SocialConnections" ENABLE ROW LEVEL SECURITY`,
+      `DROP POLICY IF EXISTS "scn_all" ON "SocialConnections"`,
+      `CREATE POLICY "scn_all" ON "SocialConnections" FOR ALL USING (true) WITH CHECK (true)`,
+
+      // Social messages per user
+      `CREATE TABLE IF NOT EXISTS "SocialMessages" (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_email TEXT NOT NULL DEFAULT '',
+        platform TEXT NOT NULL,
+        "from" TEXT NOT NULL DEFAULT '',
+        message TEXT NOT NULL DEFAULT '',
+        reply TEXT,
+        timestamp TIMESTAMPTZ DEFAULT now()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_sm_user ON "SocialMessages"(user_email)`,
+      `ALTER TABLE "SocialMessages" ENABLE ROW LEVEL SECURITY`,
+      `DROP POLICY IF EXISTS "sm_all" ON "SocialMessages"`,
+      `CREATE POLICY "sm_all" ON "SocialMessages" FOR ALL USING (true) WITH CHECK (true)`,
     ];
     let ok = 0;
     for (const sql of tables) {
