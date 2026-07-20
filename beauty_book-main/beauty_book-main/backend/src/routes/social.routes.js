@@ -359,14 +359,14 @@ router.post('/whatsapp/webhook', async (req, res) => {
 
             if (text) {
               // Générer une réponse IA
-              const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              const aiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                  'Authorization': `Bearer ${process.env.OPENCODE_API_KEY || 'sk-FPP6sh78YsOhyjj0mmztchS7PGvuH2EE3nIM8vCNeaWUYhAmzlADOrSJtZ0QTu5u'}`,
                 },
                 body: JSON.stringify({
-                  model: 'nvidia/nemotron-3-super-120b-a12b:free',
+                  model: 'mimo-v2.5-free',
                   messages: [
                     { role: 'system', content: 'Tu es Maria, l\'assistante beauté de BeautyBook. Réponds de manière chaleureuse et professionnelle. Sois concise (2-3 phrases).' },
                     { role: 'user', content: text },
@@ -488,14 +488,14 @@ router.post('/messenger/webhook', async (req, res) => {
           const text = event.message.text;
 
           // Réponse IA
-          const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          const aiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+              'Authorization': `Bearer ${process.env.OPENCODE_API_KEY || 'sk-FPP6sh78YsOhyjj0mmztchS7PGvuH2EE3nIM8vCNeaWUYhAmzlADOrSJtZ0QTu5u'}`,
             },
             body: JSON.stringify({
-              model: 'nvidia/nemotron-3-super-120b-a12b:free',
+              model: 'mimo-v2.5-free',
               messages: [
                 { role: 'system', content: 'Tu es Maria, l\'assistante beauté de BeautyBook. Réponds de manière chaleureuse et professionnelle. Sois concise.' },
                 { role: 'user', content: text },

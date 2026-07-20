@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/api/supabaseClient";
-import { ArrowLeft, Sparkles, BarChart3, MessageSquare, Calendar, TrendingUp, ExternalLink, Check, Loader2, X, Settings, Eye, EyeOff, Save, AlertCircle, Key, Zap, Radio, Circle, Send, Users, Wifi, Video, VideoOff, Mic, MicOff, MessageCircle } from "lucide-react";
+import { ArrowLeft, Sparkles, BarChart3, MessageSquare, Calendar, TrendingUp, ExternalLink, Check, Loader2, X, Settings, Eye, EyeOff, Save, AlertCircle, Key, Zap } from "lucide-react";
 
 const PLATFORMS = [
   {
@@ -237,239 +237,6 @@ function CredentialsModal({ platform, onClose, onSave, existingCreds }) {
   );
 }
 
-// ── Page Live / Direct ─────────────────────────────────────────────────────
-function LivePanel({ user, platforms, onClose }) {
-  const [isLive, setIsLive] = useState(false);
-  const [viewerCount, setViewerCount] = useState(0);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [selectedPlatform, setSelectedPlatform] = useState("");
-  const [cameraOn, setCameraOn] = useState(true);
-  const [micOn, setMicOn] = useState(true);
-  const chatEndRef = useRef(null);
-
-  const connectedPlatforms = platforms.filter(p => p.connected);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
-
-  const startLive = () => {
-    if (!selectedPlatform) return;
-    setIsLive(true);
-    setViewerCount(Math.floor(Math.random() * 50) + 10);
-    // Simuler des viewers qui rejoignent
-    const interval = setInterval(() => {
-      setViewerCount(prev => prev + Math.floor(Math.random() * 5));
-    }, 5000);
-    return () => clearInterval(interval);
-  };
-
-  const stopLive = () => {
-    setIsLive(false);
-    setViewerCount(0);
-    setChatMessages([]);
-  };
-
-  const sendMessage = () => {
-    if (!newMessage.trim()) return;
-    setChatMessages(prev => [...prev, {
-      id: Date.now(),
-      user: user?.email?.split('@')[0] || 'Vous',
-      text: newMessage,
-      isMe: true,
-      timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-    }]);
-    setNewMessage("");
-  };
-
-  // Simuler des messages de viewers
-  useEffect(() => {
-    if (!isLive) return;
-    const names = ["Sophie", "Marie", "Julie", "Emma", "Léa", "Chloé", "Camille", "Inès"];
-    const texts = [
-      "Super salon ! 💇‍♀️", "J'adore ce style !", "C'est où ?",
-      "Réservation possible ?", "Les prix svp ?", "Magnifique résultat !",
-      "Pour un relooking complet ?", "Vous faites les ongles aussi ?"
-    ];
-    const interval = setInterval(() => {
-      if (Math.random() > 0.5) {
-        setChatMessages(prev => [...prev, {
-          id: Date.now(),
-          user: names[Math.floor(Math.random() * names.length)],
-          text: texts[Math.floor(Math.random() * texts.length)],
-          isMe: false,
-          timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        }]);
-      }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [isLive]);
-
-  return (
-    <div className="fixed inset-0 z-[100] bg-gray-900 flex flex-col">
-      {/* Header Live */}
-      <div className="bg-gray-900 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {isLive && (
-            <span className="flex items-center gap-1.5 bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full animate-pulse">
-              <Circle className="w-2 h-2 fill-current" /> LIVE
-            </span>
-          )}
-          <span className="text-white text-[14px] font-bold">Direct</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {isLive && (
-            <span className="flex items-center gap-1 text-white/70 text-[12px]">
-              <Users className="w-4 h-4" /> {viewerCount}
-            </span>
-          )}
-          <button onClick={onClose} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
-            <X className="w-4 h-4 text-white" />
-          </button>
-        </div>
-      </div>
-
-      {!isLive ? (
-        /* Sélection de plateforme */
-        <div className="flex-1 flex flex-col items-center justify-center p-6">
-          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
-            <Radio className="w-10 h-10 text-red-500" />
-          </div>
-          <h2 className="text-white text-[20px] font-black mb-2">Démarrer un Direct</h2>
-          <p className="text-white/50 text-[13px] text-center mb-8 max-w-xs">
-            Diffusez en direct sur vos réseaux sociaux et interagissez avec votre audience en temps réel
-          </p>
-
-          {connectedPlatforms.length > 0 ? (
-            <>
-              <p className="text-white/40 text-[11px] font-bold uppercase tracking-widest mb-3">Choisir la plateforme</p>
-              <div className="w-full space-y-2 mb-8">
-                {connectedPlatforms.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedPlatform(p.id)}
-                    className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all ${
-                      selectedPlatform === p.id
-                        ? 'bg-white/10 border-white/30'
-                        : 'bg-white/5 border-white/10'
-                    }`}
-                  >
-                    <PlatformIcon id={p.id} size={24} />
-                    <span className="text-white text-[14px] font-bold flex-1 text-left">{p.name}</span>
-                    {selectedPlatform === p.id && <Check className="w-5 h-5 text-orange-500" />}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={startLive}
-                disabled={!selectedPlatform}
-                className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-[14px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <Video className="w-5 h-5" /> Lancer le Direct
-                </span>
-              </button>
-            </>
-          ) : (
-            <div className="text-center">
-              <Wifi className="w-10 h-10 text-white/20 mx-auto mb-3" />
-              <p className="text-white/40 text-[13px]">Aucune plateforme connectée</p>
-              <p className="text-white/25 text-[11px] mt-1">Connectez un réseau social d'abord</p>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Live actif */
-        <>
-          {/* Zone vidéo simulée */}
-          <div className="mx-4 bg-gray-800 rounded-2xl overflow-hidden relative" style={{ height: '35vh' }}>
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-purple-500/20 flex items-center justify-center">
-              <div className="text-center">
-                <Radio className="w-12 h-12 text-red-500 mx-auto mb-2 animate-pulse" />
-                <p className="text-white text-[14px] font-bold">En direct</p>
-                <p className="text-white/50 text-[11px]">{viewerCount} spectateurs</p>
-              </div>
-            </div>
-            {/* Badge plateforme */}
-            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5">
-              <PlatformIcon id={selectedPlatform} size={16} />
-              <span className="text-white text-[11px] font-bold">{platforms.find(p => p.id === selectedPlatform)?.name}</span>
-            </div>
-          </div>
-
-          {/* Chat Live */}
-          <div className="flex-1 flex flex-col mx-4 mt-3 bg-gray-800 rounded-2xl overflow-hidden">
-            <div className="px-4 py-2 border-b border-gray-700">
-              <p className="text-white/60 text-[11px] font-bold uppercase tracking-widest">Chat en direct</p>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {chatMessages.length === 0 && (
-                <p className="text-white/30 text-[12px] text-center py-4">Les messages apparaîtront ici...</p>
-              )}
-              {chatMessages.map(msg => (
-                <div key={msg.id} className={`flex gap-2 ${msg.isMe ? 'justify-end' : ''}`}>
-                  {!msg.isMe && (
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center shrink-0">
-                      <span className="text-white text-[8px] font-bold">{msg.user[0]}</span>
-                    </div>
-                  )}
-                  <div className={`max-w-[75%] ${msg.isMe ? 'order-first' : ''}`}>
-                    {!msg.isMe && <p className="text-orange-400 text-[10px] font-bold mb-0.5">{msg.user}</p>}
-                    <div className={`px-3 py-2 rounded-2xl ${msg.isMe ? 'bg-orange-500 text-white rounded-br-md' : 'bg-gray-700 text-white rounded-bl-md'}`}>
-                      <p className="text-[12px]">{msg.text}</p>
-                    </div>
-                    <p className="text-white/30 text-[9px] mt-0.5">{msg.timestamp}</p>
-                  </div>
-                </div>
-              ))}
-              <div ref={chatEndRef} />
-            </div>
-
-            {/* Input chat */}
-            <div className="p-3 border-t border-gray-700">
-              <div className="flex items-center gap-2">
-                <input
-                  value={newMessage}
-                  onChange={e => setNewMessage(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendMessage()}
-                  placeholder="Écrire un message..."
-                  className="flex-1 bg-gray-700 text-white text-[13px] rounded-full px-4 py-2.5 outline-none placeholder:text-white/30"
-                />
-                <button onClick={sendMessage} className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shrink-0">
-                  <Send className="w-4 h-4 text-white" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Contrôles Live */}
-          <div className="px-4 py-4 flex items-center justify-center gap-4">
-            <button
-              onClick={() => setMicOn(!micOn)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center ${micOn ? 'bg-white/10' : 'bg-red-500'}`}
-            >
-              {micOn ? <Mic className="w-5 h-5 text-white" /> : <MicOff className="w-5 h-5 text-white" />}
-            </button>
-            <button
-              onClick={() => setCameraOn(!cameraOn)}
-              className={`w-12 h-12 rounded-full flex items-center justify-center ${cameraOn ? 'bg-white/10' : 'bg-red-500'}`}
-            >
-              {cameraOn ? <Video className="w-5 h-5 text-white" /> : <VideoOff className="w-5 h-5 text-white" />}
-            </button>
-            <button
-              onClick={stopLive}
-              className="w-16 h-12 bg-red-500 rounded-full flex items-center justify-center"
-            >
-              <span className="text-white text-[10px] font-black uppercase">Stop</span>
-            </button>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 const FEATURES = [
   { icon: MessageSquare, title: "Réponses auto", desc: "Maria répond 24h/24", color: "text-orange-500", bg: "bg-orange-50" },
   { icon: TrendingUp, title: "Conversion", desc: "Prospects → Clients", color: "text-emerald-500", bg: "bg-emerald-50" },
@@ -486,7 +253,6 @@ export default function SocialMedia() {
   const [showStats, setShowStats] = useState(false);
   const [configModal, setConfigModal] = useState(null);
   const [allCredentials, setAllCredentials] = useState({});
-  const [showLive, setShowLive] = useState(false);
 
   useEffect(() => {
     if (!user?.email) return;
@@ -605,9 +371,6 @@ export default function SocialMedia() {
               <h1 className="text-[22px] font-black text-white tracking-tight">Réseaux Sociaux</h1>
               <p className="text-[12px] text-orange-300 font-medium">Maria AI · Gestion & Conversion</p>
             </div>
-            <button onClick={() => setShowLive(true)} className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center border border-red-500/30 active:scale-95">
-              <Radio className="w-5 h-5 text-red-400" />
-            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -639,21 +402,6 @@ export default function SocialMedia() {
             </p>
           </div>
         </div>
-
-        {/* Bouton Live */}
-        <button
-          onClick={() => setShowLive(true)}
-          className="w-full bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-red-500/20 active:scale-[0.98] transition-all"
-        >
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-            <Radio className="w-6 h-6 text-white" />
-          </div>
-          <div className="flex-1 text-left">
-            <p className="text-white text-[15px] font-black">Live / Direct</p>
-            <p className="text-white/70 text-[11px] font-medium">Diffusez en direct sur vos réseaux</p>
-          </div>
-          <Video className="w-5 h-5 text-white/70" />
-        </button>
 
         {/* Plateformes */}
         <div>
@@ -771,15 +519,6 @@ export default function SocialMedia() {
           existingCreds={allCredentials[configModal.id]}
           onClose={() => setConfigModal(null)}
           onSave={(creds) => handleSaveCredentials(configModal.id, creds)}
-        />
-      )}
-
-      {/* Panel Live */}
-      {showLive && (
-        <LivePanel
-          user={user}
-          platforms={platforms}
-          onClose={() => setShowLive(false)}
         />
       )}
     </div>
