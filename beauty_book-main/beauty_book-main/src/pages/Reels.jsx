@@ -684,7 +684,7 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
       {/* Media */}
       {media ? (
         <>
-          <video ref={videoRef} src={media} className="absolute inset-0 w-full h-full object-cover" loop playsInline onTimeUpdate={handleTimeUpdate} onClick={togglePlay} />
+          <video ref={videoRef} src={media} className="absolute inset-0 w-full h-full object-cover" loop playsInline onTimeUpdate={handleTimeUpdate} onClick={togglePlay} style={{ pointerEvents: 'auto' }} />
           {!playing && (
             <button onClick={togglePlay} className="absolute inset-0 z-10 flex items-center justify-center">
               <div className="w-16 h-16 bg-black/40 rounded-full flex items-center justify-center backdrop-blur-sm">
@@ -717,7 +717,7 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
       )}
 
       {/* ── Right Controls ── */}
-      <div className="absolute right-3 flex flex-col items-center gap-3 z-20" style={{ top: "calc(80px + env(safe-area-inset-top, 0px))" }}>
+      <div className="absolute right-3 flex flex-col items-center gap-3" style={{ top: "calc(80px + env(safe-area-inset-top, 0px))", zIndex: 30, pointerEvents: 'auto' }}>
         <button onClick={onMuteToggle} className="w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center active:scale-95">
           {muted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
         </button>
@@ -737,9 +737,10 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
             <span className="text-[11px] font-black leading-none" style={{ color: followed ? '#f97316' : 'white' }}>{followed ? "✓" : "+"}</span>
           </button>
         </div>
-        {/* Like — 1 like par compte, cœur rouge style TikTok */}
-        <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="flex flex-col items-center gap-0.5 active:scale-95">
-          <div className="w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
+        {/* Like */}
+        <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onLike(); }} onTouchStart={(e) => { e.stopPropagation(); }}
+          className="flex flex-col items-center gap-0.5 active:scale-95" style={{ zIndex: 30, position: 'relative' }}>
+          <div className="w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center" style={{ pointerEvents: 'auto' }}>
             <Heart className={`w-5 h-5 transition-all ${liked ? "fill-red-500 text-red-500 scale-110" : "text-white"}`} />
           </div>
           <span className="text-white text-[10px] font-black">{likesCount >= 1000 ? (likesCount / 1000).toFixed(1) + 'k' : likesCount}</span>
