@@ -96,6 +96,7 @@ import NotificationsPage from '@/pages/Notifications';
 import Panier from '@/pages/Panier';
 import GestionStyles from '@/pages/pro/GestionStyles';
 import ParametresPro from '@/pages/pro/ParametresPro';
+import ModifierProfilPro from '@/pages/pro/ModifierProfilPro';
 import PromoService from '@/pages/pro/PromoService';
 import ScanCapillaire from '@/pages/ScanCapillaire';
 import AdminLogin from '@/pages/admin/AdminLogin';
@@ -193,7 +194,7 @@ const AuthenticatedApp = () => {
         <Route path="/pro/visite-3d" element={<Visite3D />} />
         <Route path="/pro/franchise" element={<Franchise />} />
         <Route path="/pro/lancer-direct" element={<LancerDirect />} />
-        <Route path="/pro/modifier-profil" element={<ParametresPro />} />
+        <Route path="/pro/modifier-profil" element={<ModifierProfilPro />} />
         <Route path="/pro/vue-client" element={<VueClient />} />
         <Route path="/pro/abonnements" element={<Abonnements />} />
         <Route path="/abonnements" element={<AbonnementsClient />} />
