@@ -21,7 +21,7 @@ const SCAN_IMG = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q
 const STYLE_IMG = "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400";
 
 // ─── Side Drawer ──────────────────────────────────────────────────────────────
-function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, onOpenSimulator, onScanCapillaire, onStylisteIA }) {
+function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, onOpenSimulator, onScanCapillaire, onStylisteIA, onSocialMedia }) {
   return (
     <>
       {open && <div className="absolute inset-0 bg-black/30 z-40 backdrop-blur-sm" onClick={onClose} />}
@@ -32,6 +32,24 @@ function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, o
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Réseaux Sociaux */}
+        <div className="px-4 mb-2">
+          <button
+            onClick={() => { onSocialMedia(); onClose(); }}
+            className="w-full flex items-center gap-3 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-2xl px-4 py-3 active:scale-[0.98] transition-all"
+          >
+            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+              <span className="text-[16px]">🌐</span>
+            </div>
+            <div className="text-left">
+              <span className="text-[14px] font-black text-purple-700">Réseaux Sociaux</span>
+              <p className="text-[10px] text-purple-400 font-medium">Gestion & Conversion</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Nouveau Chat */}
         <div className="px-4 mb-2">
           <button
             onClick={() => { onNewChat(); onClose(); }}
@@ -621,7 +639,7 @@ export default function Maria() {
   if (view === "chat") {
     return (
       <div className={`font-display flex flex-col h-full relative overflow-hidden ${isDark ? "bg-gray-950" : "bg-white"}`}>
-        <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} />
+        <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} onSocialMedia={() => navigate("/social-media")} />
         {showSimulator && <FiltreAIModal styleTitle="" onClose={() => setShowSimulator(false)} onResultSaved={handleSimulationSaved} />}
 
         <div className={`px-4 pt-5 pb-4 flex items-center justify-between border-b ${headerBorder}`} style={{ background: headerBg }}>
@@ -830,7 +848,7 @@ export default function Maria() {
   // ── HOME VIEW ──────────────────────────────────────────────────────────────
   return (
     <div className={`font-display flex flex-col h-full relative overflow-hidden ${homeBodyBg}`}>
-      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} />
+      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} onSocialMedia={() => navigate("/social-media")} />
       {showSimulator && <FiltreAIModal styleTitle="" onClose={() => setShowSimulator(false)} onResultSaved={handleSimulationSaved} />}
 
       <div className={`px-4 pt-5 pb-3 flex items-center justify-between border-b ${homeHeaderBg}`}>
