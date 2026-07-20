@@ -967,18 +967,35 @@ export default function Reels() {
   const toggleLike = async (reel) => {
     const reelId = String(reel.id);
     const isLiked = liked.includes(reelId);
-    const cur = reelLikeCounts[reelId] ?? 0;
-    const newLikes = isLiked ? Math.max(cur - 1, 0) : cur + 1;
+    const userEmail = user?.email;
+    if (!userEmail) return;
 
-    setReelLikeCounts(prev => ({ ...prev, [reelId]: newLikes }));
-    setReelsData(prev => prev.map(r => String(r.id) === reelId ? { ...r, likes: newLikes } : r));
-
+    // Toggle immédiat
     if (isLiked) {
       setLiked(prev => prev.filter(id => id !== reelId));
-      likesApi.removeLike(user?.email, reelId, 'reel').catch(() => {});
     } else {
       setLiked(prev => [...prev, reelId]);
-      likesApi.addLike(user?.email, reelId, 'reel', user?.full_name || "Utilisateur", user?.avatar_url || "").catch(() => {});
+    }
+
+    try {
+      if (isLiked) {
+        await likesApi.removeLike(userEmail, reelId, 'reel');
+      } else {
+        await likesApi.addLike(userEmail, reelId, 'reel', user?.full_name || "Utilisateur", user?.avatar_url || "");
+      }
+      // Recharger les compteurs depuis la base
+      const reelIds = reelsData.map(r => String(r.id));
+      const counts = await likesApi.getLikeCounts(reelIds, 'reel');
+      setReelLikeCounts(counts);
+      setReelsData(prev => prev.map(r => ({ ...r, likes: counts[String(r.id)] ?? r.likes ?? 0 })));
+    } catch (err) {
+      console.error('[Reels] like error:', err);
+      // Annuler le toggle en cas d'erreur
+      if (isLiked) {
+        setLiked(prev => [...prev, reelId]);
+      } else {
+        setLiked(prev => prev.filter(id => id !== reelId));
+      }
     }
   };
 

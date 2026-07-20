@@ -502,15 +502,23 @@ export default function StyleDetail() {
 
   const handleLike = async () => {
     const newLiked = !liked;
-    setLiked(newLiked);
-    setLikesCount(c => newLiked ? c + 1 : Math.max(0, c - 1));
     const sid = style?.id || s.id;
     const userEmail = user?.email;
     if (!sid || !userEmail) return;
-    if (newLiked) {
-      likesApi.addLike(userEmail, String(sid), 'style', user?.full_name || "Utilisateur", user?.avatar_url || "").catch(() => {});
-    } else {
-      likesApi.removeLike(userEmail, String(sid), 'style').catch(() => {});
+
+    setLiked(newLiked);
+    setLikesCount(c => newLiked ? c + 1 : Math.max(0, c - 1));
+
+    try {
+      if (newLiked) {
+        await likesApi.addLike(userEmail, String(sid), 'style', user?.full_name || "Utilisateur", user?.avatar_url || "");
+      } else {
+        await likesApi.removeLike(userEmail, String(sid), 'style');
+      }
+    } catch (e) {
+      console.error('[StyleDetail.handleLike]', e);
+      setLiked(!newLiked);
+      setLikesCount(c => newLiked ? Math.max(0, c - 1) : c + 1);
     }
   };
 

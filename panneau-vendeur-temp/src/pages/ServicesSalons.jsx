@@ -405,17 +405,32 @@ function StylesTab({ activeCategory }) {
   const handleLike = async (e, styleId) => {
     e.stopPropagation();
     const alreadyLiked = liked.includes(styleId);
-    const cur = likeCounts[styleId] || 0;
-    const newCount = alreadyLiked ? Math.max(cur - 1, 0) : cur + 1;
-
-    setLikeCounts(prev => ({ ...prev, [styleId]: newCount }));
+    const userEmail = user?.email;
+    if (!userEmail) return;
 
     if (alreadyLiked) {
       setLiked(prev => prev.filter(id => id !== styleId));
-      likesApi.removeLike(user?.email, styleId, 'style').catch(() => {});
     } else {
       setLiked(prev => [...prev, styleId]);
-      likesApi.addLike(user?.email, styleId, 'style', user?.full_name || "Utilisateur", user?.avatar_url || "").catch(() => {});
+    }
+
+    try {
+      if (alreadyLiked) {
+        await likesApi.removeLike(userEmail, styleId, 'style');
+      } else {
+        await likesApi.addLike(userEmail, styleId, 'style', user?.full_name || "Utilisateur", user?.avatar_url || "");
+      }
+      // Recharger les compteurs depuis la base
+      const styleIds = styles.map(s => String(s.id));
+      const counts = await likesApi.getLikeCounts(styleIds, 'style');
+      setLikeCounts(counts);
+    } catch (err) {
+      console.error('[Services] like error:', err);
+      if (alreadyLiked) {
+        setLiked(prev => [...prev, styleId]);
+      } else {
+        setLiked(prev => prev.filter(id => id !== styleId));
+      }
     }
   };
 

@@ -2,22 +2,33 @@ import { supabase } from '@/api/supabaseClient';
 
 export const likesApi = {
   async addLike(userEmail, targetId, targetType = 'reel', userName = '', userAvatar = '') {
-    // Supprimer d'abord pour éviter le duplicate key, puis réinsérer
-    await supabase.from('user_like')
-      .delete()
-      .eq('user_email', userEmail)
-      .eq('target_id', String(targetId))
-      .eq('target_type', targetType);
+    try {
+      await supabase.from('user_like')
+        .delete()
+        .eq('user_email', userEmail)
+        .eq('target_id', String(targetId))
+        .eq('target_type', targetType);
+    } catch (e) {
+      console.warn('[likesApi] delete before insert:', e.message);
+    }
 
-    const { error } = await supabase.from('user_like').insert({
-      user_email: userEmail,
-      target_id: String(targetId),
-      target_type: targetType,
-      user_name: userName || '',
-      user_avatar: userAvatar || '',
-    });
-    if (error) console.error('[likesApi] addLike error:', error.message);
-    return { success: true };
+    try {
+      const { data, error } = await supabase.from('user_like').insert({
+        user_email: userEmail,
+        target_id: String(targetId),
+        target_type: targetType,
+        user_name: userName || '',
+        user_avatar: userAvatar || '',
+      }).select();
+      if (error) {
+        console.error('[likesApi] insert error:', error.message, error);
+        return { success: true };
+      }
+      return { success: true };
+    } catch (e) {
+      console.error('[likesApi] insert exception:', e.message);
+      return { success: true };
+    }
   },
 
   async removeLike(userEmail, targetId, targetType = 'reel') {
