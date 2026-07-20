@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster"
 import React, { useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from "framer-motion";
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -10,6 +10,7 @@ import { entities } from '@/api/entities';
 import { VoiceAgentProvider } from '@/lib/VoiceAgentContext';
 import FloatingVoiceAgent from '@/components/voice/FloatingVoiceAgent';
 import { LocaleProvider } from '@/lib/LocaleContext.jsx';
+import { supabase } from '@/api/supabaseClient';
 
 // Appliquer la config apparence depuis la BDD au démarrage
 entities.AppConfig.filter({ key: "appearance_config" }, "-created_at", 50).then(rows => {
@@ -49,18 +50,16 @@ import DevenirPro from '@/pages/DevenirPro';
 import BeautyPay from '@/pages/pro/BeautyPay';
 import CatalogueServices from '@/pages/pro/CatalogueServices';
 import AjouterService from '@/pages/pro/AjouterService';
-import AvisClients from '@/pages/pro/AvisClients.jsx';
+import AvisClients from '@/pages/pro/AvisClients';
 import Equipe from '@/pages/pro/Equipe';
-import NouveauMembre from '@/pages/pro/NouveauMembre';
 import PlanningMembre from '@/pages/pro/PlanningMembre';
+import NouveauMembre from '@/pages/pro/NouveauMembre';
 import Analytics from '@/pages/pro/Analytics';
 import Publication from '@/pages/pro/Publication';
 import VeoGenerator from '@/pages/pro/VeoGenerator';
 import Visite3D from '@/pages/pro/Visite3D';
 import Franchise from '@/pages/pro/Franchise';
 import LancerDirect from '@/pages/pro/LancerDirect';
-// ModifierProfil supprimé - les paramètres sont dans ProfilPro
-import VueClient from '@/pages/pro/VueClient';
 import Abonnements from '@/pages/pro/Abonnements';
 import AbonnementsClient from '@/pages/AbonnementsClient';
 import GestionAgenda from '@/pages/pro/GestionAgenda';
@@ -78,8 +77,6 @@ import MesCommandes from '@/pages/MesCommandes';
 import CommandeDetail from '@/pages/CommandeDetail';
 import MonSolde from '@/pages/MonSolde';
 import ProgrammeFidelite from '@/pages/ProgrammeFidelite';
-import Onboarding from '@/pages/Onboarding';
-import Connexion from '@/pages/Connexion';
 import Reservation from '@/pages/Reservation';
 import Securite from '@/pages/parametres/Securite';
 import MoyensPaiement from '@/pages/parametres/MoyensPaiement';
@@ -115,6 +112,33 @@ import Explorer from '@/pages/Explorer';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
 import AuthCallback from '@/pages/AuthCallback';
+import Onboarding from '@/pages/Onboarding';
+import Connexion from '@/pages/Connexion';
+import VueClient from '@/pages/pro/VueClient';
+
+// ── Intercepteur OAuth : gère les tokens dans le hash à TOUTE page ──
+function OAuthInterceptor({ children }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    // Si le hash contient des tokens OAuth (access_token, refresh_token)
+    if (hash && hash.includes('access_token')) {
+      // Laisser Supabase traiter les tokens puis nettoyer le hash
+      const timer = setTimeout(() => {
+        // Nettoyer le hash de l'URL sans recharger la page
+        window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        // Rediriger vers l'accueil
+        localStorage.setItem('bb_onboarded', '1');
+        navigate('/', { replace: true });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [location, navigate]);
+
+  return children;
+}
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, isAuthenticated } = useAuth();
@@ -157,102 +181,106 @@ const AuthenticatedApp = () => {
   // Redirect to onboarding if first time and not on a special route
   if (!hasOnboarded && !isSpecialRoute) {
     return (
-      <Routes>
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/onboarding" element={<Onboarding />} />
-        <Route path="/connexion" element={<Connexion />} />
-        <Route path="*" element={<Navigate to="/onboarding" replace />} />
-      </Routes>
+      <OAuthInterceptor>
+        <Routes>
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/connexion" element={<Connexion />} />
+          <Route path="*" element={<Navigate to="/onboarding" replace />} />
+        </Routes>
+      </OAuthInterceptor>
     );
   }
 
   // Render the main app
   return (
-    <Routes>
-      <Route path="/onboarding" element={<Onboarding />} />
-      <Route path="/connexion" element={<Connexion />} />
-      <Route element={<AppShell />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/services" element={<Services />} />
-        <Route path="/services-salons" element={<ServicesSalons />} />
-        <Route path="/boutique" element={<Boutique />} />
-        <Route path="/rendez-vous" element={<RendezVous />} />
-        <Route path="/profil" element={<Profil />} />
-        <Route path="/maria" element={<Maria />} />
-        <Route path="/profil-pro" element={<ProfilPro />} />
-        <Route path="/devenir-pro" element={<DevenirPro />} />
-        <Route path="/devenir-pro-confirmation" element={<DevenirProConfirmation />} />
-        <Route path="/pro/beauty-pay" element={<BeautyPay />} />
-        <Route path="/pro/catalogue-services" element={<CatalogueServices />} />
-        <Route path="/pro/ajouter-service" element={<AjouterService />} />
-        <Route path="/pro/avis-clients" element={<AvisClients />} />
-        <Route path="/pro/equipe" element={<Equipe />} />
-        <Route path="/pro/planning-membre" element={<PlanningMembre />} />
-        <Route path="/pro/nouveau-membre" element={<NouveauMembre />} />
-        <Route path="/pro/analytics" element={<Analytics />} />
-        <Route path="/pro/publication" element={<Publication />} />
-        <Route path="/pro/veo-generator" element={<VeoGenerator />} />
-        <Route path="/pro/visite-3d" element={<Visite3D />} />
-        <Route path="/pro/franchise" element={<Franchise />} />
-        <Route path="/pro/lancer-direct" element={<LancerDirect />} />
-        <Route path="/pro/modifier-profil" element={<ModifierProfilPro />} />
-        <Route path="/pro/vue-client" element={<VueClient />} />
-        <Route path="/pro/abonnements" element={<Abonnements />} />
-        <Route path="/abonnements" element={<AbonnementsClient />} />
-        <Route path="/pro/gestion-agenda" element={<GestionAgenda />} />
-        <Route path="/pro/horaires-conges" element={<HorairesConges />} />
-        <Route path="/live" element={<LiveFeed />} />
-        <Route path="/live-detail/:id" element={<LiveDetail />} />
-        <Route path="/reels" element={<Reels />} />
-        <Route path="/social-media" element={<SocialMedia />} />
-        <Route path="/reseau-social" element={<Reels />} />
-        <Route path="/immobilier" element={<Immobilier />} />
-        <Route path="/immobilier/:id" element={<ImmobilierDetail />} />
-        <Route path="/service/:id" element={<ServiceDetail />} />
-        <Route path="/style/:id" element={<StyleDetail />} />
-        <Route path="/modifier-profil-client" element={<ModifierProfilClient />} />
-        <Route path="/parametres" element={<Parametres />} />
-        <Route path="/mes-commandes" element={<MesCommandes />} />
-        <Route path="/commande/:id" element={<CommandeDetail />} />
-        <Route path="/mon-solde" element={<MonSolde />} />
-        <Route path="/programme-fidelite" element={<ProgrammeFidelite />} />
-        <Route path="/reservation" element={<Reservation />} />
-        <Route path="/parametres/securite" element={<Securite />} />
-        <Route path="/parametres/paiement" element={<MoyensPaiement />} />
-        <Route path="/parametres/notifications" element={<Notifications />} />
-        <Route path="/parametres/langue" element={<LangueMonnaie />} />
-        <Route path="/parametres/aide" element={<CentreAide />} />
-        <Route path="/parametres/confidentialite" element={<Confidentialite />} />
-        <Route path="/parametres/conditions" element={<Conditions />} />
-        <Route path="/parametres/contact" element={<Contactez />} />
-        <Route path="/parametres/a-propos" element={<APropos />} />
-        <Route path="/produit" element={<ProduitDetail />} />
-        <Route path="/messages" element={<Messages />} />
-        <Route path="/notifications" element={<NotificationsPage />} />
-        <Route path="/panier" element={<Panier />} />
-        <Route path="/pro/gestion-styles" element={<GestionStyles />} />
-        <Route path="/pro/parametres" element={<ParametresPro />} />
-        <Route path="/pro/promo-service/:id" element={<PromoService />} />
-        <Route path="/scan-capillaire" element={<ScanCapillaire />} />
-        <Route path="/order-tracking" element={<OrderTracking />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/supprimer-compte" element={<SupprimerCompte />} />
-        <Route path="/sh-ai" element={<ShAI />} />
-        <Route path="/explorer" element={<Explorer />} />
-        <Route path="/recherche-approfondie" element={<Services />} />
-        <Route path="/a-propos" element={<About />} />
-        <Route path="/contact" element={<Contact />} />
-      </Route>
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/admin" element={<AdminLogin />} />
-      <Route path="/admin/signup" element={<AdminSignup />} />
-      <Route path="/admin/dashboard" element={<AdminDashboard />} />
-      <Route path="/vendeur" element={<Navigate to="/vendeur/dashboard" replace />} />
-      <Route path="/vendeur/dashboard" element={<VendeurDashboard />} />
-      <Route path="/vendeur/login" element={<VendeurLogin />} />
-      <Route path="/vendeur/signup" element={<VendeurSignup />} />
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+    <OAuthInterceptor>
+      <Routes>
+        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/connexion" element={<Connexion />} />
+        <Route element={<AppShell />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/services-salons" element={<ServicesSalons />} />
+          <Route path="/boutique" element={<Boutique />} />
+          <Route path="/rendez-vous" element={<RendezVous />} />
+          <Route path="/profil" element={<Profil />} />
+          <Route path="/maria" element={<Maria />} />
+          <Route path="/profil-pro" element={<ProfilPro />} />
+          <Route path="/devenir-pro" element={<DevenirPro />} />
+          <Route path="/devenir-pro-confirmation" element={<DevenirProConfirmation />} />
+          <Route path="/pro/beauty-pay" element={<BeautyPay />} />
+          <Route path="/pro/catalogue-services" element={<CatalogueServices />} />
+          <Route path="/pro/ajouter-service" element={<AjouterService />} />
+          <Route path="/pro/avis-clients" element={<AvisClients />} />
+          <Route path="/pro/equipe" element={<Equipe />} />
+          <Route path="/pro/planning-membre" element={<PlanningMembre />} />
+          <Route path="/pro/nouveau-membre" element={<NouveauMembre />} />
+          <Route path="/pro/analytics" element={<Analytics />} />
+          <Route path="/pro/publication" element={<Publication />} />
+          <Route path="/pro/veo-generator" element={<VeoGenerator />} />
+          <Route path="/pro/visite-3d" element={<Visite3D />} />
+          <Route path="/pro/franchise" element={<Franchise />} />
+          <Route path="/pro/lancer-direct" element={<LancerDirect />} />
+          <Route path="/pro/modifier-profil" element={<ModifierProfilPro />} />
+          <Route path="/pro/vue-client" element={<VueClient />} />
+          <Route path="/pro/abonnements" element={<Abonnements />} />
+          <Route path="/abonnements" element={<AbonnementsClient />} />
+          <Route path="/pro/gestion-agenda" element={<GestionAgenda />} />
+          <Route path="/pro/horaires-conges" element={<HorairesConges />} />
+          <Route path="/live" element={<LiveFeed />} />
+          <Route path="/live-detail/:id" element={<LiveDetail />} />
+          <Route path="/reels" element={<Reels />} />
+          <Route path="/social-media" element={<SocialMedia />} />
+          <Route path="/reseau-social" element={<Reels />} />
+          <Route path="/immobilier" element={<Immobilier />} />
+          <Route path="/immobilier/:id" element={<ImmobilierDetail />} />
+          <Route path="/service/:id" element={<ServiceDetail />} />
+          <Route path="/style/:id" element={<StyleDetail />} />
+          <Route path="/modifier-profil-client" element={<ModifierProfilClient />} />
+          <Route path="/parametres" element={<Parametres />} />
+          <Route path="/mes-commandes" element={<MesCommandes />} />
+          <Route path="/commande/:id" element={<CommandeDetail />} />
+          <Route path="/mon-solde" element={<MonSolde />} />
+          <Route path="/programme-fidelite" element={<ProgrammeFidelite />} />
+          <Route path="/reservation" element={<Reservation />} />
+          <Route path="/parametres/securite" element={<Securite />} />
+          <Route path="/parametres/paiement" element={<MoyensPaiement />} />
+          <Route path="/parametres/notifications" element={<Notifications />} />
+          <Route path="/parametres/langue" element={<LangueMonnaie />} />
+          <Route path="/parametres/aide" element={<CentreAide />} />
+          <Route path="/parametres/confidentialite" element={<Confidentialite />} />
+          <Route path="/parametres/conditions" element={<Conditions />} />
+          <Route path="/parametres/contact" element={<Contactez />} />
+          <Route path="/parametres/a-propos" element={<APropos />} />
+          <Route path="/produit" element={<ProduitDetail />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/panier" element={<Panier />} />
+          <Route path="/pro/gestion-styles" element={<GestionStyles />} />
+          <Route path="/pro/parametres" element={<ParametresPro />} />
+          <Route path="/pro/promo-service/:id" element={<PromoService />} />
+          <Route path="/scan-capillaire" element={<ScanCapillaire />} />
+          <Route path="/order-tracking" element={<OrderTracking />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/supprimer-compte" element={<SupprimerCompte />} />
+          <Route path="/sh-ai" element={<ShAI />} />
+          <Route path="/explorer" element={<Explorer />} />
+          <Route path="/recherche-approfondie" element={<Services />} />
+          <Route path="/a-propos" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+        </Route>
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/admin" element={<AdminLogin />} />
+        <Route path="/admin/signup" element={<AdminSignup />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/vendeur" element={<Navigate to="/vendeur/dashboard" replace />} />
+        <Route path="/vendeur/dashboard" element={<VendeurDashboard />} />
+        <Route path="/vendeur/login" element={<VendeurLogin />} />
+        <Route path="/vendeur/signup" element={<VendeurSignup />} />
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </OAuthInterceptor>
   );
 };
 
@@ -263,12 +291,14 @@ function App() {
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
-          <LocaleProvider>
-            <VoiceAgentProvider>
-              <AuthenticatedApp />
-              <FloatingVoiceAgent />
-            </VoiceAgentProvider>
-          </LocaleProvider>
+          <OAuthInterceptor>
+            <LocaleProvider>
+              <VoiceAgentProvider>
+                <AuthenticatedApp />
+                <FloatingVoiceAgent />
+              </VoiceAgentProvider>
+            </LocaleProvider>
+          </OAuthInterceptor>
         </Router>
         <Toaster />
       </QueryClientProvider>

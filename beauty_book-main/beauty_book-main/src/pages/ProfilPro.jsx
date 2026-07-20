@@ -118,7 +118,7 @@ export default function ProfilPro() {
   const allMenuItems = [
     ...quickActions,
     { id: "lancer_direct", label: "LANCER UN DIRECT", Icon: Radio, bg: "bg-primary/10", color: "text-primary", route: "/pro/lancer-direct" },
-    { id: "modifier_profil", label: "MODIFIER PROFIL", Icon: UserCircle, bg: "bg-gray-100", color: "text-gray-700", route: "/pro/parametres" },
+    { id: "modifier_profil", label: "MODIFIER PROFIL", Icon: UserCircle, bg: "bg-gray-100", color: "text-gray-700", route: "/pro/modifier-profil" },
     { id: "agenda", label: "AGENDA", Icon: Calendar, bg: "bg-teal-100", color: "text-teal-600", route: "/pro/gestion-agenda" },
     { id: "parametres_pro", label: "PARAMÈTRES", Icon: Settings, bg: "bg-gray-100", color: "text-gray-600", route: "/pro/parametres" },
   ];
@@ -392,7 +392,7 @@ export default function ProfilPro() {
               </div>
               <span className="text-[10px] font-black text-white uppercase tracking-widest text-center">Lancer un Direct</span>
             </button>
-            <button onClick={() => navigate("/pro/parametres")} className="bg-gray-900 rounded-3xl py-7 px-4 flex flex-col items-center gap-3 shadow-lg active:scale-95 transition-all">
+            <button onClick={() => navigate("/pro/modifier-profil")} className="bg-gray-900 rounded-3xl py-7 px-4 flex flex-col items-center gap-3 shadow-lg active:scale-95 transition-all">
               <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center">
                 <UserCircle className="w-7 h-7 text-white" />
               </div>
