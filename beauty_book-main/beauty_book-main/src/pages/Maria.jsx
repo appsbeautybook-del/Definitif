@@ -520,7 +520,7 @@ export default function Maria() {
         }));
         const apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer sk-FPP6sh78YsOhyjj0mmztchS7PGvuH2EE3nIM8vCNeaWUYhAmzlADOrSJtZ0QTu5u' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer sk-ziv83S32mc2ZSb6g5h4faZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw' },
           body: JSON.stringify({
             model: 'mimo-v2.5-free',
             messages: [

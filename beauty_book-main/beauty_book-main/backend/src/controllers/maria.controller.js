@@ -12,7 +12,7 @@ const PYTHON_PATH = 'C:\\Users\\G15\\.local\\bin\\python3.11.exe';
 const TTS_SCRIPT = join(__dirname, '../services/tts_generate.py');
 
 const GLM_API_URL = 'https://opencode.ai/zen/v1/chat/completions';
-const GLM_API_KEY = process.env.OPENCODE_API_KEY || 'sk-FPP6sh78YsOhyjj0mmztchS7PGvuH2EE3nIM8vCNeaWUYhAmzlADOrSJtZ0QTu5u';
+const GLM_API_KEY = process.env.OPENCODE_API_KEY || 'sk-ziv83S32mc2ZSb6g5h4faZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw';
 const GLM_MODEL = 'mimo-v2.5-free';
 
 async function callGLM(messages, options = {}) {
