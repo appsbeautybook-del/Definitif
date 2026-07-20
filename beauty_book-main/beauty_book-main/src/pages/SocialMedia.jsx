@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/api/supabaseClient";
-import { ArrowLeft, Sparkles, BarChart3, MessageSquare, Calendar, TrendingUp, ExternalLink, Check, Loader2, X, Settings, Eye, EyeOff, Save, AlertCircle, Key, Zap } from "lucide-react";
+import { ArrowLeft, Sparkles, BarChart3, MessageSquare, Calendar, TrendingUp, ExternalLink, Check, Loader2, X, Settings, Eye, EyeOff, Save, AlertCircle, Key, Zap, Radio, Circle, Send, Users, Wifi, Video, VideoOff, Mic, MicOff, MessageCircle } from "lucide-react";
 
 const PLATFORMS = [
   {
@@ -33,7 +33,7 @@ const PLATFORMS = [
       { key: "app_secret", label: "App Secret", placeholder: "Votre App Secret", type: "password" },
       { key: "redirect_uri", label: "Redirect URI", placeholder: "https://votre-domaine.com/auth/callback", type: "text" },
     ],
-    docs: "https://developers.facebook.com/docs//pages-api/getting-started",
+    docs: "https://developers.facebook.com/docs/pages-api/getting-started",
   },
   {
     id: "tiktok",
@@ -81,7 +81,7 @@ const PLATFORMS = [
       { key: "phone_number_id", label: "Phone Number ID", placeholder: "ID du numéro de téléphone", type: "text" },
       { key: "verify_token", label: "Verify Token (Webhook)", placeholder: "Token de vérification webhook", type: "text" },
     ],
-    docs: "https://developers.facebook.com/docs/whatsapp/cloud-api/get-started",
+    docs: "https://developers.facebook.com/docs/whatsapp/cloud-api/getting-started",
   },
 ];
 
@@ -123,7 +123,7 @@ function PlatformIcon({ id, size = 24 }) {
   return icons[id] || null;
 }
 
-// ── Modal de configuration des credentials ─────────────────────────────────
+// ── Modal de configuration (fixé pour navbar) ──────────────────────────────
 function CredentialsModal({ platform, onClose, onSave, existingCreds }) {
   const [formData, setFormData] = useState({});
   const [saving, setSaving] = useState(false);
@@ -131,50 +131,38 @@ function CredentialsModal({ platform, onClose, onSave, existingCreds }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (existingCreds) {
-      setFormData(existingCreds);
-    }
+    if (existingCreds) setFormData(existingCreds);
   }, [existingCreds]);
 
   const handleSave = async () => {
     setSaving(true);
     setError("");
-
-    // Vérifier que tous les champs requis sont remplis
     const requiredFields = platform.fields.filter(f => !f.key.includes('redirect_uri'));
-    const missingFields = requiredFields.filter(f => !formData[f.key]);
-    if (missingFields.length > 0) {
-      setError(`Veuillez remplir: ${missingFields.map(f => f.label).join(', ')}`);
+    const missing = requiredFields.filter(f => !formData[f.key]);
+    if (missing.length > 0) {
+      setError(`Remplissez: ${missing.map(f => f.label).join(', ')}`);
       setSaving(false);
       return;
     }
-
     try {
       const res = await fetch('/api/social/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: platform.id,
-          credentials: formData,
-        }),
+        body: JSON.stringify({ platform: platform.id, credentials: formData }),
       });
-
-      if (!res.ok) throw new Error('Erreur lors de la sauvegarde');
-
+      if (!res.ok) throw new Error('Erreur sauvegarde');
       onSave(formData);
       onClose();
-    } catch (e) {
-      setError(e.message);
-    }
+    } catch (e) { setError(e.message); }
     setSaving(false);
   };
 
   return (
-    <div className="fixed inset-0 z-[500] flex items-end sm:items-center justify-center">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl max-h-[85vh] overflow-y-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between rounded-t-3xl">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl max-h-[75vh] flex flex-col overflow-hidden">
+        {/* Header fixe */}
+        <div className="shrink-0 bg-white border-b border-gray-100 px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className={`w-10 h-10 ${platform.bgLight} rounded-xl flex items-center justify-center border ${platform.borderColor}`}>
               <PlatformIcon id={platform.id} size={20} />
@@ -184,22 +172,20 @@ function CredentialsModal({ platform, onClose, onSave, existingCreds }) {
               <p className="text-[11px] text-gray-400">Configuration des identifiants</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+          <button onClick={onClose} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center shrink-0">
             <X className="w-4 h-4 text-gray-500" />
           </button>
         </div>
 
-        <div className="p-5 space-y-4">
-          {/* Info */}
+        {/* Contenu scrollable */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
             <div>
               <p className="text-[12px] text-blue-700 font-medium">Identifiants requis</p>
               <p className="text-[11px] text-blue-500 mt-0.5">
                 Récupérez vos clés depuis le{' '}
-                <a href={platform.docs} target="_blank" rel="noopener" className="underline font-bold">
-                  tableau de bord développeur
-                </a>
+                <a href={platform.docs} target="_blank" rel="noopener" className="underline font-bold">tableau de bord développeur</a>
               </p>
             </div>
           </div>
@@ -210,12 +196,9 @@ function CredentialsModal({ platform, onClose, onSave, existingCreds }) {
             </div>
           )}
 
-          {/* Champs */}
           {platform.fields.map(field => (
             <div key={field.key}>
-              <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block">
-                {field.label}
-              </label>
+              <label className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block">{field.label}</label>
               <div className="relative">
                 <input
                   type={field.type === 'password' && !showPasswords[field.key] ? 'password' : 'text'}
@@ -225,18 +208,17 @@ function CredentialsModal({ platform, onClose, onSave, existingCreds }) {
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-[13px] text-gray-800 outline-none focus:border-[#E8732A] transition-colors pr-10"
                 />
                 {field.type === 'password' && (
-                  <button
-                    onClick={() => setShowPasswords(prev => ({ ...prev, [field.key]: !prev[field.key] }))}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  >
+                  <button onClick={() => setShowPasswords(p => ({ ...p, [field.key]: !p[field.key] }))} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
                     {showPasswords[field.key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 )}
               </div>
             </div>
           ))}
+        </div>
 
-          {/* Bouton sauvegarder */}
+        {/* Bouton fixe en bas */}
+        <div className="shrink-0 bg-white border-t border-gray-100 px-5 py-4">
           <button
             onClick={handleSave}
             disabled={saving}
@@ -244,17 +226,246 @@ function CredentialsModal({ platform, onClose, onSave, existingCreds }) {
             style={{ background: saving ? '#d1d5db' : platform.color === '#000000' ? '#1a1a1a' : platform.color }}
           >
             {saving ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" /> Sauvegarde...
-              </span>
+              <span className="flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Sauvegarde...</span>
             ) : (
-              <span className="flex items-center justify-center gap-2">
-                <Save className="w-4 h-4" /> Enregistrer les identifiants
-              </span>
+              <span className="flex items-center justify-center gap-2"><Save className="w-4 h-4" /> Enregistrer</span>
             )}
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Page Live / Direct ─────────────────────────────────────────────────────
+function LivePanel({ user, platforms, onClose }) {
+  const [isLive, setIsLive] = useState(false);
+  const [viewerCount, setViewerCount] = useState(0);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [cameraOn, setCameraOn] = useState(true);
+  const [micOn, setMicOn] = useState(true);
+  const chatEndRef = useRef(null);
+
+  const connectedPlatforms = platforms.filter(p => p.connected);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const startLive = () => {
+    if (!selectedPlatform) return;
+    setIsLive(true);
+    setViewerCount(Math.floor(Math.random() * 50) + 10);
+    // Simuler des viewers qui rejoignent
+    const interval = setInterval(() => {
+      setViewerCount(prev => prev + Math.floor(Math.random() * 5));
+    }, 5000);
+    return () => clearInterval(interval);
+  };
+
+  const stopLive = () => {
+    setIsLive(false);
+    setViewerCount(0);
+    setChatMessages([]);
+  };
+
+  const sendMessage = () => {
+    if (!newMessage.trim()) return;
+    setChatMessages(prev => [...prev, {
+      id: Date.now(),
+      user: user?.email?.split('@')[0] || 'Vous',
+      text: newMessage,
+      isMe: true,
+      timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    }]);
+    setNewMessage("");
+  };
+
+  // Simuler des messages de viewers
+  useEffect(() => {
+    if (!isLive) return;
+    const names = ["Sophie", "Marie", "Julie", "Emma", "Léa", "Chloé", "Camille", "Inès"];
+    const texts = [
+      "Super salon ! 💇‍♀️", "J'adore ce style !", "C'est où ?",
+      "Réservation possible ?", "Les prix svp ?", "Magnifique résultat !",
+      "Pour un relooking complet ?", "Vous faites les ongles aussi ?"
+    ];
+    const interval = setInterval(() => {
+      if (Math.random() > 0.5) {
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          user: names[Math.floor(Math.random() * names.length)],
+          text: texts[Math.floor(Math.random() * texts.length)],
+          isMe: false,
+          timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        }]);
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isLive]);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-gray-900 flex flex-col">
+      {/* Header Live */}
+      <div className="bg-gray-900 px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {isLive && (
+            <span className="flex items-center gap-1.5 bg-red-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full animate-pulse">
+              <Circle className="w-2 h-2 fill-current" /> LIVE
+            </span>
+          )}
+          <span className="text-white text-[14px] font-bold">Direct</span>
+        </div>
+        <div className="flex items-center gap-3">
+          {isLive && (
+            <span className="flex items-center gap-1 text-white/70 text-[12px]">
+              <Users className="w-4 h-4" /> {viewerCount}
+            </span>
+          )}
+          <button onClick={onClose} className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+      </div>
+
+      {!isLive ? (
+        /* Sélection de plateforme */
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mb-6">
+            <Radio className="w-10 h-10 text-red-500" />
+          </div>
+          <h2 className="text-white text-[20px] font-black mb-2">Démarrer un Direct</h2>
+          <p className="text-white/50 text-[13px] text-center mb-8 max-w-xs">
+            Diffusez en direct sur vos réseaux sociaux et interagissez avec votre audience en temps réel
+          </p>
+
+          {connectedPlatforms.length > 0 ? (
+            <>
+              <p className="text-white/40 text-[11px] font-bold uppercase tracking-widest mb-3">Choisir la plateforme</p>
+              <div className="w-full space-y-2 mb-8">
+                {connectedPlatforms.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedPlatform(p.id)}
+                    className={`w-full flex items-center gap-3 p-4 rounded-2xl border transition-all ${
+                      selectedPlatform === p.id
+                        ? 'bg-white/10 border-white/30'
+                        : 'bg-white/5 border-white/10'
+                    }`}
+                  >
+                    <PlatformIcon id={p.id} size={24} />
+                    <span className="text-white text-[14px] font-bold flex-1 text-left">{p.name}</span>
+                    {selectedPlatform === p.id && <Check className="w-5 h-5 text-orange-500" />}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={startLive}
+                disabled={!selectedPlatform}
+                className="w-full py-4 bg-red-500 hover:bg-red-600 text-white rounded-2xl font-black text-[14px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-30"
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <Video className="w-5 h-5" /> Lancer le Direct
+                </span>
+              </button>
+            </>
+          ) : (
+            <div className="text-center">
+              <Wifi className="w-10 h-10 text-white/20 mx-auto mb-3" />
+              <p className="text-white/40 text-[13px]">Aucune plateforme connectée</p>
+              <p className="text-white/25 text-[11px] mt-1">Connectez un réseau social d'abord</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Live actif */
+        <>
+          {/* Zone vidéo simulée */}
+          <div className="mx-4 bg-gray-800 rounded-2xl overflow-hidden relative" style={{ height: '35vh' }}>
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-purple-500/20 flex items-center justify-center">
+              <div className="text-center">
+                <Radio className="w-12 h-12 text-red-500 mx-auto mb-2 animate-pulse" />
+                <p className="text-white text-[14px] font-bold">En direct</p>
+                <p className="text-white/50 text-[11px]">{viewerCount} spectateurs</p>
+              </div>
+            </div>
+            {/* Badge plateforme */}
+            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5">
+              <PlatformIcon id={selectedPlatform} size={16} />
+              <span className="text-white text-[11px] font-bold">{platforms.find(p => p.id === selectedPlatform)?.name}</span>
+            </div>
+          </div>
+
+          {/* Chat Live */}
+          <div className="flex-1 flex flex-col mx-4 mt-3 bg-gray-800 rounded-2xl overflow-hidden">
+            <div className="px-4 py-2 border-b border-gray-700">
+              <p className="text-white/60 text-[11px] font-bold uppercase tracking-widest">Chat en direct</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {chatMessages.length === 0 && (
+                <p className="text-white/30 text-[12px] text-center py-4">Les messages apparaîtront ici...</p>
+              )}
+              {chatMessages.map(msg => (
+                <div key={msg.id} className={`flex gap-2 ${msg.isMe ? 'justify-end' : ''}`}>
+                  {!msg.isMe && (
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-orange-400 to-pink-500 flex items-center justify-center shrink-0">
+                      <span className="text-white text-[8px] font-bold">{msg.user[0]}</span>
+                    </div>
+                  )}
+                  <div className={`max-w-[75%] ${msg.isMe ? 'order-first' : ''}`}>
+                    {!msg.isMe && <p className="text-orange-400 text-[10px] font-bold mb-0.5">{msg.user}</p>}
+                    <div className={`px-3 py-2 rounded-2xl ${msg.isMe ? 'bg-orange-500 text-white rounded-br-md' : 'bg-gray-700 text-white rounded-bl-md'}`}>
+                      <p className="text-[12px]">{msg.text}</p>
+                    </div>
+                    <p className="text-white/30 text-[9px] mt-0.5">{msg.timestamp}</p>
+                  </div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input chat */}
+            <div className="p-3 border-t border-gray-700">
+              <div className="flex items-center gap-2">
+                <input
+                  value={newMessage}
+                  onChange={e => setNewMessage(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && sendMessage()}
+                  placeholder="Écrire un message..."
+                  className="flex-1 bg-gray-700 text-white text-[13px] rounded-full px-4 py-2.5 outline-none placeholder:text-white/30"
+                />
+                <button onClick={sendMessage} className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shrink-0">
+                  <Send className="w-4 h-4 text-white" />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Contrôles Live */}
+          <div className="px-4 py-4 flex items-center justify-center gap-4">
+            <button
+              onClick={() => setMicOn(!micOn)}
+              className={`w-12 h-12 rounded-full flex items-center justify-center ${micOn ? 'bg-white/10' : 'bg-red-500'}`}
+            >
+              {micOn ? <Mic className="w-5 h-5 text-white" /> : <MicOff className="w-5 h-5 text-white" />}
+            </button>
+            <button
+              onClick={() => setCameraOn(!cameraOn)}
+              className={`w-12 h-12 rounded-full flex items-center justify-center ${cameraOn ? 'bg-white/10' : 'bg-red-500'}`}
+            >
+              {cameraOn ? <Video className="w-5 h-5 text-white" /> : <VideoOff className="w-5 h-5 text-white" />}
+            </button>
+            <button
+              onClick={stopLive}
+              className="w-16 h-12 bg-red-500 rounded-full flex items-center justify-center"
+            >
+              <span className="text-white text-[10px] font-black uppercase">Stop</span>
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -275,11 +486,11 @@ export default function SocialMedia() {
   const [showStats, setShowStats] = useState(false);
   const [configModal, setConfigModal] = useState(null);
   const [allCredentials, setAllCredentials] = useState({});
+  const [showLive, setShowLive] = useState(false);
 
   useEffect(() => {
     if (!user?.email) return;
 
-    // Charger les connexions
     supabase.from('SocialConnections')
       .select('*')
       .eq('user_email', user.email)
@@ -292,25 +503,16 @@ export default function SocialMedia() {
         }
       }).catch(() => {});
 
-    // Charger les credentials
-    fetch('/api/social/credentials', {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    fetch('/api/social/credentials')
       .then(r => r.json())
       .then(data => {
         if (data.credentials) {
           const credsMap = {};
-          data.credentials.forEach(c => {
-            credsMap[c.platform] = c.credentials;
-          });
+          data.credentials.forEach(c => { credsMap[c.platform] = c.credentials; });
           setAllCredentials(credsMap);
-          setPlatforms(prev => prev.map(p => ({
-            ...p,
-            hasCredentials: !!credsMap[p.id],
-          })));
+          setPlatforms(prev => prev.map(p => ({ ...p, hasCredentials: !!credsMap[p.id] })));
         }
-      })
-      .catch(() => {});
+      }).catch(() => {});
 
     loadStats();
   }, [user?.email]);
@@ -328,10 +530,6 @@ export default function SocialMedia() {
         const now = new Date();
         const today = now.toISOString().split('T')[0];
         const thisWeek = data.filter(m => (now - new Date(m.timestamp)) / (1000 * 60 * 60 * 24) <= 7);
-        const thisMonth = data.filter(m => {
-          const d = new Date(m.timestamp);
-          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-        });
 
         const messagesByDay = [];
         for (let i = 6; i >= 0; i--) {
@@ -351,46 +549,28 @@ export default function SocialMedia() {
           totalMessages: data.length,
           todayMessages: data.filter(m => m.timestamp?.startsWith(today)).length,
           weekMessages: thisWeek.length,
-          monthMessages: thisMonth.length,
           responseRate: data.length > 0 ? Math.round((data.filter(m => m.reply).length / data.length) * 100) : 0,
           messagesByDay,
           byPlatform,
         });
       }
-    } catch (e) { console.error('Stats error:', e); }
+    } catch (e) { console.error(e); }
     setLoadingStats(false);
   };
 
   const handleConnect = async (platform) => {
-    // Vérifier si l'utilisateur a configuré ses credentials
-    if (!platform.hasCredentials) {
-      setConfigModal(platform);
-      return;
-    }
-
+    if (!platform.hasCredentials) { setConfigModal(platform); return; }
     setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, loading: true } : p));
-
     try {
       const res = await fetch(platform.apiPath);
       const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else if (data.setup_required) {
-        setConfigModal(platform);
-        setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, loading: false } : p));
-      }
+      if (data.url) { window.location.href = data.url; }
+      else if (data.setup_required) { setConfigModal(platform); setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, loading: false } : p)); }
     } catch (e) {
       setTimeout(() => {
-        setPlatforms(prev => prev.map(p =>
-          p.id === platform.id ? { ...p, connected: true, loading: false } : p
-        ));
+        setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, connected: true, loading: false } : p));
         if (user?.email) {
-          supabase.from('SocialConnections').upsert({
-            user_email: user.email,
-            platform: platform.id,
-            handle: platform.handle,
-            connected_at: new Date().toISOString(),
-          }).catch(() => {});
+          supabase.from('SocialConnections').upsert({ user_email: user.email, platform: platform.id, handle: platform.handle, connected_at: new Date().toISOString() }).catch(() => {});
         }
       }, 1500);
     }
@@ -399,11 +579,7 @@ export default function SocialMedia() {
   const handleDisconnect = async (platform) => {
     setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, connected: false } : p));
     if (user?.email) {
-      await supabase.from('SocialConnections')
-        .delete()
-        .eq('user_email', user.email)
-        .eq('platform', platform.id)
-        .catch(() => {});
+      await supabase.from('SocialConnections').delete().eq('user_email', user.email).eq('platform', platform.id).catch(() => {});
     }
   };
 
@@ -429,9 +605,9 @@ export default function SocialMedia() {
               <h1 className="text-[22px] font-black text-white tracking-tight">Réseaux Sociaux</h1>
               <p className="text-[12px] text-orange-300 font-medium">Maria AI · Gestion & Conversion</p>
             </div>
-            <div className="w-10 h-10 bg-orange-500/20 rounded-full flex items-center justify-center border border-orange-500/30">
-              <Sparkles className="w-5 h-5 text-orange-400" />
-            </div>
+            <button onClick={() => setShowLive(true)} className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center border border-red-500/30 active:scale-95">
+              <Radio className="w-5 h-5 text-red-400" />
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
@@ -459,10 +635,25 @@ export default function SocialMedia() {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <p className="text-[13px] text-gray-600 font-medium leading-relaxed">
-              Configurez vos identifiants API pour chaque plateforme, puis connectez-les pour que Maria AI gère automatiquement vos messages.
+              Configurez vos identifiants API, connectez vos plateformes et lancez des directs depuis cette page.
             </p>
           </div>
         </div>
+
+        {/* Bouton Live */}
+        <button
+          onClick={() => setShowLive(true)}
+          className="w-full bg-gradient-to-r from-red-500 to-pink-500 rounded-2xl p-4 flex items-center gap-4 shadow-lg shadow-red-500/20 active:scale-[0.98] transition-all"
+        >
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <Radio className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="text-white text-[15px] font-black">Live / Direct</p>
+            <p className="text-white/70 text-[11px] font-medium">Diffusez en direct sur vos réseaux</p>
+          </div>
+          <Video className="w-5 h-5 text-white/70" />
+        </button>
 
         {/* Plateformes */}
         <div>
@@ -480,51 +671,20 @@ export default function SocialMedia() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-[15px] font-black text-gray-900">{p.name}</p>
-                      {p.connected && (
-                        <span className="flex items-center gap-1 bg-green-100 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          <Check className="w-3 h-3" /> Connecté
-                        </span>
-                      )}
-                      {!p.connected && p.hasCredentials && (
-                        <span className="flex items-center gap-1 bg-blue-50 text-blue-500 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                          <Key className="w-3 h-3" /> Configuré
-                        </span>
-                      )}
+                      {p.connected && <span className="flex items-center gap-1 bg-green-100 text-green-600 text-[10px] font-bold px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> Connecté</span>}
+                      {!p.connected && p.hasCredentials && <span className="flex items-center gap-1 bg-blue-50 text-blue-500 text-[10px] font-bold px-2 py-0.5 rounded-full"><Key className="w-3 h-3" /> Configuré</span>}
                     </div>
                     <p className="text-[12px] text-gray-400 truncate">{p.handle}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {/* Bouton configurer */}
-                    <button
-                      onClick={() => setConfigModal(p)}
-                      className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors"
-                      title="Configurer les identifiants"
-                    >
+                    <button onClick={() => setConfigModal(p)} className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center hover:bg-gray-200 transition-colors" title="Configurer">
                       <Settings className="w-4 h-4 text-gray-500" />
                     </button>
-
                     {p.connected ? (
-                      <button
-                        onClick={() => handleDisconnect(p)}
-                        className="px-4 py-2.5 rounded-xl text-[11px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 transition-all active:scale-95"
-                      >
-                        Déconnecter
-                      </button>
+                      <button onClick={() => handleDisconnect(p)} className="px-4 py-2.5 rounded-xl text-[11px] font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 active:scale-95">Déconnecter</button>
                     ) : (
-                      <button
-                        onClick={() => handleConnect(p)}
-                        disabled={p.loading}
-                        className="px-5 py-2.5 rounded-xl text-[11px] font-bold text-white transition-all active:scale-95 disabled:opacity-50"
-                        style={{ background: p.color === '#000000' ? '#1a1a1a' : p.color }}
-                      >
-                        {p.loading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <span className="flex items-center gap-1.5">
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            Connecter
-                          </span>
-                        )}
+                      <button onClick={() => handleConnect(p)} disabled={p.loading} className="px-5 py-2.5 rounded-xl text-[11px] font-bold text-white transition-all active:scale-95 disabled:opacity-50" style={{ background: p.color === '#000000' ? '#1a1a1a' : p.color }}>
+                        {p.loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <span className="flex items-center gap-1.5"><ExternalLink className="w-3.5 h-3.5" /> Connecter</span>}
                       </button>
                     )}
                   </div>
@@ -562,7 +722,6 @@ export default function SocialMedia() {
             <span className="flex-1 text-left text-[14px] font-bold text-gray-700">Statistiques</span>
             <span className={`text-gray-300 text-lg transition-transform ${showStats ? 'rotate-90' : ''}`}>›</span>
           </button>
-
           {showStats && (
             <div className="px-4 pb-4 space-y-4 border-t border-gray-100 pt-4">
               {loadingStats ? (
@@ -573,15 +732,12 @@ export default function SocialMedia() {
                     <div className="bg-gray-50 rounded-xl p-3">
                       <div className="flex items-center gap-2 mb-1"><MessageSquare className="w-4 h-4 text-orange-500" /><span className="text-[10px] font-bold text-gray-400 uppercase">Total</span></div>
                       <p className="text-[20px] font-black text-gray-900">{stats.totalMessages}</p>
-                      <p className="text-[10px] text-gray-400">messages</p>
                     </div>
                     <div className="bg-gray-50 rounded-xl p-3">
                       <div className="flex items-center gap-2 mb-1"><TrendingUp className="w-4 h-4 text-green-500" /><span className="text-[10px] font-bold text-gray-400 uppercase">Semaine</span></div>
                       <p className="text-[20px] font-black text-gray-900">{stats.weekMessages}</p>
-                      <p className="text-[10px] text-gray-400">messages</p>
                     </div>
                   </div>
-
                   <div>
                     <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3">Messages (7 jours)</p>
                     <div className="flex items-end gap-2 h-32">
@@ -591,7 +747,7 @@ export default function SocialMedia() {
                           <div key={i} className="flex-1 flex flex-col items-center gap-1">
                             <span className="text-[9px] font-bold text-gray-500">{day.count}</span>
                             <div className="w-full bg-gray-100 rounded-lg overflow-hidden" style={{ height: '80px' }}>
-                              <div className="w-full bg-gradient-to-t from-orange-500 to-orange-400 rounded-lg transition-all duration-500" style={{ height: `${Math.max((day.count / max) * 100, 4)}%`, marginTop: 'auto' }} />
+                              <div className="w-full bg-gradient-to-t from-orange-500 to-orange-400 rounded-lg" style={{ height: `${Math.max((day.count / max) * 100, 4)}%`, marginTop: 'auto' }} />
                             </div>
                             <span className="text-[8px] font-bold text-gray-400 uppercase">{day.label}</span>
                           </div>
@@ -601,23 +757,29 @@ export default function SocialMedia() {
                   </div>
                 </>
               ) : (
-                <div className="text-center py-8">
-                  <BarChart3 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                  <p className="text-[13px] text-gray-400">Aucune donnée</p>
-                </div>
+                <div className="text-center py-8"><BarChart3 className="w-10 h-10 text-gray-300 mx-auto mb-3" /><p className="text-[13px] text-gray-400">Aucune donnée</p></div>
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Modal Configuration */}
+      {/* Modal Credentials */}
       {configModal && (
         <CredentialsModal
           platform={configModal}
           existingCreds={allCredentials[configModal.id]}
           onClose={() => setConfigModal(null)}
           onSave={(creds) => handleSaveCredentials(configModal.id, creds)}
+        />
+      )}
+
+      {/* Panel Live */}
+      {showLive && (
+        <LivePanel
+          user={user}
+          platforms={platforms}
+          onClose={() => setShowLive(false)}
         />
       )}
     </div>
