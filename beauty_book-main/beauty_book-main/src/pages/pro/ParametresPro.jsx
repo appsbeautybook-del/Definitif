@@ -87,7 +87,7 @@ export default function ParametresPro() {
         <div className="space-y-2">
           <SettingRow icon={Store} iconBg="bg-orange-50" iconColor="text-primary"
             label="Modifier mon profil pro" sublabel="Nom, bio, photos, adresse"
-            onClick={() => navigate("/modifier-profil-client")} />
+            onClick={() => navigate("/pro/modifier-profil")} />
           <SettingRow icon={Scissors} iconBg="bg-blue-50" iconColor="text-blue-500"
             label="Services & Tarifs" sublabel="Gérer les prestations"
             onClick={() => navigate("/pro/catalogue-services")} />
