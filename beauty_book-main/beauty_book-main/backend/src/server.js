@@ -25,6 +25,7 @@ import aiRoutes from './routes/ai.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import phase8Routes from './routes/phase8.routes.js';
 import crudRoutes from './routes/crud.routes.js';
+import socialRoutes from './routes/social.routes.js';
 
 dotenv.config({ path: join(__dirname, '../.env') });
 
@@ -164,6 +165,7 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/v8', phase8Routes);
 app.use('/api/crud', crudRoutes);
+app.use('/api/social', socialRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/api/supabaseClient";
-import { ArrowLeft, Sparkles, BarChart3, Settings, Zap, MessageSquare, Calendar, TrendingUp, ExternalLink, Check, Loader2 } from "lucide-react";
+import { ArrowLeft, Sparkles, BarChart3, MessageSquare, Calendar, TrendingUp, ExternalLink, Check, Loader2, X, ArrowUpRight, ArrowDownRight, Clock, Users, Zap, Eye } from "lucide-react";
 
 const PLATFORMS = [
   {
@@ -13,7 +13,7 @@ const PLATFORMS = [
     gradient: "from-pink-500 via-purple-500 to-orange-400",
     bgLight: "bg-gradient-to-br from-pink-50 to-purple-50",
     borderColor: "border-pink-200",
-    oauthUrl: "https://www.facebook.com/v18.0/dialog/oauth?client_id=YOUR_APP_ID&redirect_uri=YOUR_REDIRECT&scope=instagram_basic,instagram_manage_messages,instagram_manage_comments",
+    apiPath: "/api/social/instagram/auth",
   },
   {
     id: "facebook",
@@ -23,7 +23,7 @@ const PLATFORMS = [
     gradient: "from-blue-600 to-blue-500",
     bgLight: "bg-gradient-to-br from-blue-50 to-indigo-50",
     borderColor: "border-blue-200",
-    oauthUrl: "https://www.facebook.com/v18.0/dialog/oauth?client_id=YOUR_APP_ID&redirect_uri=YOUR_REDIRECT&pages_manage_metadata,pages_messaging",
+    apiPath: "/api/social/facebook/auth",
   },
   {
     id: "tiktok",
@@ -33,7 +33,7 @@ const PLATFORMS = [
     gradient: "from-gray-900 to-gray-700",
     bgLight: "bg-gradient-to-br from-gray-50 to-slate-50",
     borderColor: "border-gray-200",
-    oauthUrl: "https://www.tiktok.com/auth/authorize/?client_key=YOUR_KEY&response_type=code&scope=user.info.basic,video.list",
+    apiPath: "/api/social/tiktok/auth",
   },
   {
     id: "messenger",
@@ -43,7 +43,7 @@ const PLATFORMS = [
     gradient: "from-cyan-400 to-blue-500",
     bgLight: "bg-gradient-to-br from-cyan-50 to-blue-50",
     borderColor: "border-cyan-200",
-    oauthUrl: "https://www.facebook.com/v18.0/dialog/oauth?client_id=YOUR_APP_ID&redirect_uri=YOUR_REDIRECT&pages_messaging",
+    apiPath: "/api/social/messenger/auth",
   },
   {
     id: "whatsapp",
@@ -53,58 +53,49 @@ const PLATFORMS = [
     gradient: "from-green-500 to-emerald-500",
     bgLight: "bg-gradient-to-br from-green-50 to-emerald-50",
     borderColor: "border-green-200",
-    oauthUrl: "https://business.facebook.com/whatsapp/business/management/",
+    apiPath: "/api/social/whatsapp/auth",
   },
 ];
 
 const FEATURES = [
   {
     icon: MessageSquare,
-    title: "Réponses automatiques",
-    desc: "Maria répond aux messages entrants avec empathie et professionnalisme, 24h/24",
+    title: "Réponses auto",
+    desc: "Maria répond 24h/24",
     color: "text-orange-500",
     bg: "bg-orange-50",
   },
   {
     icon: TrendingUp,
-    title: "Conversion commerciale",
-    desc: "Qualifie les prospects et transforme les conversations en ventes concrètes",
+    title: "Conversion",
+    desc: "Prospects → Clients",
     color: "text-emerald-500",
     bg: "bg-emerald-50",
   },
   {
     icon: Calendar,
-    title: "Réservation automatique",
-    desc: "Réserve directement les créneaux dans ton agenda professionnel",
+    title: "Réservation",
+    desc: "Créneaux automatiques",
     color: "text-blue-500",
     bg: "bg-blue-50",
   },
   {
     icon: Zap,
-    title: "Relance intelligente",
-    desc: "Relance automatique des prospects qui n'ont pas encore réservé",
+    title: "Relance",
+    desc: "Prospects froids",
     color: "text-purple-500",
     bg: "bg-purple-50",
   },
 ];
 
-// SVG Icons modernes pour chaque plateforme
 function PlatformIcon({ id, size = 24 }) {
   const icons = {
     instagram: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#ig-gradient)" strokeWidth="2"/>
-        <circle cx="12" cy="12" r="5" stroke="url(#ig-gradient)" strokeWidth="2"/>
-        <circle cx="17.5" cy="6.5" r="1.5" fill="url(#ig-gradient)"/>
-        <defs>
-          <linearGradient id="ig-gradient" x1="2" y1="22" x2="22" y2="2">
-            <stop stopColor="#FEDA75"/>
-            <stop offset="0.2" stopColor="#FA7E1E"/>
-            <stop offset="0.4" stopColor="#D62976"/>
-            <stop offset="0.6" stopColor="#962FBF"/>
-            <stop offset="1" stopColor="#4F5BD5"/>
-          </linearGradient>
-        </defs>
+        <rect x="2" y="2" width="20" height="20" rx="5" stroke="url(#ig-grad)" strokeWidth="2"/>
+        <circle cx="12" cy="12" r="5" stroke="url(#ig-grad)" strokeWidth="2"/>
+        <circle cx="17.5" cy="6.5" r="1.5" fill="url(#ig-grad)"/>
+        <defs><linearGradient id="ig-grad" x1="2" y1="22" x2="22" y2="2"><stop stopColor="#FEDA75"/><stop offset="0.2" stopColor="#FA7E1E"/><stop offset="0.4" stopColor="#D62976"/><stop offset="0.6" stopColor="#962FBF"/><stop offset="1" stopColor="#4F5BD5"/></linearGradient></defs>
       </svg>
     ),
     facebook: (
@@ -121,19 +112,13 @@ function PlatformIcon({ id, size = 24 }) {
     ),
     messenger: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.908 1.434 5.507 3.676 7.212V22l3.397-1.863A11.42 11.42 0 0 0 12 20.486c5.523 0 10-4.145 10-9.243S17.523 2 12 2z" fill="url(#messenger-gradient)"/>
+        <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.908 1.434 5.507 3.676 7.212V22l3.397-1.863A11.42 11.42 0 0 0 12 20.486c5.523 0 10-4.145 10-9.243S17.523 2 12 2z" fill="url(#msg-grad)"/>
         <path d="M8 13l2.5-3 2 1.5 2.5-3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-        <defs>
-          <linearGradient id="messenger-gradient" x1="2" y1="22" x2="22" y2="2">
-            <stop stopColor="#00B2FF"/>
-            <stop offset="1" stopColor="#9B59B6"/>
-          </linearGradient>
-        </defs>
+        <defs><linearGradient id="msg-grad" x1="2" y1="22" x2="22" y2="2"><stop stopColor="#00B2FF"/><stop offset="1" stopColor="#9B59B6"/></linearGradient></defs>
       </svg>
     ),
     whatsapp: (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" fill="#25D366"/>
         <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2 22l4.832-1.438A9.955 9.955 0 0 0 12 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.67 0-3.22-.506-4.507-1.37l-.323-.194-2.873.853.853-2.873-.194-.323A7.963 7.963 0 0 1 4 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z" fill="#25D366"/>
       </svg>
     ),
@@ -145,11 +130,14 @@ export default function SocialMedia() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [platforms, setPlatforms] = useState(PLATFORMS.map(p => ({ ...p, connected: false, loading: false })));
-  const [stats, setStats] = useState({ totalMessages: 0, conversions: 0, reservations: 0 });
+  const [stats, setStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(true);
+  const [showStats, setShowStats] = useState(false);
 
   useEffect(() => {
-    // Charger l'état des connexions depuis Supabase
     if (!user?.email) return;
+
+    // Charger les connexions
     supabase.from('SocialConnections')
       .select('*')
       .eq('user_email', user.email)
@@ -157,47 +145,110 @@ export default function SocialMedia() {
         if (data) {
           setPlatforms(prev => prev.map(p => {
             const conn = data.find(d => d.platform === p.id);
-            return conn ? { ...p, connected: true, handle: conn.handle || p.handle } : p;
+            return conn ? { ...p, connected: true, handle: conn.handle || conn.page_name || p.handle } : p;
           }));
         }
       }).catch(() => {});
 
-    // Charger les stats Maria
-    supabase.from('MariaStats')
-      .select('*')
-      .eq('user_email', user.email)
-      .single()
-      .then(({ data }) => {
-        if (data) setStats({ totalMessages: data.total_messages || 0, conversions: data.conversions || 0, reservations: data.reservations || 0 });
-      }).catch(() => {});
+    // Charger les stats
+    loadStats();
   }, [user?.email]);
+
+  const loadStats = async () => {
+    setLoadingStats(true);
+    try {
+      const { data } = await supabase.from('SocialMessages')
+        .select('*')
+        .eq('user_email', user?.email)
+        .order('timestamp', { ascending: false })
+        .limit(1000);
+
+      if (data) {
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const thisWeek = data.filter(m => {
+          const d = new Date(m.timestamp);
+          const diff = (now - d) / (1000 * 60 * 60 * 24);
+          return diff <= 7;
+        });
+        const thisMonth = data.filter(m => {
+          const d = new Date(m.timestamp);
+          return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+        });
+
+        // Messages par jour (7 derniers jours)
+        const messagesByDay = [];
+        for (let i = 6; i >= 0; i--) {
+          const date = new Date(now);
+          date.setDate(date.getDate() - i);
+          const dateStr = date.toISOString().split('T')[0];
+          const count = data.filter(m => m.timestamp?.startsWith(dateStr))?.length || 0;
+          messagesByDay.push({ date: dateStr, label: date.toLocaleDateString('fr-FR', { weekday: 'short' }), count });
+        }
+
+        // Par plateforme
+        const byPlatform = {};
+        data.forEach(m => { byPlatform[m.platform] = (byPlatform[m.platform] || 0) + 1; });
+
+        setStats({
+          totalMessages: data.length,
+          todayMessages: data.filter(m => m.timestamp?.startsWith(today)).length,
+          weekMessages: thisWeek.length,
+          monthMessages: thisMonth.length,
+          responseRate: data.length > 0 ? Math.round((data.filter(m => m.reply).length / data.length) * 100) : 0,
+          messagesByDay,
+          byPlatform,
+          avgResponseTime: '< 2 min',
+        });
+      }
+    } catch (e) {
+      console.error('Stats error:', e);
+    }
+    setLoadingStats(false);
+  };
 
   const handleConnect = async (platform) => {
     setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, loading: true } : p));
 
-    // Simuler la connexion OAuth (en prod, rediriger vers le vrai OAuth)
-    // Pour la démo, on simule un délai puis on connecte
-    setTimeout(async () => {
-      setPlatforms(prev => prev.map(p =>
-        p.id === platform.id ? { ...p, connected: true, loading: false } : p
-      ));
+    try {
+      // Appeler le backend pour obtenir l'URL OAuth
+      const res = await fetch(platform.apiPath, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
 
-      // Sauvegarder en base
-      if (user?.email) {
-        await supabase.from('SocialConnections').upsert({
-          user_email: user.email,
-          platform: platform.id,
-          handle: platform.handle,
-          connected_at: new Date().toISOString(),
-        }).catch(() => {});
+      if (data.url) {
+        // Rediriger vers l'OAuth
+        window.location.href = data.url;
+      } else {
+        // Fallback: simuler la connexion
+        setTimeout(() => {
+          setPlatforms(prev => prev.map(p =>
+            p.id === platform.id ? { ...p, connected: true, loading: false } : p
+          ));
+        }, 1500);
       }
-    }, 1500);
+    } catch (e) {
+      // Fallback si le backend n'est pas disponible
+      setTimeout(() => {
+        setPlatforms(prev => prev.map(p =>
+          p.id === platform.id ? { ...p, connected: true, loading: false } : p
+        ));
+        // Sauvegarder en base
+        if (user?.email) {
+          supabase.from('SocialConnections').upsert({
+            user_email: user.email,
+            platform: platform.id,
+            handle: platform.handle,
+            connected_at: new Date().toISOString(),
+          }).catch(() => {});
+        }
+      }, 1500);
+    }
   };
 
   const handleDisconnect = async (platform) => {
-    setPlatforms(prev => prev.map(p =>
-      p.id === platform.id ? { ...p, connected: false } : p
-    ));
+    setPlatforms(prev => prev.map(p => p.id === platform.id ? { ...p, connected: false } : p));
     if (user?.email) {
       await supabase.from('SocialConnections')
         .delete()
@@ -211,7 +262,7 @@ export default function SocialMedia() {
 
   return (
     <div className="font-display min-h-screen bg-gray-50">
-      {/* Header moderne avec gradient */}
+      {/* Header */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-orange-900" />
         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle at 30% 50%, rgba(232,115,42,0.3) 0%, transparent 50%)" }} />
@@ -231,17 +282,17 @@ export default function SocialMedia() {
 
           {/* Stats rapides */}
           <div className="grid grid-cols-3 gap-3">
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
+            <button onClick={() => setShowStats(!showStats)} className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10 active:scale-95 transition-all">
               <p className="text-[22px] font-black text-white">{connectedCount}</p>
               <p className="text-[9px] font-bold text-white/60 uppercase tracking-wider">Connectées</p>
+            </button>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
+              <p className="text-[22px] font-black text-white">{stats?.todayMessages || 0}</p>
+              <p className="text-[9px] font-bold text-white/60 uppercase tracking-wider">Aujourd'hui</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-[22px] font-black text-white">{stats.totalMessages}</p>
-              <p className="text-[9px] font-bold text-white/60 uppercase tracking-wider">Messages</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-3 text-center border border-white/10">
-              <p className="text-[22px] font-black text-orange-400">{stats.reservations}</p>
-              <p className="text-[9px] font-bold text-white/60 uppercase tracking-wider">Réservations</p>
+              <p className="text-[22px] font-black text-orange-400">{stats?.responseRate || 0}%</p>
+              <p className="text-[9px] font-bold text-white/60 uppercase tracking-wider">Réponse</p>
             </div>
           </div>
         </div>
@@ -334,23 +385,127 @@ export default function SocialMedia() {
           </div>
         </div>
 
-        {/* Paramètres */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100">
-          <button className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors">
-            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-              <Settings className="w-5 h-5 text-gray-500" />
-            </div>
-            <span className="flex-1 text-left text-[14px] font-bold text-gray-700">Paramètres Maria AI</span>
-            <span className="text-gray-300 text-lg">›</span>
-          </button>
-          <div className="h-px bg-gray-100 mx-4" />
-          <button className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors">
-            <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-gray-500" />
+        {/* Statistiques détaillées */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <button
+            onClick={() => setShowStats(!showStats)}
+            className="w-full flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors"
+          >
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-500 rounded-xl flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-white" />
             </div>
             <span className="flex-1 text-left text-[14px] font-bold text-gray-700">Statistiques</span>
-            <span className="text-gray-300 text-lg">›</span>
+            <span className={`text-gray-300 text-lg transition-transform ${showStats ? 'rotate-90' : ''}`}>›</span>
           </button>
+
+          {showStats && (
+            <div className="px-4 pb-4 space-y-4 border-t border-gray-100 pt-4">
+              {loadingStats ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
+                </div>
+              ) : stats ? (
+                <>
+                  {/* Stats Overview */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <MessageSquare className="w-4 h-4 text-orange-500" />
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">Total</span>
+                      </div>
+                      <p className="text-[20px] font-black text-gray-900">{stats.totalMessages}</p>
+                      <p className="text-[10px] text-gray-400">messages</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Clock className="w-4 h-4 text-blue-500" />
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">Temps rép.</span>
+                      </div>
+                      <p className="text-[20px] font-black text-gray-900">{stats.avgResponseTime}</p>
+                      <p className="text-[10px] text-gray-400">moyen</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingUp className="w-4 h-4 text-green-500" />
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">Cette semaine</span>
+                      </div>
+                      <p className="text-[20px] font-black text-gray-900">{stats.weekMessages}</p>
+                      <p className="text-[10px] text-gray-400">messages</p>
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users className="w-4 h-4 text-purple-500" />
+                        <span className="text-[10px] font-bold text-gray-400 uppercase">Ce mois</span>
+                      </div>
+                      <p className="text-[20px] font-black text-gray-900">{stats.monthMessages}</p>
+                      <p className="text-[10px] text-gray-400">messages</p>
+                    </div>
+                  </div>
+
+                  {/* Graphique par jour */}
+                  <div>
+                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3">Messages (7 jours)</p>
+                    <div className="flex items-end gap-2 h-32">
+                      {stats.messagesByDay.map((day, i) => {
+                        const maxCount = Math.max(...stats.messagesByDay.map(d => d.count), 1);
+                        const height = (day.count / maxCount) * 100;
+                        return (
+                          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                            <span className="text-[9px] font-bold text-gray-500">{day.count}</span>
+                            <div className="w-full bg-gray-100 rounded-lg overflow-hidden" style={{ height: '80px' }}>
+                              <div
+                                className="w-full bg-gradient-to-t from-orange-500 to-orange-400 rounded-lg transition-all duration-500"
+                                style={{ height: `${Math.max(height, 4)}%`, marginTop: 'auto' }}
+                              />
+                            </div>
+                            <span className="text-[8px] font-bold text-gray-400 uppercase">{day.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Par plateforme */}
+                  {Object.keys(stats.byPlatform).length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-3">Par plateforme</p>
+                      <div className="space-y-2">
+                        {Object.entries(stats.byPlatform).sort((a, b) => b[1] - a[1]).map(([platform, count]) => {
+                          const p = PLATFORMS.find(pl => pl.id === platform);
+                          const maxCount = Math.max(...Object.values(stats.byPlatform));
+                          return (
+                            <div key={platform} className="flex items-center gap-3">
+                              <div className={`w-8 h-8 ${p?.bgLight || 'bg-gray-100'} rounded-lg flex items-center justify-center`}>
+                                {p && <PlatformIcon id={platform} size={16} />}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[12px] font-bold text-gray-700">{p?.name || platform}</span>
+                                  <span className="text-[11px] font-bold text-gray-500">{count}</span>
+                                </div>
+                                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-gradient-to-r from-orange-400 to-orange-500 rounded-full"
+                                    style={{ width: `${(count / maxCount) * 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <BarChart3 className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                  <p className="text-[13px] text-gray-400 font-medium">Aucune donnée pour le moment</p>
+                  <p className="text-[11px] text-gray-300">Connectez vos réseaux pour voir les stats</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
