@@ -97,6 +97,7 @@ import Panier from '@/pages/Panier';
 import GestionStyles from '@/pages/pro/GestionStyles';
 import ParametresPro from '@/pages/pro/ParametresPro';
 import ModifierProfilPro from '@/pages/pro/ModifierProfilPro';
+import SocialMedia from '@/pages/SocialMedia';
 import PromoService from '@/pages/pro/PromoService';
 import ScanCapillaire from '@/pages/ScanCapillaire';
 import AdminLogin from '@/pages/admin/AdminLogin';
@@ -203,6 +204,7 @@ const AuthenticatedApp = () => {
         <Route path="/live" element={<LiveFeed />} />
         <Route path="/live-detail/:id" element={<LiveDetail />} />
         <Route path="/reels" element={<Reels />} />
+        <Route path="/social-media" element={<SocialMedia />} />
         <Route path="/reseau-social" element={<Reels />} />
         <Route path="/immobilier" element={<Immobilier />} />
         <Route path="/immobilier/:id" element={<ImmobilierDetail />} />
