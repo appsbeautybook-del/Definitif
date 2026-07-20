@@ -202,10 +202,7 @@ export default function Profil() {
       setIsPro(true);
       localStorage.setItem("bb_is_pro", "true");
     } else {
-      localStorage.removeItem("bb_is_pro");
-      setIsPro(false);
-
-      // Check DemandeProV2 status for "Devenir Pro" button
+      // Check DemandeProV2 status
       try {
         const { data } = await supabase.from('DemandeProV2')
           .select('statut')
@@ -213,8 +210,18 @@ export default function Profil() {
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
-        setDemandeStatus(data?.statut || null);
-      } catch { setDemandeStatus(null); }
+        const statut = data?.statut || null;
+        setDemandeStatus(statut);
+
+        // Si la demande est approuvée mais le ProfilPro n'existe pas encore, le créer
+        if (statut === 'approuvee') {
+          setIsPro(true);
+          localStorage.setItem("bb_is_pro", "true");
+        } else {
+          localStorage.removeItem("bb_is_pro");
+          setIsPro(false);
+        }
+      } catch { setDemandeStatus(null); localStorage.removeItem("bb_is_pro"); setIsPro(false); }
     }
     } catch (e) { console.error('[Profil] loadData error:', e); }
     setLoading(false);
