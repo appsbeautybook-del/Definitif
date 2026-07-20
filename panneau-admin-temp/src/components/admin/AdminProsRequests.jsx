@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { supabase } from '@/api/supabaseClient';
 import { Search, CheckCircle, XCircle, FileText, ChevronRight, X, ExternalLink, AlertTriangle } from "lucide-react";
 
+const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZpbXVzcmN6cmp2ZWZzYmxqdG1mIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTk4ODUwOSwiZXhwIjoyMDk3NTY0NTA5fQ.tZZQe1H7ZkWkv53ytqzQGDs7AJIzpQO3JArntrwMKqU';
+const SUPABASE_URL = 'https://vimusrczrjvefsbljtmf.supabase.co';
+
 const FILTERS = ["Tous", "En attente", "Approuvés", "Refusés"];
 
 const STATUS_CONFIG = {
@@ -104,24 +107,37 @@ export default function AdminProsRequests() {
       await supabase.from('DemandeProV2').update({ statut, admin_notes: note, updated_at: new Date().toISOString() }).eq('id', id);
       setDemandes(prev => prev.map(d => d.id === id ? { ...d, statut, admin_notes: note } : d));
 
-      // Si approuvé, créer le profil pro
+      // Si approuvé, créer le profil pro avec la clé service_role
       if (statut === "approuvee") {
         const demande = demandes.find(d => d.id === id);
         if (demande) {
-          await supabase.from('ProfilPro').upsert({
-            user_email: demande.user_email,
-            salon_name: demande.salon_name || "Mon Salon",
-            bio: demande.bio || "",
-            type_activite: demande.type_activite || "Salon",
-            specialites: demande.specialites || [],
-            address: demande.address || "",
-            city: demande.city || "",
-            phone: demande.phone || "",
-            email_pro: demande.email_pro || demande.user_email,
-            status: "actif",
-            latitude: demande.latitude || null,
-            longitude: demande.longitude || null,
-          }, { onConflict: 'user_email' });
+          try {
+            await fetch(`${SUPABASE_URL}/rest/v1/ProfilPro`, {
+              method: 'POST',
+              headers: {
+                'apikey': SERVICE_ROLE_KEY,
+                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal',
+              },
+              body: JSON.stringify({
+                user_email: demande.user_email,
+                salon_name: demande.salon_name || "Mon Salon",
+                bio: demande.bio || "",
+                type_activite: demande.type_activite || "Salon",
+                specialites: demande.specialites || [],
+                address: demande.address || "",
+                city: demande.city || "",
+                phone: demande.phone || "",
+                email_pro: demande.email_pro || demande.user_email,
+                status: "actif",
+                latitude: demande.latitude || null,
+                longitude: demande.longitude || null,
+              }),
+            });
+          } catch (e) {
+            console.error('[Admin] Create ProfilPro error:', e);
+          }
         }
       }
 
