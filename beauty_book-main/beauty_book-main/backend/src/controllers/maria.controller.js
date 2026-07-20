@@ -41,7 +41,10 @@ async function callGLM(messages, options = {}) {
   }
 
   const data = await res.json();
-  return data.choices?.[0]?.message?.content || '';
+  const content = data.choices?.[0]?.message?.content;
+  // MiMo may put the answer in 'reasoning' when content is null
+  const reasoning = data.choices?.[0]?.message?.reasoning;
+  return content || reasoning || '';
 }
 
 const MARIA_SYSTEM_PROMPT = `Tu es Maria, l'assistante IA beauté de l'application BeautyBook.

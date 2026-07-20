@@ -510,7 +510,40 @@ export default function Maria() {
       action = data.action || null;
       voiceUrl = data.voice_url || null;
     } catch (err) {
-      console.error("[Maria] sendMessage error:", err);
+      console.warn("[Maria] Backend indisponible, appel direct OpenCode API...", err.message);
+      // Fallback: appel direct à OpenCode API depuis le frontend
+      try {
+        const MARIA_SYSTEM = "Tu es Maria, l'assistante beauté de BeautyBook. Tu es experte en coiffure, soins, skincare, maquillage et bien-être. Réponds de manière chaleureuse et professionnelle. Sois concise (2-3 phrases). Tu peux aider à réserver des services, naviguer dans l'app, et donner des conseils beauté.";
+        const historyPayload = messages.slice(-10).map(m => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content,
+        }));
+        const apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer sk-FPP6sh78YsOhyjj0mmztchS7PGvuH2EE3nIM8vCNeaWUYhAmzlADOrSJtZ0QTu5u' },
+          body: JSON.stringify({
+            model: 'mimo-v2.5-free',
+            messages: [
+              { role: 'system', content: MARIA_SYSTEM },
+              ...historyPayload,
+              { role: 'user', content: content },
+            ],
+            max_tokens: 1024,
+          }),
+        });
+        const apiData = await apiRes.json();
+        reply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || "Je suis Maria ! Comment puis-je t'aider ?";
+        // Détecter les actions de navigation
+        const msg = content.toLowerCase();
+        if (msg.match(/ouvr(e|ir|ez).*(boutique|shop)/)) action = { type: "NAVIGATE", path: "/boutique" };
+        else if (msg.match(/ouvr(e|ir|ez).*(rendez|rdv)/)) action = { type: "NAVIGATE", path: "/rendez-vous" };
+        else if (msg.match(/ouvr(e|ir|ez).*(profil)/)) action = { type: "NAVIGATE", path: "/profil" };
+        else if (msg.match(/ouvr(e|ir|ez).*(services)/)) action = { type: "NAVIGATE", path: "/services" };
+        else if (msg.match(/ouvr(e|ir|ez).*(messages|chat)/)) action = { type: "NAVIGATE", path: "/messages" };
+      } catch (e2) {
+        console.error("[Maria] OpenCode fallback error:", e2);
+        reply = "Désolée, je rencontre un problème technique. Réessaie dans quelques instants ! 💫";
+      }
     }
 
     // Accumuler les données du profil pro si step guidé

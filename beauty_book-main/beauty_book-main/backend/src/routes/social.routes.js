@@ -371,11 +371,11 @@ router.post('/whatsapp/webhook', async (req, res) => {
                     { role: 'system', content: 'Tu es Maria, l\'assistante beauté de BeautyBook. Réponds de manière chaleureuse et professionnelle. Sois concise (2-3 phrases).' },
                     { role: 'user', content: text },
                   ],
-                  max_tokens: 256,
+                  max_tokens: 1024,
                 }),
               });
               const aiData = await aiRes.json();
-              const reply = aiData.choices?.[0]?.message?.content || 'Merci pour votre message !';
+              const reply = aiData.choices?.[0]?.message?.content || aiData.choices?.[0]?.message?.reasoning || 'Merci pour votre message !';
 
               // Envoyer la réponse
               if (whatsappToken && phoneNumberId) {
@@ -500,7 +500,7 @@ router.post('/messenger/webhook', async (req, res) => {
                 { role: 'system', content: 'Tu es Maria, l\'assistante beauté de BeautyBook. Réponds de manière chaleureuse et professionnelle. Sois concise.' },
                 { role: 'user', content: text },
               ],
-              max_tokens: 256,
+              max_tokens: 1024,
             }),
           });
           const aiData = await aiRes.json();
