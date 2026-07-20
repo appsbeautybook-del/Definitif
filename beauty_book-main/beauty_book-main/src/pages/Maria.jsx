@@ -848,7 +848,7 @@ export default function Maria() {
   // ── HOME VIEW ──────────────────────────────────────────────────────────────
   return (
     <div className={`font-display flex flex-col h-full relative overflow-hidden ${homeBodyBg}`}>
-      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} />
+      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} onSocialMedia={() => navigate("/social-media")} />
       {showSimulator && <FiltreAIModal styleTitle="" onClose={() => setShowSimulator(false)} onResultSaved={handleSimulationSaved} />}
 
       <div className={`px-4 pt-5 pb-3 flex items-center justify-between border-b ${homeHeaderBg}`}>
