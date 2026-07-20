@@ -33,7 +33,7 @@ const scrollPositions = {};
 export default function AppShell() {
   const location = useLocation();
   const scrollRef = useRef(null);
-  const showHeader = location.pathname === "/";
+  const showHeader = !FOOTER_HIDDEN_PATHS.some(p => location.pathname.startsWith(p));
   const selfScroll = SELF_SCROLL_PAGES.includes(location.pathname);
   const [bgColor, setBgColor] = useState(getThemeBg);
 
