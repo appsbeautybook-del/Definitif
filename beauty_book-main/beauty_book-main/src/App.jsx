@@ -193,7 +193,7 @@ const AuthenticatedApp = () => {
         <Route path="/pro/visite-3d" element={<Visite3D />} />
         <Route path="/pro/franchise" element={<Franchise />} />
         <Route path="/pro/lancer-direct" element={<LancerDirect />} />
-        {/* /pro/modifier-profil supprimé - utiliser ProfilPro ou ParametresPro */}
+        <Route path="/pro/modifier-profil" element={<ParametresPro />} />
         <Route path="/pro/vue-client" element={<VueClient />} />
         <Route path="/pro/abonnements" element={<Abonnements />} />
         <Route path="/abonnements" element={<AbonnementsClient />} />
