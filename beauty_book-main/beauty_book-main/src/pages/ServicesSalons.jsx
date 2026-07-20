@@ -410,28 +410,22 @@ function StylesTab({ activeCategory }) {
 
     if (alreadyLiked) {
       setLiked(prev => prev.filter(id => id !== styleId));
+      try {
+        await supabase.from('user_like').delete().eq('user_email', userEmail).eq('target_id', styleId).eq('target_type', 'style');
+      } catch (e) { console.error('[like] remove error:', e); }
     } else {
       setLiked(prev => [...prev, styleId]);
+      try {
+        await supabase.from('user_like').insert({ user_email: userEmail, target_id: styleId, target_type: 'style', user_name: user?.full_name || '', user_avatar: user?.avatar_url || '' });
+      } catch (e) { console.error('[like] insert error:', e); }
     }
 
+    // Recharger le compteur
     try {
-      if (alreadyLiked) {
-        await likesApi.removeLike(userEmail, styleId, 'style');
-      } else {
-        await likesApi.addLike(userEmail, styleId, 'style', user?.full_name || "Utilisateur", user?.avatar_url || "");
-      }
-      // Recharger les compteurs depuis la base
-      const styleIds = styles.map(s => String(s.id));
-      const counts = await likesApi.getLikeCounts(styleIds, 'style');
-      setLikeCounts(counts);
-    } catch (err) {
-      console.error('[Services] like error:', err);
-      if (alreadyLiked) {
-        setLiked(prev => [...prev, styleId]);
-      } else {
-        setLiked(prev => prev.filter(id => id !== styleId));
-      }
-    }
+      const { data } = await supabase.from('user_like').select('id').eq('target_id', styleId).eq('target_type', 'style');
+      const count = data ? data.length : 0;
+      setLikeCounts(prev => ({ ...prev, [styleId]: count }));
+    } catch (e) { console.error('[like] count error:', e); }
   };
 
   const filteredStyles = activeCategory === "Tous" ? styles : styles.filter(s => s.category === activeCategory);

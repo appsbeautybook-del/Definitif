@@ -970,33 +970,25 @@ export default function Reels() {
     const userEmail = user?.email;
     if (!userEmail) return;
 
-    // Toggle immédiat
     if (isLiked) {
       setLiked(prev => prev.filter(id => id !== reelId));
+      try {
+        await supabase.from('user_like').delete().eq('user_email', userEmail).eq('target_id', reelId).eq('target_type', 'reel');
+      } catch (e) { console.error('[like] remove error:', e); }
     } else {
       setLiked(prev => [...prev, reelId]);
+      try {
+        await supabase.from('user_like').insert({ user_email: userEmail, target_id: reelId, target_type: 'reel', user_name: user?.full_name || '', user_avatar: user?.avatar_url || '' });
+      } catch (e) { console.error('[like] insert error:', e); }
     }
 
+    // Recharger le compteur depuis la base
     try {
-      if (isLiked) {
-        await likesApi.removeLike(userEmail, reelId, 'reel');
-      } else {
-        await likesApi.addLike(userEmail, reelId, 'reel', user?.full_name || "Utilisateur", user?.avatar_url || "");
-      }
-      // Recharger les compteurs depuis la base
-      const reelIds = reelsData.map(r => String(r.id));
-      const counts = await likesApi.getLikeCounts(reelIds, 'reel');
-      setReelLikeCounts(counts);
-      setReelsData(prev => prev.map(r => ({ ...r, likes: counts[String(r.id)] ?? r.likes ?? 0 })));
-    } catch (err) {
-      console.error('[Reels] like error:', err);
-      // Annuler le toggle en cas d'erreur
-      if (isLiked) {
-        setLiked(prev => [...prev, reelId]);
-      } else {
-        setLiked(prev => prev.filter(id => id !== reelId));
-      }
-    }
+      const { data } = await supabase.from('user_like').select('id').eq('target_id', reelId).eq('target_type', 'reel');
+      const count = data ? data.length : 0;
+      setReelLikeCounts(prev => ({ ...prev, [reelId]: count }));
+      setReelsData(prev => prev.map(r => String(r.id) === reelId ? { ...r, likes: count } : r));
+    } catch (e) { console.error('[like] count error:', e); }
   };
 
   const toggleFollow = async (reel) => {
