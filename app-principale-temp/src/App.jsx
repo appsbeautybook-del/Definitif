@@ -59,7 +59,8 @@ import VeoGenerator from '@/pages/pro/VeoGenerator';
 import Visite3D from '@/pages/pro/Visite3D';
 import Franchise from '@/pages/pro/Franchise';
 import LancerDirect from '@/pages/pro/LancerDirect';
-// ModifierProfil supprimé - les paramètres sont dans ProfilPro
+import ModifierProfilPro from '@/pages/pro/ModifierProfilPro';
+import SocialMedia from '@/pages/SocialMedia';
 import VueClient from '@/pages/pro/VueClient';
 import Abonnements from '@/pages/pro/Abonnements';
 import AbonnementsClient from '@/pages/AbonnementsClient';
@@ -193,7 +194,7 @@ const AuthenticatedApp = () => {
         <Route path="/pro/visite-3d" element={<Visite3D />} />
         <Route path="/pro/franchise" element={<Franchise />} />
         <Route path="/pro/lancer-direct" element={<LancerDirect />} />
-        {/* /pro/modifier-profil supprimé - utiliser ProfilPro ou ParametresPro */}
+        <Route path="/pro/modifier-profil" element={<ModifierProfilPro />} />
         <Route path="/pro/vue-client" element={<VueClient />} />
         <Route path="/pro/abonnements" element={<Abonnements />} />
         <Route path="/abonnements" element={<AbonnementsClient />} />
@@ -202,6 +203,7 @@ const AuthenticatedApp = () => {
         <Route path="/live" element={<LiveFeed />} />
         <Route path="/live-detail/:id" element={<LiveDetail />} />
         <Route path="/reels" element={<Reels />} />
+        <Route path="/social-media" element={<SocialMedia />} />
         <Route path="/reseau-social" element={<Reels />} />
         <Route path="/immobilier" element={<Immobilier />} />
         <Route path="/immobilier/:id" element={<ImmobilierDetail />} />
