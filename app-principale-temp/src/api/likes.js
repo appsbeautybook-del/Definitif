@@ -2,14 +2,21 @@ import { supabase } from '@/api/supabaseClient';
 
 export const likesApi = {
   async addLike(userEmail, targetId, targetType = 'reel', userName = '', userAvatar = '') {
+    // Supprimer d'abord pour éviter le duplicate key, puis réinsérer
+    await supabase.from('user_like')
+      .delete()
+      .eq('user_email', userEmail)
+      .eq('target_id', String(targetId))
+      .eq('target_type', targetType);
+
     const { error } = await supabase.from('user_like').insert({
       user_email: userEmail,
       target_id: String(targetId),
       target_type: targetType,
       user_name: userName || '',
       user_avatar: userAvatar || '',
-    }).select();
-    if (error && !error.message?.includes('duplicate')) throw error;
+    });
+    if (error) console.error('[likesApi] addLike error:', error.message);
     return { success: true };
   },
 
