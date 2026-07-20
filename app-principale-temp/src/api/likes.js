@@ -2,14 +2,14 @@ import { supabase } from '@/api/supabaseClient';
 
 export const likesApi = {
   async addLike(userEmail, targetId, targetType = 'reel', userName = '', userAvatar = '') {
-    const { error } = await supabase.from('user_like').upsert({
+    const { error } = await supabase.from('user_like').insert({
       user_email: userEmail,
       target_id: String(targetId),
       target_type: targetType,
       user_name: userName || '',
       user_avatar: userAvatar || '',
-    }, { onConflict: 'user_email,target_id,target_type' });
-    if (error) throw error;
+    }).select();
+    if (error && !error.message?.includes('duplicate')) throw error;
     return { success: true };
   },
 
@@ -28,16 +28,18 @@ export const likesApi = {
     const counts = {};
     targetIds.forEach(id => { counts[String(id)] = 0; });
     try {
-      const { data } = await supabase.from('user_like')
+      const { data, error } = await supabase.from('user_like')
         .select('target_id')
         .in('target_id', targetIds.map(String))
         .eq('target_type', targetType);
-      if (data) {
+      if (!error && data) {
         data.forEach(row => {
           counts[row.target_id] = (counts[row.target_id] || 0) + 1;
         });
       }
-    } catch {}
+    } catch (e) {
+      console.error('[likesApi] getLikeCounts error:', e);
+    }
     return counts;
   },
 

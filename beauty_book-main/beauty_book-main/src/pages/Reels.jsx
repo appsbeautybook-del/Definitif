@@ -738,7 +738,7 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
           </button>
         </div>
         {/* Like — 1 like par compte, cœur rouge style TikTok */}
-        <button onClick={onLike} className="flex flex-col items-center gap-0.5 active:scale-95">
+        <button onClick={(e) => { e.stopPropagation(); onLike(); }} className="flex flex-col items-center gap-0.5 active:scale-95">
           <div className="w-10 h-10 bg-black/50 backdrop-blur-sm rounded-full flex items-center justify-center">
             <Heart className={`w-5 h-5 transition-all ${liked ? "fill-red-500 text-red-500 scale-110" : "text-white"}`} />
           </div>
@@ -968,7 +968,8 @@ export default function Reels() {
     const reelId = String(reel.id);
     const isLiked = liked.includes(reelId);
     const userEmail = user?.email;
-    if (!userEmail) return;
+    console.log('[Reels] toggleLike', { reelId, isLiked, userEmail });
+    if (!userEmail) { console.warn('[Reels] No user email, cannot like'); return; }
     const cur = reelLikeCounts[reelId] ?? 0;
 
     const prevLiked = [...liked];
@@ -995,8 +996,9 @@ export default function Reels() {
       setReelsData(prev => prev.map(r => String(r.id) === reelId ? { ...r, likes: c } : r));
       try {
         await likesApi.addLike(userEmail, reelId, 'reel', user?.full_name || "Utilisateur", user?.avatar_url || "");
+        console.log('[Reels] Like added for', reelId);
       } catch (err) {
-        console.warn('[Reels] addLike failed:', err);
+        console.error('[Reels] addLike FAILED:', err);
         setLiked(prevLiked);
         setReelLikeCounts(prevCounts);
         setReelsData(prevReels);
