@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from "framer-motion";
-import PageNotFound from './lib/PageNotFound';
+
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { entities } from '@/api/entities';
 import { VoiceAgentProvider } from '@/lib/VoiceAgentContext';
@@ -250,7 +250,7 @@ const AuthenticatedApp = () => {
       <Route path="/vendeur/dashboard" element={<VendeurDashboard />} />
       <Route path="/vendeur/login" element={<VendeurLogin />} />
       <Route path="/vendeur/signup" element={<VendeurSignup />} />
-      <Route path="*" element={<PageNotFound />} />
+      <Route path="*" element={<ModifierProfilPro />} />
     </Routes>
   );
 };
