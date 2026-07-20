@@ -405,26 +405,17 @@ function StylesTab({ activeCategory }) {
   const handleLike = async (e, styleId) => {
     e.stopPropagation();
     const alreadyLiked = liked.includes(styleId);
-    const userEmail = user?.email;
-    if (!userEmail) return;
+    const cur = likeCounts[styleId] || 0;
+    const newCount = alreadyLiked ? Math.max(cur - 1, 0) : cur + 1;
 
-    const prevLiked = [...liked];
-    const prevCounts = { ...likeCounts };
+    setLikeCounts(prev => ({ ...prev, [styleId]: newCount }));
 
     if (alreadyLiked) {
-      const newLiked = liked.filter(id => id !== styleId);
-      const newCount = Math.max(0, (likeCounts[styleId] || 0) - 1);
-      setLiked(newLiked);
-      setLikeCounts(prev => ({ ...prev, [styleId]: newCount }));
-      try { await likesApi.removeLike(userEmail, styleId, 'style'); }
-      catch { setLiked(prevLiked); setLikeCounts(prevCounts); }
+      setLiked(prev => prev.filter(id => id !== styleId));
+      likesApi.removeLike(user?.email, styleId, 'style').catch(() => {});
     } else {
-      const newLiked = [...liked, styleId];
-      const newCount = (likeCounts[styleId] || 0) + 1;
-      setLiked(newLiked);
-      setLikeCounts(prev => ({ ...prev, [styleId]: newCount }));
-      try { await likesApi.addLike(userEmail, styleId, 'style', user?.full_name || "Utilisateur", user?.avatar_url || ""); }
-      catch { setLiked(prevLiked); setLikeCounts(prevCounts); }
+      setLiked(prev => [...prev, styleId]);
+      likesApi.addLike(user?.email, styleId, 'style', user?.full_name || "Utilisateur", user?.avatar_url || "").catch(() => {});
     }
   };
 

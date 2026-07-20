@@ -505,16 +505,12 @@ export default function StyleDetail() {
     setLiked(newLiked);
     setLikesCount(c => newLiked ? c + 1 : Math.max(0, c - 1));
     const sid = style?.id || s.id;
-    if (sid) {
-      // Mettre à jour les likes dans Supabase
-      try {
-        await supabase
-          .from('Style')
-          .update({ likes: newLiked ? (likesCount + 1) : Math.max(0, likesCount - 1) })
-          .eq('id', sid);
-      } catch (e) {
-        console.error('[StyleDetail.handleLike]', e);
-      }
+    const userEmail = user?.email;
+    if (!sid || !userEmail) return;
+    if (newLiked) {
+      likesApi.addLike(userEmail, String(sid), 'style', user?.full_name || "Utilisateur", user?.avatar_url || "").catch(() => {});
+    } else {
+      likesApi.removeLike(userEmail, String(sid), 'style').catch(() => {});
     }
   };
 

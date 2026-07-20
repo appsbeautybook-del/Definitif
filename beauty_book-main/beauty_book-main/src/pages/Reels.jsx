@@ -967,42 +967,18 @@ export default function Reels() {
   const toggleLike = async (reel) => {
     const reelId = String(reel.id);
     const isLiked = liked.includes(reelId);
-    const userEmail = user?.email;
-    console.log('[Reels] toggleLike', { reelId, isLiked, userEmail });
-    if (!userEmail) { console.warn('[Reels] No user email, cannot like'); return; }
     const cur = reelLikeCounts[reelId] ?? 0;
+    const newLikes = isLiked ? Math.max(cur - 1, 0) : cur + 1;
 
-    const prevLiked = [...liked];
-    const prevCounts = { ...reelLikeCounts };
-    const prevReels = [...reelsData];
+    setReelLikeCounts(prev => ({ ...prev, [reelId]: newLikes }));
+    setReelsData(prev => prev.map(r => String(r.id) === reelId ? { ...r, likes: newLikes } : r));
 
     if (isLiked) {
-      const c = Math.max(cur - 1, 0);
       setLiked(prev => prev.filter(id => id !== reelId));
-      setReelLikeCounts(prev => ({ ...prev, [reelId]: c }));
-      setReelsData(prev => prev.map(r => String(r.id) === reelId ? { ...r, likes: c } : r));
-      try {
-        await likesApi.removeLike(userEmail, reelId, 'reel');
-      } catch (err) {
-        console.warn('[Reels] removeLike failed:', err);
-        setLiked(prevLiked);
-        setReelLikeCounts(prevCounts);
-        setReelsData(prevReels);
-      }
+      likesApi.removeLike(user?.email, reelId, 'reel').catch(() => {});
     } else {
-      const c = cur + 1;
       setLiked(prev => [...prev, reelId]);
-      setReelLikeCounts(prev => ({ ...prev, [reelId]: c }));
-      setReelsData(prev => prev.map(r => String(r.id) === reelId ? { ...r, likes: c } : r));
-      try {
-        await likesApi.addLike(userEmail, reelId, 'reel', user?.full_name || "Utilisateur", user?.avatar_url || "");
-        console.log('[Reels] Like added for', reelId);
-      } catch (err) {
-        console.error('[Reels] addLike FAILED:', err);
-        setLiked(prevLiked);
-        setReelLikeCounts(prevCounts);
-        setReelsData(prevReels);
-      }
+      likesApi.addLike(user?.email, reelId, 'reel', user?.full_name || "Utilisateur", user?.avatar_url || "").catch(() => {});
     }
   };
 
