@@ -275,7 +275,7 @@ export default function Maria() {
 
   // ── Vérifier Voicebox au démarrage ──
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api'}/ai/voicebox-status`)
+    fetch(`${import.meta.env.VITE_BACKEND_URL || ''}/ai/voicebox-status`)
       .then(r => r.json())
       .then(d => setVoiceboxReady(d.available))
       .catch(() => setVoiceboxReady(false));
@@ -477,7 +477,7 @@ export default function Maria() {
     let voiceUrl = null;
 
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
       const { data: { session } } = await supabase.auth.getSession();
       const headers = { 'Content-Type': 'application/json' };
       if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;

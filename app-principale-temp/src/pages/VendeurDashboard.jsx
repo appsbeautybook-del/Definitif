@@ -52,7 +52,7 @@ function ProductsTab({ vendeurEmail }) {
     setLoading(true);
     const items = await fetchProduits({});
     setProducts(items.filter(p =>
-      p.tags?.includes(`vendeur_${vendeurEmail}`)
+      p.pro_email === vendeurEmail || p.tags?.includes(`vendeur_${vendeurEmail}`)
     ));
     setLoading(false);
   };
@@ -82,7 +82,7 @@ function ProductsTab({ vendeurEmail }) {
         stock: parseInt(form.stock) || 0, category: form.category,
         image_url: form.image_url, images: form.images,
         external_url: form.external_url, status: form.status,
-        tags,
+        tags, pro_email: vendeurEmail,
         min_qty: isGrossiste && form.min_qty ? parseInt(form.min_qty) : null,
       };
       if (editId) await entities.Produit.update(editId, data);
@@ -449,7 +449,7 @@ function PaiementsTab({ vendeurEmail }) {
 
   useEffect(() => {
     const key = `vendeur_stripe_${vendeurEmail}`;
-    entities.AppConfig.filter({ key }, "-created_at", 1)
+    entities.AppConfig.filter({ key }, "-created_at", 50)
       .then(rows => {
         if (rows[0]?.value?.stripeId) {
           setStripeId(rows[0].value.stripeId);
@@ -576,7 +576,8 @@ function GrossisteTab({ vendeurEmail }) {
     setLoading(true);
     const items = await fetchProduits({});
     setProducts(items.filter(p =>
-      p.tags?.includes('grossiste') && p.tags?.includes(`vendeur_${vendeurEmail}`)
+      (p.pro_email === vendeurEmail && (p.category === 'Grossiste' || p.tags?.includes('grossiste'))) ||
+      (p.tags?.includes('grossiste') && p.tags?.includes(`vendeur_${vendeurEmail}`))
     ));
     setLoading(false);
   };
@@ -603,6 +604,7 @@ function GrossisteTab({ vendeurEmail }) {
         image_url: form.image_url, images: form.images,
         status: "actif", tags: ["vendeur", "grossiste", `vendeur_${vendeurEmail}`],
         min_qty: form.min_qty ? parseInt(form.min_qty) : null,
+        pro_email: vendeurEmail,
       };
       if (editId) await entities.Produit.update(editId, data);
       else await entities.Produit.create(data);

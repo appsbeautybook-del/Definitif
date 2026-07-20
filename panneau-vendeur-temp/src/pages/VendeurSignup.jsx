@@ -37,7 +37,11 @@ export default function VendeurSignup() {
       });
       
       if (authError) {
-        setError(authError.message || "Erreur lors de l'inscription.");
+        if (authError.message?.includes('provider') || authError.message?.includes('not enabled')) {
+          setError("Le provider Email n'est pas activé. Activez-le dans le dashboard Supabase > Authentication > Providers > Email.");
+        } else {
+          setError(authError.message || "Erreur lors de l'inscription.");
+        }
         setLoading(false);
         return;
       }

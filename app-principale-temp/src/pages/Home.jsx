@@ -117,7 +117,7 @@ export default function Home() {
     setProduitsTendanceLive([]);
 
     // Charger config depuis AppConfig
-    entities.AppConfig.filter({ key: "home_config" }, "-created_at", 1)
+    entities.AppConfig.filter({ key: "home_config" }, "-created_at", 50)
       .then(async rows => {
         if (rows[0]?.value) {
           const cfg = rows[0].value;
@@ -149,7 +149,7 @@ export default function Home() {
 
     // Produits tendance : BDD + Shopify
     Promise.allSettled([
-      supabase.from('Produit').select('id,name,price,image_url,brand,featured,category,tags,old_price,external_url').eq('status', 'actif').order('created_at', { ascending: false }).limit(4).then(({ data }) => (data || []).map(p => ({ ...p, source: "db" }))),
+      entities.Produit.filter({ status: "actif" }, "-created_at", 4).then(items => items.map(p => ({ ...p, source: "db" }))),
       fetchShopifyProducts({}).then(r => (r.data?.products || []).slice(0, 4).map(p => ({ id: p.id, name: p.name, price: p.price, image_url: p.img, brand: p.brand, source: "shopify" }))),
     ]).then(([dbRes, shopifyRes]) => {
       const db = dbRes.status === "fulfilled" ? dbRes.value : [];
@@ -185,12 +185,12 @@ export default function Home() {
       } catch (e) { console.error("[Home] Shopify error:", e); }
 
       try {
-        const { data } = await supabase.from('Produit').select('id,name,brand,price,image_url').eq('status', 'actif').order('created_at', { ascending: false }).limit(20);
-        for (const p of (data || [])) {
+        const items = await entities.Produit.filter({ status: "actif" }, "-created_at", 20);
+        for (const p of items) {
           vendeurProds.push({
             id: p.id, name: p.name || '', brand: p.brand || '',
             price: parseFloat(p.price || 0),
-            image_url: p.image_url || '', source: 'vendeur',
+            image_url: p.image_url || (p.images && p.images[0]) || '', source: 'vendeur',
           });
         }
       } catch (e) { console.error("[Home] DB error:", e); }

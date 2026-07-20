@@ -144,7 +144,12 @@ export default function Connexion() {
     try {
       if (remember) localStorage.setItem("bb_remember", "1");
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) throw signInError;
+      if (signInError) {
+        if (signInError.message?.includes('provider') || signInError.message?.includes('not enabled')) {
+          throw new Error("Le provider Email n'est pas activé. Activez-le dans le dashboard Supabase > Authentication > Providers > Email.");
+        }
+        throw signInError;
+      }
       localStorage.setItem("bb_onboarded", "1");
       navigate("/", { replace: true });
     } catch (e) {
@@ -155,10 +160,17 @@ export default function Connexion() {
   };
 
   const handleOAuth = async (provider) => {
-    await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}/` },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        skipBrowserRedirect: false,
+      },
     });
+    if (error) {
+      console.error(`[${provider} Auth] Error:`, error);
+      setError(`Erreur lors de la connexion avec ${provider === 'google' ? 'Google' : 'Apple'}.`);
+    }
   };
 
   return (

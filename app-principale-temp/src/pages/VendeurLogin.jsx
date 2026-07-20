@@ -26,20 +26,32 @@ export default function VendeurLogin() {
     setError("");
     
     try {
-      const { data } = await apiClient.callFunction("vendeurLogin", { email, password });
-      const res = data || {};
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       
-      if (res.success && res.session) {
-        await supabase.auth.setSession({
-          access_token: res.session.access_token,
-          refresh_token: res.session.refresh_token,
-        });
-
-        sessionStorage.setItem("bb_vendeur_email", email);
-        navigate("/vendeur/dashboard");
-      } else {
-        setError(res.error || "Identifiants invalides ou accès refusé.");
+      if (authError) {
+        if (authError.message?.includes('provider') || authError.message?.includes('not enabled')) {
+          setError("Le provider Email n'est pas activé. Activez-le dans le dashboard Supabase > Authentication > Providers > Email.");
+        } else {
+          setError("Identifiants invalides.");
+        }
+        setLoading(false);
+        return;
       }
+
+      let role = data.user?.user_metadata?.role;
+      if (!role) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+        if (profile?.role) role = profile.role;
+      }
+
+      if (role !== 'vendeur' && role !== 'admin') {
+        setError("Accès refusé. Vous n'êtes pas vendeur.");
+        setLoading(false);
+        return;
+      }
+
+      sessionStorage.setItem("bb_vendeur_email", email);
+      navigate("/vendeur/dashboard");
     } catch (err) {
       setError(err.message || "Erreur de connexion.");
     }

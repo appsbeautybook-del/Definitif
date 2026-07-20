@@ -12,7 +12,7 @@ import FloatingVoiceAgent from '@/components/voice/FloatingVoiceAgent';
 import { LocaleProvider } from '@/lib/LocaleContext.jsx';
 
 // Appliquer la config apparence depuis la BDD au démarrage
-entities.AppConfig.filter({ key: "appearance_config" }, "-created_at", 1).then(rows => {
+entities.AppConfig.filter({ key: "appearance_config" }, "-created_at", 50).then(rows => {
   if (!rows[0]?.value) return;
   const { fontId, sizeId } = rows[0].value;
   const FONTS = {
@@ -112,14 +112,12 @@ import ShAI from '@/pages/ShAI';
 import Explorer from '@/pages/Explorer';
 import About from '@/pages/About';
 import Contact from '@/pages/Contact';
+import AuthCallback from '@/pages/AuthCallback';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, isAuthenticated } = useAuth();
 
-  // Si l'utilisateur est authentifié (via OAuth ou autre), marquer l'onboarding comme fait
-  if (isAuthenticated && !localStorage.getItem("bb_onboarded")) {
-    localStorage.setItem("bb_onboarded", "1");
-  }
+  const isSpecialRoute = window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/vendeur');
 
   // Redirections automatiques selon le port local
   useEffect(() => {
@@ -132,11 +130,8 @@ const AuthenticatedApp = () => {
     }
   }, []);
 
-  const hasOnboarded = localStorage.getItem("bb_onboarded");
-  const isSpecialRoute = window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/vendeur');
-
-  // Show loading spinner while checking app public settings or auth
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  // Afficher le loading UNIQUEMENT pour les routes normales (pas admin/vendeur)
+  if (!isSpecialRoute && (isLoadingPublicSettings || isLoadingAuth)) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
@@ -155,10 +150,13 @@ const AuthenticatedApp = () => {
     }
   }
 
+  const hasOnboarded = localStorage.getItem("bb_onboarded");
+
   // Redirect to onboarding if first time and not on a special route
   if (!hasOnboarded && !isSpecialRoute) {
     return (
       <Routes>
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/connexion" element={<Connexion />} />
         <Route path="*" element={<Navigate to="/onboarding" replace />} />
@@ -242,6 +240,7 @@ const AuthenticatedApp = () => {
         <Route path="/a-propos" element={<About />} />
         <Route path="/contact" element={<Contact />} />
       </Route>
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/admin" element={<AdminLogin />} />
       <Route path="/admin/signup" element={<AdminSignup />} />
       <Route path="/admin/dashboard" element={<AdminDashboard />} />

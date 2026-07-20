@@ -29,23 +29,25 @@ export default function VendeurLogin() {
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       
       if (authError) {
-        setError("Identifiants invalides.");
+        if (authError.message?.includes('provider') || authError.message?.includes('not enabled')) {
+          setError("Le provider Email n'est pas activé. Activez-le dans le dashboard Supabase > Authentication > Providers > Email.");
+        } else {
+          setError("Identifiants invalides.");
+        }
         setLoading(false);
         return;
       }
 
-      let { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+      let role = data.user?.user_metadata?.role;
+      if (!role) {
+        const { data: profile } = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+        if (profile?.role) role = profile.role;
+      }
 
-      if (!profile || (profile.role !== 'vendeur' && profile.role !== 'admin')) {
-        const metaRole = data.user?.user_metadata?.role;
-        if (metaRole === 'vendeur' || metaRole === 'admin') {
-          await supabase.from('profiles').upsert({ id: data.user.id, email, role: metaRole });
-          profile = { role: metaRole };
-        } else {
-          setError("Accès refusé. Vous n'êtes pas vendeur.");
-          setLoading(false);
-          return;
-        }
+      if (role !== 'vendeur' && role !== 'admin') {
+        setError("Accès refusé. Vous n'êtes pas vendeur.");
+        setLoading(false);
+        return;
       }
 
       sessionStorage.setItem("bb_vendeur_email", email);

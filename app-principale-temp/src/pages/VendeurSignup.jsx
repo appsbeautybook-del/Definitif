@@ -29,30 +29,35 @@ export default function VendeurSignup() {
     setError("");
     
     try {
-      // 1. Register through the secure backend
-      const { data: resData } = await apiClient.callFunction("vendeurRegister", { email, password, prenom, nom, phone });
-      const res = resData || {};
+      // 1. Inscription via Supabase Auth
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { prenom, nom, phone, role: 'vendeur' } }
+      });
       
-      if (res.success) {
-        // 2. Automatically log them in right after via the backend API
-        const { data: loginData } = await apiClient.callFunction("vendeurLogin", { email, password });
-        const loginRes = loginData || {};
-        
-        if (loginRes.success && loginRes.session) {
-          // Sync session locally
-          await supabase.auth.setSession({
-            access_token: loginRes.session.access_token,
-            refresh_token: loginRes.session.refresh_token,
-          });
-
-          sessionStorage.setItem("bb_vendeur_email", email);
-          navigate("/vendeur/dashboard");
+      if (authError) {
+        if (authError.message?.includes('provider') || authError.message?.includes('not enabled')) {
+          setError("Le provider Email n'est pas activé. Activez-le dans le dashboard Supabase > Authentication > Providers > Email.");
         } else {
-          // If login fails right after registration, send them to login page
-          navigate("/vendeur/login");
+          setError(authError.message || "Erreur lors de l'inscription.");
         }
+        setLoading(false);
+        return;
+      }
+
+      // 2. Créer le profil vendeur
+      if (data?.user) {
+        await supabase.from('profiles').upsert({ id: data.user.id, email, role: 'vendeur', prenom, nom });
+      }
+
+      // 3. Connexion auto
+      const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
+      if (!loginError) {
+        sessionStorage.setItem("bb_vendeur_email", email);
+        navigate("/vendeur/dashboard");
       } else {
-        setError(res.error || "Erreur lors de l'inscription.");
+        navigate("/vendeur/login");
       }
     } catch (err) {
       setError(err.message || "Impossible de s'inscrire.");

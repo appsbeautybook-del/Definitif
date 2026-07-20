@@ -58,7 +58,7 @@ function detectActionFromText(userText, aiReply) {
   return null;
 }
 
-const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
 
 // ── Nettoyage texte pour voix (Odysseus-inspired: strip markdown for TTS) ────
 function stripForVoice(text) {

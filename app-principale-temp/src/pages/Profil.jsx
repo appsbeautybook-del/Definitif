@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
+import { likesApi } from '@/api/likes';
 import { Share2, Settings, Star, ShoppingBag, Calendar, Award, CreditCard, Grid, Repeat2, Bookmark, Camera, Plus, Play, Heart, Video, BadgeCheck } from "lucide-react";
 import ShareSheet from "@/components/ui/ShareSheet";
 import ScoreFiabilite from "@/components/avis/ScoreFiabilite";
@@ -135,13 +136,11 @@ export default function Profil() {
   const loadData = async () => {
     if (!user?.email) return;
     setLoading(true);
+    try {
     const today = new Date().toISOString().split("T")[0];
 
-    // ── Charger les likes depuis user_like (Supabase uniquement) ──
-    const { data: dbLikes } = await supabase.from('user_like').select('target_id, target_type')
-      .eq('user_email', user.email)
-      .then(res => res)
-      .catch(() => ({ data: [] }));
+    // ── Charger les likes depuis backend ──
+    const dbLikes = await likesApi.getUserLikesAll(user.email).catch(() => []);
 
     const likedReelIds = (dbLikes || []).filter(l => l.target_type === 'reel').map(l => l.target_id);
     const likedServiceIds = (dbLikes || []).filter(l => l.target_type === 'service').map(l => l.target_id);
@@ -160,17 +159,17 @@ export default function Profil() {
 
     // ── Charger les favoris (reels likés + services likés + styles likés) depuis la BDD ──
     const favs = [];
-    if (allLikedReels.length > 0) {
+    if (likedReelIds.length > 0) {
       const likedReels = await Promise.all(
-        allLikedReels.map(rid =>
+        likedReelIds.map(rid =>
           entities.Reel.filter({ id: rid }, "-created_at", 1).catch(() => [])
         )
       );
       likedReels.forEach(res => { if (res[0]) favs.push(res[0]); });
     }
-    if (allLikedServices.length > 0) {
+    if (likedServiceIds.length > 0) {
       const allServices = await entities.Service.filter({ status: "actif" }, "-created_at", 200).catch(() => []);
-      const likedSvcs = allServices.filter(s => allLikedServices.includes(s.id)).map(s => ({
+      const likedSvcs = allServices.filter(s => likedServiceIds.includes(s.id)).map(s => ({
         ...s,
         thumbnail_url: s.image_url,
         title: s.title,
@@ -178,9 +177,9 @@ export default function Profil() {
       }));
       favs.push(...likedSvcs);
     }
-    if (allLikedStyles.length > 0) {
+    if (likedStyleIds.length > 0) {
       const allStyles = await entities.Style.filter({ status: "publie" }, "-created_at", 200).catch(() => []);
-      const likedStyles = allStyles.filter(s => allLikedStyles.includes(s.id)).map(s => ({
+      const likedStyles = allStyles.filter(s => likedStyleIds.includes(s.id)).map(s => ({
         ...s,
         thumbnail_url: s.image_url || (s.images && s.images[0]),
       }));
@@ -208,16 +207,16 @@ export default function Profil() {
 
       // Check DemandeProV2 status for "Devenir Pro" button
       try {
-        const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
-        const res = await fetch(`${API_BASE}/demande-pro/status?email=${encodeURIComponent(user.email)}`);
-        const json = await res.json();
-        if (json.demande) {
-          setDemandeStatus(json.demande.statut);
-        } else {
-          setDemandeStatus(null);
-        }
+        const { data } = await supabase.from('DemandeProV2')
+          .select('statut')
+          .eq('user_email', user.email)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        setDemandeStatus(data?.statut || null);
       } catch { setDemandeStatus(null); }
     }
+    } catch (e) { console.error('[Profil] loadData error:', e); }
     setLoading(false);
   };
 

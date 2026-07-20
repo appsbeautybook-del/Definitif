@@ -120,15 +120,33 @@ function StepSignup({ onNext, onBack }) {
   };
 
   const handleSocialLogin = async (provider) => {
+    if (form.email || form.prenom || form.nom) {
+      const contact = mode === "email" ? form.email : `+33${form.phone.replace(/\s/g, "")}`;
+      sessionStorage.setItem("bb_signup_data", JSON.stringify({
+        prenom: form.prenom,
+        nom: form.nom,
+        email: form.email,
+        phone: contact,
+        mode,
+      }));
+    }
     sessionStorage.setItem("bb_social_signup", "1");
-    // Après login social, rediriger vers /onboarding pour reprendre à l'étape 2
-    supabase.auth.signInWithOAuth({ provider: provider, options: { redirectTo: window.location.origin + "/onboarding" } });
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        skipBrowserRedirect: false,
+      },
+    });
+    if (error) {
+      console.error(`[${provider} Auth] Error:`, error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
-      <ProgressBar step={1} total={5} />
-      <StepLabel step={1} total={5} />
+      <ProgressBar step={1} total={8} />
+      <StepLabel step={1} total={8} />
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Faisons<br />connaissance</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-6">Parlez-nous un peu de vous pour commencer l'aventure.</p>
@@ -242,9 +260,7 @@ function StepSignup({ onNext, onBack }) {
           <div className="flex-1 h-px bg-gray-100" />
         </div>
 
-        {/* Boutons sociaux alignés en ligne */}
         <div className="flex gap-3 justify-center">
-          {/* Google — ouvre directement le flow Google puis étape 2 */}
           <button
             onClick={() => handleSocialLogin('google')}
             className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-2xl py-3.5 active:scale-95 transition-all shadow-sm"
@@ -253,7 +269,6 @@ function StepSignup({ onNext, onBack }) {
             <span className="text-[12px] font-black text-gray-700">Google</span>
           </button>
 
-          {/* Apple — ouvre directement le flow Apple puis étape 2 */}
           <button
             onClick={() => handleSocialLogin('apple')}
             className="flex-1 flex items-center justify-center gap-2 bg-black rounded-2xl py-3.5 active:scale-95 transition-all"
@@ -282,13 +297,29 @@ function StepVerification({ onNext, onBack }) {
   const [error, setError] = useState("");
   const [resending, setResending] = useState(false);
   const [clipboardToast, setClipboardToast] = useState(false);
+  const [resendTimer, setResendTimer] = useState(45);
+  const [otpCode, setOtpCode] = useState(null);
   const inputs = useRef([]);
+  const timerRef = useRef(null);
 
   const [data, setData] = useState(() => JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}"));
   const contact = data.mode === "email" ? data.email : data.phone;
   const maskedContact = data.mode === "email"
     ? contact?.replace(/(.{2}).+(@.+)/, "$1***$2")
     : contact?.replace(/.(?=.{4})/g, "*");
+
+  useEffect(() => {
+    timerRef.current = setInterval(() => {
+      setResendTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, []);
 
   // Lire le presse-papier automatiquement à l'arrivée
   useEffect(() => {
@@ -318,15 +349,27 @@ function StepVerification({ onNext, onBack }) {
   useEffect(() => {
     const sendCode = async () => {
       let currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
+      const isSocial = sessionStorage.getItem("bb_social_signup_processed") === "1";
 
-      // Si pas d'email (retour OAuth social), récupérer depuis le compte connecté
-      if (!currentData.email) {
-        // Retry jusqu'à 5 fois avec 500ms d'intervalle pour attendre que la session OAuth soit établie
+      // Pour OAuth social : TOUJOURS l'email du compte Google sélectionné, pas celui du formulaire
+      if (isSocial) {
         let user = null;
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 8; i++) {
           user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
           if (user?.email) break;
-          await new Promise(r => setTimeout(r, 500));
+          await new Promise(r => setTimeout(r, 750));
+        }
+        if (user?.email) {
+          currentData = { ...currentData, email: user.email, mode: "email" };
+          sessionStorage.setItem("bb_signup_data", JSON.stringify(currentData));
+          setData(currentData);
+        }
+      } else if (!currentData.email) {
+        let user = null;
+        for (let i = 0; i < 8; i++) {
+          user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
+          if (user?.email) break;
+          await new Promise(r => setTimeout(r, 750));
         }
         if (user?.email) {
           currentData = { ...currentData, email: user.email, mode: "email" };
@@ -335,15 +378,24 @@ function StepVerification({ onNext, onBack }) {
         }
       }
 
-      // Ne pas appeler si on n'a toujours pas de contact valide
       const contact = currentData.mode === "email" ? currentData.email : currentData.phone;
       if (!contact) return;
 
-      const res = await apiClient.callFunction("sendVerificationCode", {
-        mode: currentData.mode || "email",
-        email: currentData.email,
-        phone: currentData.phone,
-      });
+      try {
+        const res = await apiClient.callFunction("sendVerificationCode", {
+          mode: currentData.mode || "email",
+          email: currentData.email,
+          phone: currentData.phone,
+        });
+        if (!res.data?.success) {
+          console.error('[StepVerification] Send code failed:', res.data);
+        }
+        if (res.data?.code) {
+          setOtpCode(res.data.code);
+        }
+      } catch (e) {
+        console.error('[StepVerification] Send code error:', e);
+      }
     };
 
     sendCode();
@@ -378,45 +430,43 @@ function StepVerification({ onNext, onBack }) {
     setLoading(true);
     setError("");
     const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
-    const key = currentData.mode === "email" ? currentData.email : currentData.phone;
-    if (!key) { setError("Contact introuvable. Recommencez depuis le début."); setLoading(false); return; }
-    const res = await apiClient.callFunction("verifyCode", { key, code: fullCode });
-    if (res.data?.success) {
-      onNext();
-    } else {
-      setError(res.data?.error || "Code incorrect ou expiré.");
+    const email = currentData.email;
+    if (!email) { setError("Email introuvable. Recommencez depuis le début."); setLoading(false); return; }
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: fullCode,
+      type: 'email',
+    });
+
+    if (verifyError) {
+      setError("Code incorrect ou expiré.");
       setCode(["", "", "", "", "", ""]);
       inputs.current[0]?.focus();
+    } else {
+      onNext();
     }
     setLoading(false);
   };
 
   const handleResend = async () => {
+    if (resendTimer > 0) return;
     setResending(true);
     setError("");
     const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
     await apiClient.callFunction("sendVerificationCode", { mode: currentData.mode || "email", email: currentData.email, phone: currentData.phone });
     setResending(false);
-  };
-
-  // Auto-verify when all 6 digits are filled
-  const handleCodeComplete = async (newCode) => {
-    if (newCode.join("").length === 6) {
-      setLoading(true);
-      setError("");
-      const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
-      const key = currentData.mode === "email" ? currentData.email : currentData.phone;
-      if (!key) { setError("Contact introuvable. Recommencez depuis le début."); setLoading(false); return; }
-      const res = await apiClient.callFunction("verifyCode", { key, code: newCode.join("") });
-      if (res.data?.success) {
-        onNext();
-      } else {
-        setError(res.data?.error || "Code incorrect ou expiré.");
-        setCode(["", "", "", "", "", ""]);
-        inputs.current[0]?.focus();
-      }
-      setLoading(false);
-    }
+    setResendTimer(45);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setResendTimer(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   };
 
   const handleChangeAuto = (i, val) => {
@@ -425,13 +475,12 @@ function StepVerification({ onNext, onBack }) {
     next[i] = val;
     setCode(next);
     if (val && i < 5) inputs.current[i + 1]?.focus();
-    handleCodeComplete(next);
   };
 
   return (
     <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
-      <ProgressBar step={2} total={5} />
-      <StepLabel step={2} total={5} />
+      <ProgressBar step={2} total={8} />
+      <StepLabel step={2} total={8} />
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Vérifiez<br />votre {data.mode === "email" ? "email" : "numéro"}</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-8">
@@ -448,7 +497,7 @@ function StepVerification({ onNext, onBack }) {
         )}
 
         {/* Code input */}
-        <div className="flex gap-3" onPaste={handlePaste}>
+        <div className="flex gap-3 justify-center" onPaste={handlePaste}>
           {code.map((digit, i) => (
             <input
               key={i}
@@ -470,6 +519,13 @@ function StepVerification({ onNext, onBack }) {
           ))}
         </div>
 
+        {otpCode && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 w-full text-center">
+            <p className="text-[11px] text-orange-600 font-bold mb-1">Code de vérification :</p>
+            <p className="text-[28px] font-black text-[#E8732A] tracking-[6px]">{otpCode}</p>
+          </div>
+        )}
+
         {error && (
           <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3 w-full text-center">
             <p className="text-[13px] text-red-500 font-bold">{error}</p>
@@ -479,11 +535,14 @@ function StepVerification({ onNext, onBack }) {
         {/* Resend */}
         <button
           onClick={handleResend}
-          disabled={resending}
-          className="flex items-center gap-2 text-[12px] font-black text-gray-400 active:scale-95 transition-all"
+          disabled={resendTimer > 0 || resending}
+          className={`flex items-center gap-2 text-[12px] font-black active:scale-95 transition-all ${resendTimer > 0 ? 'text-gray-400 opacity-50' : 'text-[#E8732A]'}`}
         >
           <RotateCcw className={`w-3.5 h-3.5 ${resending ? "animate-spin" : ""}`} />
-          {resending ? "Envoi en cours..." : "Renvoyer le code"}
+          {resendTimer > 0
+            ? `Renvoyer le code dans ${resendTimer}s`
+            : resending ? "Envoi en cours..." : "Renvoyer le code"
+          }
         </button>
       </div>
 
@@ -524,8 +583,8 @@ function StepBeautyProfile({ onNext, onBack }) {
 
   return (
     <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
-      <ProgressBar step={3} total={5} />
-      <StepLabel step={3} total={5} />
+      <ProgressBar step={3} total={8} />
+      <StepLabel step={3} total={8} />
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Votre Profil<br />Beauté</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-6">Ces détails nous aident à personnaliser votre feed.</p>
@@ -605,24 +664,42 @@ function StepPhoto({ onNext, onBack }) {
     setLoading(true);
     try {
       const data = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
-      const user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
-      if (user) {
-        const updates = {
-          gender: data.gender || null,
-          beauty_interests: data.interests || [],
-        };
-        if (photoFile) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const updates = {
+        id: user.id,
+        email: user.email,
+        gender: data.gender || null,
+        beauty_interests: data.interests || [],
+        full_name: [data.prenom, data.nom].filter(Boolean).join(' ') || user.user_metadata?.full_name || '',
+        updated_at: new Date().toISOString(),
+      };
+
+      if (photoFile) {
+        try {
           const { file_url } = await uploadFile({ file: photoFile });
           updates.avatar_url = file_url;
-        }
-        if (bannerFile) {
+        } catch (e) { console.error('[StepPhoto] Upload avatar failed:', e); }
+      }
+
+      if (bannerFile) {
+        try {
           const { file_url } = await uploadFile({ file: bannerFile });
           updates.cover_url = file_url;
-        }
-        await supabase.auth.getUser().then(async ({ data }) => { if (data?.user) await entities.User.update(data.user.id, updates); });
+        } catch (e) { console.error('[StepPhoto] Upload banner failed:', e); }
       }
+
+      // Upsert direct dans la table profiles
+      const { error } = await supabase.from('profiles').upsert(updates, { onConflict: 'id' });
+      if (error) console.error('[StepPhoto] Profile upsert error:', error);
+
+      // Aussi mettre à jour user_metadata
+      await supabase.auth.updateUser({
+        data: { full_name: updates.full_name, gender: updates.gender, beauty_interests: updates.beauty_interests }
+      });
     } catch (e) {
-      // silently continue
+      console.error('[StepPhoto] Error:', e);
     } finally {
       setLoading(false);
       onNext();
@@ -631,8 +708,8 @@ function StepPhoto({ onNext, onBack }) {
 
   return (
     <div className="min-h-screen bg-white flex flex-col px-6 pt-10 pb-8">
-      <ProgressBar step={4} total={5} />
-      <StepLabel step={4} total={5} />
+      <ProgressBar step={4} total={8} />
+      <StepLabel step={4} total={8} />
 
       <h2 className="text-[34px] font-black text-gray-900 leading-tight mb-1">Personnalisez<br />votre profil</h2>
       <p className="text-[13px] text-gray-400 font-medium mb-6">Ajoutez une photo et une bannière pour vous identifier.</p>
@@ -750,6 +827,212 @@ function StepSuccess({ onDone }) {
   );
 }
 
+// ── STEP 5 — Autorisation Notifications ──────────────────────────────────────
+function StepNotifications({ onNext }) {
+  const [status, setStatus] = useState('idle');
+
+  const handleAllow = async () => {
+    if (!('Notification' in window)) { setStatus('unavailable'); setTimeout(onNext, 1500); return; }
+    if (Notification.permission === 'granted') { setStatus('granted'); setTimeout(onNext, 800); return; }
+    setStatus('loading');
+    try {
+      const result = await Notification.requestPermission();
+      setStatus(result === 'granted' ? 'granted' : 'denied');
+    } catch (_) { setStatus('denied'); }
+    setTimeout(onNext, 1200);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#FFF5ED] to-white flex flex-col px-6 pt-10 pb-8">
+      <ProgressBar step={5} total={8} />
+      <StepLabel step={5} total={8} />
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-8">
+        <div className="w-28 h-28 bg-white rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-100">
+          <span className="text-[56px]">🔔</span>
+        </div>
+        <div>
+          <h2 className="text-[36px] font-black text-gray-900 leading-tight mb-3">Notifications</h2>
+          <p className="text-[15px] text-gray-400 font-medium leading-relaxed max-w-[320px] mx-auto">
+            Recevez des alertes pour vos réservations, messages et offres exclusives.
+          </p>
+        </div>
+        {status === 'granted' && (
+          <div className="flex items-center gap-2 bg-green-50 px-5 py-3 rounded-full">
+            <span className="text-green-500 text-[20px]">✓</span>
+            <span className="text-green-600 text-[13px] font-bold">Notifications activées</span>
+          </div>
+        )}
+        {status === 'denied' && (
+          <div className="flex items-center gap-2 bg-red-50 px-5 py-3 rounded-full">
+            <span className="text-red-500 text-[20px]">✕</span>
+            <span className="text-red-500 text-[13px] font-bold">Autorisation refusée</span>
+          </div>
+        )}
+      </div>
+      <div className="space-y-3 mt-6">
+        {status === 'idle' || status === 'loading' ? (
+          <button onClick={handleAllow} disabled={status === 'loading'}
+            className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all shadow-lg shadow-orange-200"
+            style={{ background: "#E8732A" }}>
+            {status === 'loading' ? "En attente..." : "Activer les notifications"}
+          </button>
+        ) : null}
+        <button onClick={onNext} className="w-full py-3 text-center text-[12px] font-black text-gray-400 uppercase tracking-widest active:scale-95 transition-all">
+          Passer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── STEP 6 — Autorisation Localisation ───────────────────────────────────────
+function StepLocation({ onNext }) {
+  const [status, setStatus] = useState('idle');
+
+  const handleAllow = async () => {
+    if (!navigator.geolocation) { setStatus('unavailable'); setTimeout(onNext, 1500); return; }
+    setStatus('loading');
+    try {
+      const result = await new Promise((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          () => resolve('granted'),
+          () => resolve('denied'),
+          { timeout: 10000 }
+        );
+      });
+      setStatus(result);
+      // Sauvegarder la position si autorisée
+      if (result === 'granted') {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase.from('profiles').upsert({
+              id: user.id, latitude: pos.coords.latitude, longitude: pos.coords.longitude, updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+          }
+        }, () => {}, { enableHighAccuracy: false });
+      }
+    } catch (_) { setStatus('denied'); }
+    setTimeout(onNext, 1200);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#FFF5ED] to-white flex flex-col px-6 pt-10 pb-8">
+      <ProgressBar step={6} total={8} />
+      <StepLabel step={6} total={8} />
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-8">
+        <div className="w-28 h-28 bg-white rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-100">
+          <span className="text-[56px]">📍</span>
+        </div>
+        <div>
+          <h2 className="text-[36px] font-black text-gray-900 leading-tight mb-3">Localisation</h2>
+          <p className="text-[15px] text-gray-400 font-medium leading-relaxed max-w-[320px] mx-auto">
+            Trouvez les salons et professionnels beauté les plus proches de chez vous.
+          </p>
+        </div>
+        {status === 'granted' && (
+          <div className="flex items-center gap-2 bg-green-50 px-5 py-3 rounded-full">
+            <span className="text-green-500 text-[20px]">✓</span>
+            <span className="text-green-600 text-[13px] font-bold">Localisation activée</span>
+          </div>
+        )}
+        {status === 'denied' && (
+          <div className="flex items-center gap-2 bg-red-50 px-5 py-3 rounded-full">
+            <span className="text-red-500 text-[20px]">✕</span>
+            <span className="text-red-500 text-[13px] font-bold">Autorisation refusée</span>
+          </div>
+        )}
+      </div>
+      <div className="space-y-3 mt-6">
+        {status === 'idle' || status === 'loading' ? (
+          <button onClick={handleAllow} disabled={status === 'loading'}
+            className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all shadow-lg shadow-orange-200"
+            style={{ background: "#E8732A" }}>
+            {status === 'loading' ? "En attente..." : "Activer la localisation"}
+          </button>
+        ) : null}
+        <button onClick={onNext} className="w-full py-3 text-center text-[12px] font-black text-gray-400 uppercase tracking-widest active:scale-95 transition-all">
+          Passer
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── STEP 7 — Autorisation Caméra & Micro ─────────────────────────────────────
+function StepCameraMic({ onNext }) {
+  const [camStatus, setCamStatus] = useState('idle');
+  const [micStatus, setMicStatus] = useState('idle');
+
+  const handleAllow = async () => {
+    setCamStatus('loading');
+    setMicStatus('loading');
+
+    // Caméra
+    try {
+      const stream = await navigator.mediaDevices?.getUserMedia({ video: true });
+      stream.getTracks().forEach(t => t.stop());
+      setCamStatus('granted');
+      // Sauvegarder dans le profil
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) await supabase.from('profiles').upsert({ id: user.id, camera_enabled: true, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    } catch (_) { setCamStatus('denied'); }
+
+    // Micro
+    try {
+      const stream = await navigator.mediaDevices?.getUserMedia({ audio: true });
+      stream.getTracks().forEach(t => t.stop());
+      setMicStatus('granted');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) await supabase.from('profiles').upsert({ id: user.id, mic_enabled: true, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+    } catch (_) { setMicStatus('denied'); }
+
+    setTimeout(onNext, 1200);
+  };
+
+  const bothGranted = camStatus === 'granted' && micStatus === 'granted';
+  const anyDenied = camStatus === 'denied' || micStatus === 'denied';
+  const isIdle = camStatus === 'idle';
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#FFF5ED] to-white flex flex-col px-6 pt-10 pb-8">
+      <ProgressBar step={7} total={8} />
+      <StepLabel step={7} total={8} />
+      <div className="flex-1 flex flex-col items-center justify-center text-center gap-8">
+        <div className="w-28 h-28 bg-white rounded-[2rem] flex items-center justify-center shadow-lg shadow-orange-100">
+          <span className="text-[56px]">📸</span>
+        </div>
+        <div>
+          <h2 className="text-[36px] font-black text-gray-900 leading-tight mb-3">Caméra & Micro</h2>
+          <p className="text-[15px] text-gray-400 font-medium leading-relaxed max-w-[320px] mx-auto">
+            Prenez des photos, enregistrez des reels et utilisez l'assistant vocal.
+          </p>
+        </div>
+        <div className="flex gap-3">
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all ${camStatus === 'granted' ? 'bg-green-50 text-green-600 border border-green-200' : camStatus === 'denied' ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-50 text-gray-400 border border-gray-200'}`}>
+            📷 {camStatus === 'granted' ? 'Activé' : camStatus === 'denied' ? 'Refusé' : 'Caméra'}
+          </div>
+          <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all ${micStatus === 'granted' ? 'bg-green-50 text-green-600 border border-green-200' : micStatus === 'denied' ? 'bg-red-50 text-red-500 border border-red-200' : 'bg-gray-50 text-gray-400 border border-gray-200'}`}>
+            🎙️ {micStatus === 'granted' ? 'Activé' : micStatus === 'denied' ? 'Refusé' : 'Micro'}
+          </div>
+        </div>
+      </div>
+      <div className="space-y-3 mt-6">
+        {isIdle ? (
+          <button onClick={handleAllow}
+            className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all shadow-lg shadow-orange-200"
+            style={{ background: "#E8732A" }}>
+            Autoriser l'accès
+          </button>
+        ) : null}
+        <button onClick={onNext} className="w-full py-3 text-center text-[12px] font-black text-gray-400 uppercase tracking-widest active:scale-95 transition-all">
+          Passer
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Onboarding ───────────────────────────────────────────────────────────
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -757,6 +1040,7 @@ export default function Onboarding() {
   const [step, setStep] = useState(() => {
     if (sessionStorage.getItem("bb_social_signup") === "1") {
       sessionStorage.removeItem("bb_social_signup");
+      sessionStorage.setItem("bb_social_signup_processed", "1");
       return 2;
     }
     // Si on vient de "Créer un compte" depuis la page connexion, démarrer à l'étape 1
@@ -770,6 +1054,7 @@ export default function Onboarding() {
   const done = () => {
     localStorage.setItem("bb_onboarded", "1");
     sessionStorage.removeItem("bb_signup_data");
+    sessionStorage.removeItem("bb_social_signup_processed");
     window.location.href = "/";
   };
 
@@ -780,7 +1065,10 @@ export default function Onboarding() {
       {step === 2 && <StepVerification onNext={() => setStep(3)} onBack={() => setStep(1)} />}
       {step === 3 && <StepBeautyProfile onNext={() => setStep(4)} onBack={() => setStep(2)} />}
       {step === 4 && <StepPhoto onNext={() => setStep(5)} onBack={() => setStep(3)} />}
-      {step === 5 && <StepSuccess onDone={done} />}
+      {step === 5 && <StepNotifications onNext={() => setStep(6)} onBack={() => setStep(4)} />}
+      {step === 6 && <StepLocation onNext={() => setStep(7)} onBack={() => setStep(5)} />}
+      {step === 7 && <StepCameraMic onNext={() => setStep(8)} onBack={() => setStep(6)} />}
+      {step === 8 && <StepSuccess onDone={done} />}
     </div>
   );
 }

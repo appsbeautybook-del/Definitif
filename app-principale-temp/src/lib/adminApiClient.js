@@ -24,17 +24,15 @@ export function clearAdminToken() {
 export const adminApi = {
   // Stats
   getStats: async () => {
-    const [reels, services, commandes, reservations, lives, styles] = await Promise.all([
+    const [reels, services, commandes, reservations, lives, styles, users] = await Promise.all([
       entities.Reel.list("-created_at", 1000),
       entities.Service.list("-created_at", 1000),
       entities.Commande.list("-created_at", 1000),
       entities.Reservation.list("-created_at", 1000),
       entities.LiveSession.list("-created_at", 1000),
       entities.Style.list("-created_at", 1000),
+      entities.User.list("-created_at", 1000),
     ]);
-    const { count: usersCount } = await supabase
-      .from('profiles')
-      .select('id', { count: 'exact', head: true });
     return {
       reels: reels.length,
       reels_publie: reels.filter(r => r.status === "publie").length,
@@ -43,7 +41,7 @@ export const adminApi = {
       commandes_pending: commandes.filter(c => c.status === "en_attente").length,
       reservations: reservations.length,
       reservations_pending: reservations.filter(r => r.status === "en_attente").length,
-      users: usersCount || 0,
+      users: users.length,
       lives_actifs: lives.filter(l => l.status === "live").length,
       styles: styles.length,
     };
@@ -119,8 +117,8 @@ export const adminApi = {
   // Notifications
   sendNotification: async ({ target, title, body, type, link }) => {
     if (target === "all") {
-      const { data: users } = await supabase.from('profiles').select('email').limit(1000);
-      if (users) {
+      const users = await entities.User.list("-created_at", 1000);
+      if (users && users.length > 0) {
         await Promise.all(users.map(u =>
           entities.Notification.create({ user_email: u.email, title, message: body, type: type || "system", action_url: link, is_read: false })
         ));
@@ -150,7 +148,7 @@ export const adminApi = {
   deleteProduit: (id) => entities.Produit.delete(id),
 
   // AppConfig
-  getConfig: (key) => entities.AppConfig.filter({ key }, "-created_at", 1),
+  getConfig: (key) => entities.AppConfig.filter({ key }, "-created_at", 50),
   updateConfig: (id, data) => entities.AppConfig.update(id, data),
   createConfig: (data) => entities.AppConfig.create(data),
 
