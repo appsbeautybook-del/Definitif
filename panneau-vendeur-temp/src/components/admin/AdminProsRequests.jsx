@@ -103,6 +103,28 @@ export default function AdminProsRequests() {
     try {
       await supabase.from('DemandeProV2').update({ statut, admin_notes: note, updated_at: new Date().toISOString() }).eq('id', id);
       setDemandes(prev => prev.map(d => d.id === id ? { ...d, statut, admin_notes: note } : d));
+
+      // Si approuvé, créer le profil pro
+      if (statut === "approuvee") {
+        const demande = demandes.find(d => d.id === id);
+        if (demande) {
+          await supabase.from('ProfilPro').upsert({
+            user_email: demande.user_email,
+            salon_name: demande.salon_name || "Mon Salon",
+            bio: demande.bio || "",
+            type_activite: demande.type_activite || "Salon",
+            specialites: demande.specialites || [],
+            address: demande.address || "",
+            city: demande.city || "",
+            phone: demande.phone || "",
+            email_pro: demande.email_pro || demande.user_email,
+            status: "actif",
+            latitude: demande.latitude || null,
+            longitude: demande.longitude || null,
+          }, { onConflict: 'user_email' });
+        }
+      }
+
       setSelected(null);
     } catch {}
     setActionLoading(false);
