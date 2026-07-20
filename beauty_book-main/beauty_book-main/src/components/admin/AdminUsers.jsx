@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { adminApi } from "@/lib/adminApiClient";
+import { supabase } from "@/api/supabaseClient";
 import { Search, Shield, User } from "lucide-react";
 
 export default function AdminUsers() {
@@ -8,7 +8,10 @@ export default function AdminUsers() {
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    adminApi.listUsers().then(setUsers).catch(() => {}).finally(() => setLoading(false));
+    supabase.from('profiles').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => setUsers(data || []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = users.filter(u =>
@@ -18,7 +21,7 @@ export default function AdminUsers() {
   const toggleRole = async (user) => {
     const newRole = user.role === "admin" ? "user" : "admin";
     try {
-      await adminApi.updateUserRole(user.id, newRole);
+      await supabase.from('profiles').update({ role: newRole }).eq('id', user.id);
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: newRole } : u));
     } catch {}
   };
