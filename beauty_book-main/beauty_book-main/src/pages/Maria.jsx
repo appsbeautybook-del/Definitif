@@ -3,7 +3,8 @@ import {
   X, Plus, Sparkles, Search,
   Wand2, History, Bot, Send, Mic,
   Scissors, Lightbulb, Heart, Clock, Star, Paperclip,
-  FileText, Volume2, CheckCircle, MessageSquare, Calendar, ExternalLink
+  FileText, Volume2, CheckCircle, MessageSquare, Calendar, ExternalLink,
+  Instagram, Facebook, Globe
 } from "lucide-react";
 import { entities, uploadFile } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
@@ -31,6 +32,20 @@ function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, o
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-gray-500">
             <X className="w-5 h-5" />
           </button>
+        </div>
+        <div className="flex gap-3 px-5 mb-3">
+          <a href="https://instagram.com/beautybook" target="_blank" rel="noopener noreferrer"
+            className="w-10 h-10 bg-pink-50 rounded-xl flex items-center justify-center active:scale-95 transition-all">
+            <Instagram className="w-5 h-5 text-pink-500" />
+          </a>
+          <a href="https://facebook.com/beautybook" target="_blank" rel="noopener noreferrer"
+            className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center active:scale-95 transition-all">
+            <Facebook className="w-5 h-5 text-blue-600" />
+          </a>
+          <a href="https://beautybook.app" target="_blank" rel="noopener noreferrer"
+            className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center active:scale-95 transition-all">
+            <Globe className="w-5 h-5 text-violet-500" />
+          </a>
         </div>
         <div className="px-4 mb-2">
           <button
