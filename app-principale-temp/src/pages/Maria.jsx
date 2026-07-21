@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   X, Plus, Sparkles, Search,
   Wand2, History, Bot, Send, Mic,
@@ -23,6 +24,7 @@ const STYLE_IMG = "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=8
 
 // ─── Side Drawer ──────────────────────────────────────────────────────────────
 function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, onOpenSimulator, onScanCapillaire, onStylisteIA }) {
+  const navigate = useNavigate();
   return (
     <>
       {open && <div className="absolute inset-0 bg-black/30 z-40 backdrop-blur-sm" onClick={onClose} />}
@@ -33,19 +35,16 @@ function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, o
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="flex gap-3 px-5 mb-3">
-          <a href="https://instagram.com/beautybook" target="_blank" rel="noopener noreferrer"
-            className="w-10 h-10 bg-pink-50 rounded-xl flex items-center justify-center active:scale-95 transition-all">
-            <Instagram className="w-5 h-5 text-pink-500" />
-          </a>
-          <a href="https://facebook.com/beautybook" target="_blank" rel="noopener noreferrer"
-            className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center active:scale-95 transition-all">
-            <Facebook className="w-5 h-5 text-blue-600" />
-          </a>
-          <a href="https://beautybook.app" target="_blank" rel="noopener noreferrer"
-            className="w-10 h-10 bg-violet-50 rounded-xl flex items-center justify-center active:scale-95 transition-all">
-            <Globe className="w-5 h-5 text-violet-500" />
-          </a>
+        <div className="px-4 mb-2">
+          <button
+            onClick={() => { navigate("/social-media"); onClose(); }}
+            className="w-full flex items-center gap-3 bg-purple-50 rounded-2xl px-4 py-3 active:scale-[0.98] transition-all"
+          >
+            <div className="w-8 h-8 rounded-full border-2 border-purple-500 flex items-center justify-center shrink-0">
+              <Instagram className="w-4 h-4 text-purple-500" />
+            </div>
+            <span className="text-[16px] font-black text-purple-600">Réseaux Sociaux</span>
+          </button>
         </div>
         <div className="px-4 mb-2">
           <button
