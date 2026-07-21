@@ -123,7 +123,7 @@ export const mariaAgent = async (req, res) => {
       { role: 'user', content: userContent },
     ];
 
-    const reply = await callGLM(messages, { temperature: 0.7, max_tokens: 2048 });
+    const reply = await callGLM(messages, { temperature: 0.7, max_tokens: 512 });
 
     // Try to detect action from reply
     let action = null;

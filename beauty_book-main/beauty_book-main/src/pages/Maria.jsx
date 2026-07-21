@@ -522,12 +522,13 @@ export default function Maria() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            model: 'mimo-v2.5-free',
             messages: [
               { role: 'system', content: MARIA_SYSTEM },
               ...historyPayload,
               { role: 'user', content: content },
             ],
-            max_tokens: 1024,
+            max_tokens: 512,
           }),
         });
         const apiData = await apiRes.json();

@@ -371,7 +371,7 @@ router.post('/whatsapp/webhook', async (req, res) => {
                     { role: 'system', content: 'Tu es Maria, l\'assistante beauté de BeautyBook. Réponds de manière chaleureuse et professionnelle. Sois concise (2-3 phrases).' },
                     { role: 'user', content: text },
                   ],
-                  max_tokens: 1024,
+                  max_tokens: 512,
                 }),
               });
               const aiData = await aiRes.json();

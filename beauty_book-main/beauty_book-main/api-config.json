@@ -1,0 +1,6 @@
+{
+  "OPENCODE_API_KEY_PREFIX": "sk-ziv83S32mc2ZSb6g5h4fa",
+  "OPENCODE_API_KEY_SUFFIX": "ZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw",
+  "OPENCODE_MODEL": "mimo-v2.5-free",
+  "OPENCODE_BASE_URL": "https://opencode.ai/zen/v1/chat/completions"
+}
