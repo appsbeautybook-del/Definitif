@@ -660,27 +660,46 @@ export default function AjouterService() {
   const editService = state?.editService;
   const [step, setStep] = useState(1);
   const [data, setData] = useState(() => {
-    if (!editService) return {};
-    // Reconstruire le tableau complet des médias
-    const mediaList = [];
-    if (editService.image_url) mediaList.push(editService.image_url);
-    if (editService.images?.length > 0) {
-      editService.images.forEach(u => { if (u && u !== editService.image_url) mediaList.push(u); });
+    if (editService) {
+      const mediaList = [];
+      if (editService.image_url) mediaList.push(editService.image_url);
+      if (editService.images?.length > 0) {
+        editService.images.forEach(u => { if (u && u !== editService.image_url) mediaList.push(u); });
+      }
+      return {
+        name: editService.title || "",
+        description: editService.description || "",
+        category: editService.category || "",
+        audience: editService.audience || "",
+        style: editService.style || "",
+        price: editService.price ?? "",
+        duration: editService.duration_min ?? "",
+        images: mediaList,
+        addons: editService.addons || [],
+        _editId: editService.id,
+      };
     }
-    return {
-      name: editService.title || "",
-      description: editService.description || "",
-      category: editService.category || "",
-      audience: editService.audience || "",
-      style: editService.style || "",
-      price: editService.price ?? "",
-      duration: editService.duration_min ?? "",
-      images: mediaList,
-      addons: editService.addons || [],
-      _editId: editService.id,
-    };
+    try {
+      const saved = localStorage.getItem("bb_service_draft");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Date.now() - (parsed._ts || 0) < 86400000) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return {};
   });
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!editService && data && Object.keys(data).length > 0) {
+      const timer = setTimeout(() => {
+        localStorage.setItem("bb_service_draft", JSON.stringify({ ...data, _ts: Date.now() }));
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [data, editService]);
 
   const goBack = () => {
     if (step > 1) setStep(s => s - 1);
@@ -692,28 +711,35 @@ export default function AjouterService() {
     return true;
   };
 
-  const handleFinish = async () => {
+  const handleFinish = async (asDraft = false) => {
     setSaving(true);
-    const payload = {
-      pro_email: user?.email || "",
-      title: data.name,
-      description: data.description || "",
-      category: data.category,
-      style: data.style || null,
-      price: parseFloat(data.price) || 0,
-      duration_min: parseInt(data.duration) || 60,
-      image_url: (data.images || [])[0] || "",
-      images: (data.images || []).slice(1),
-      addons: (data.addons || []).map(a => ({ name: a.name, price: parseFloat(a.price) || 0 })),
-      status: "actif",
-    };
-    if (data._editId) {
-      await entities.Service.update(data._editId, payload);
-    } else {
-      await entities.Service.create(payload);
+    try {
+      const payload = {
+        pro_email: user?.email || "",
+        name: data.name,
+        title: data.name,
+        description: data.description || "",
+        category: data.category,
+        style: data.style || null,
+        price: parseFloat(data.price) || 0,
+        duration_min: parseInt(data.duration) || 60,
+        image_url: (data.images || [])[0] || "",
+        images: (data.images || []).slice(1),
+        addons: (data.addons || []).map(a => ({ name: a.name, price: parseFloat(a.price) || 0 })),
+        status: asDraft ? "brouillon" : "actif",
+      };
+      if (data._editId) {
+        await entities.Service.update(data._editId, payload);
+      } else {
+        await entities.Service.create(payload);
+      }
+      localStorage.removeItem("bb_service_draft");
+      navigate("/pro/catalogue-services");
+    } catch (err) {
+      alert("Erreur lors de l'enregistrement : " + (err.message || "Erreur inconnue"));
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    navigate("/pro/catalogue-services");
   };
 
   return (
@@ -737,7 +763,7 @@ export default function AjouterService() {
       <div className="fixed bottom-0 left-0 right-0 z-50 px-5 pb-6 pt-4 bg-white border-t border-gray-100 space-y-3">
         {step === TOTAL_STEPS && (
           <button
-            onClick={() => { setData(d => ({ ...d, draft: true })); handleFinish(); }}
+            onClick={() => handleFinish(true)}
             className="w-full py-4 rounded-3xl border-2 border-gray-200 text-gray-700 font-black text-[13px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
           >
             Sauvegarder Brouillon <Save className="w-4 h-4" />
