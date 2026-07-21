@@ -64,7 +64,7 @@ export const apiClient = {
       approvePro: { path: '/admin/approve-pro', method: 'POST' },
       adminCreateService: { path: '/admin/create-service', method: 'POST' },
       manageStyle: { path: '/admin/manage-style', method: 'POST' },
-      manageReel: { path: '/api/v8/manage/reel', method: 'POST' },
+      manageReel: { path: '/v8/manage/reel', method: 'POST' },
       manageAnnonce: { path: '/admin/annonce', method: 'POST' },
       adminApi: { path: '/admin/api', method: 'POST' },
       deleteAccount: { path: '/account/delete', method: 'POST' },
@@ -131,17 +131,17 @@ export const apiClient = {
       muxLive: { path: '/webhooks/mux-live', method: 'POST' },
 
       // --- Phase 8: Fidélité, Boutique, Abonnements, Gestion, Compte ---
-      addFidelitePoints:          { path: '/api/v8/fidelite/add', method: 'POST' },
-      creditFideliteAuto:         { path: '/api/v8/fidelite/auto-credit', method: 'POST' },
-      shAiTryOn:                  { path: '/api/v8/boutique/try-on', method: 'POST' },
-      createShopifyCheckout:      { path: '/api/v8/boutique/shopify-checkout', method: 'POST' },
-      trackOrder:                 { path: '/api/v8/boutique/track-order', method: 'POST' },
-      createSubscriptionCheckout: { path: '/api/v8/subscription/checkout', method: 'POST' },
-      sendReservationReminders:   { path: '/api/v8/reminders/send', method: 'POST' },
-      manageAnnonce:              { path: '/api/v8/manage/annonce', method: 'POST' },
-      manageStyle:                { path: '/api/v8/manage/style', method: 'POST' },
-      manageEntity:               { path: '/api/v8/manage/entity', method: 'POST' },
-      deleteAccount:              { path: '/api/v8/account', method: 'DELETE' },
+      addFidelitePoints:          { path: '/v8/fidelite/add', method: 'POST' },
+      creditFideliteAuto:         { path: '/v8/fidelite/auto-credit', method: 'POST' },
+      shAiTryOn:                  { path: '/v8/boutique/try-on', method: 'POST' },
+      createShopifyCheckout:      { path: '/v8/boutique/shopify-checkout', method: 'POST' },
+      trackOrder:                 { path: '/v8/boutique/track-order', method: 'POST' },
+      createSubscriptionCheckout: { path: '/v8/subscription/checkout', method: 'POST' },
+      sendReservationReminders:   { path: '/v8/reminders/send', method: 'POST' },
+      manageAnnonce:              { path: '/v8/manage/annonce', method: 'POST' },
+      manageStyle:                { path: '/v8/manage/style', method: 'POST' },
+      manageEntity:               { path: '/v8/manage/entity', method: 'POST' },
+      deleteAccount:              { path: '/v8/account', method: 'DELETE' },
     };
 
     const route = endpointMap[functionName];
