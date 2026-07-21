@@ -31,7 +31,7 @@ const parseOrder = (orderBy) => {
 };
 
 const KNOWN_COLUMNS = {
-  Reel: ['id','title','description','video_url','thumbnail_url','images','category','tags','status','pub_type','likes','views','comments_count','author_email','author_name','author_avatar','is_sponsored','music_title','music_artist','music_url','sound','sound_preview_url','product_id','product_name','product_img','service_id','service_name','created_at','updated_at','created_by_id'],
+  Reel: ['id','title','description','video_url','thumbnail_url','images','category','tags','status','pub_type','likes','views','comments_count','author_email','author_name','author_avatar','is_sponsored','music_title','music_artist','music_url','product_id','product_name','product_img','service_id','service_name','created_at','updated_at','created_by_id'],
   Style: ['id','title','description','category','images','image_url','video_url','tags','produits_utilises','pro_email','status','likes','views','featured','author_email','author_name','author_avatar','created_at','updated_at'],
   Produit: ['id','name','description','price','old_price','images','category','brand','stock','status','tags','rating','reviews_count','shopify_id','source','featured','external_url','min_qty','created_at','updated_at','created_by_id'],
   Publication: ['id','author_email','author_name','author_avatar','content','images','video_url','type','status','likes','comments_count','tags','created_at','updated_at','created_by_id'],

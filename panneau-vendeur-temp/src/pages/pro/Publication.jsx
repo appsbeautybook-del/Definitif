@@ -2475,8 +2475,6 @@ export default function Publication() {
         author_avatar: user?.avatar_url || undefined,
         category: pubTypeToCategory[form.pubType] || "Réels",
         pub_type: form.pubType,
-        sound: form.sound || "Son original - BeautyBook",
-        sound_preview_url: form.soundPreviewUrl || undefined,
         product_id: form.product_id || undefined,
         product_name: form.product_name || undefined,
         product_img: form.product_img || undefined,
@@ -2522,7 +2520,6 @@ export default function Publication() {
         author_name: "Professionnel",
         category: pubTypeToCategory[form.pubType] || "Réels",
         pub_type: form.pubType,
-        sound: form.sound || "Son original - BeautyBook",
         status: "brouillon",
       };
 
