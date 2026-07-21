@@ -2485,9 +2485,14 @@ export default function Publication() {
         status: "publie",
       };
 
-      const action = editId ? "update" : "create";
-      const reelRes = await apiClient.callFunction("manageReel", { action, id: editId, data: payload });
-      const reel = reelRes.data?.reel;
+      let reel;
+      if (editId) {
+        const res = await entities.Reel.update(editId, payload);
+        reel = res?.data?.reel || res?.result || res || { ...payload, id: editId };
+      } else {
+        const res = await entities.Reel.create(payload);
+        reel = res?.data?.reel || res?.result || res;
+      }
 
       if (editId) {
         setPublications(prev => prev.map(p => p.id === editId ? { ...p, ...reel } : p));
@@ -2521,9 +2526,14 @@ export default function Publication() {
         status: "brouillon",
       };
 
-      const action = editId ? "update" : "create";
-      const reelRes = await apiClient.callFunction("manageReel", { action, id: editId, data: payload });
-      const reel = reelRes.data?.reel;
+      let reel;
+      if (editId) {
+        const res = await entities.Reel.update(editId, payload);
+        reel = res?.data?.reel || res?.result || res || { ...payload, id: editId };
+      } else {
+        const res = await entities.Reel.create(payload);
+        reel = res?.data?.reel || res?.result || res;
+      }
 
       if (editId) {
         setPublications(prev => prev.map(p => p.id === editId ? { ...p, ...reel } : p));
@@ -2538,7 +2548,7 @@ export default function Publication() {
   };
 
   const deletePub = async (id) => {
-    await apiClient.callFunction("manageReel", { action: "delete", id });
+    await entities.Reel.delete(id);
     setPublications(prev => prev.filter(p => p.id !== id));
   };
 

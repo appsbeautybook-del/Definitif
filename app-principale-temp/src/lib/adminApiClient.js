@@ -66,9 +66,9 @@ export const adminApi = {
   toggleReelStatus: async (id) => {
     const reel = await entities.Reel.get(id);
     const newStatus = reel.status === "publie" ? "brouillon" : "publie";
-    return apiClient.callFunction("manageReel", { action: "update", id, data: { status: newStatus } });
+    return entities.Reel.update(id, { status: newStatus });
   },
-  deleteReel: (id) => apiClient.callFunction("manageReel", { action: "delete", id }),
+  deleteReel: (id) => entities.Reel.delete(id),
 
   // Lives
   listLives: () => entities.LiveSession.list("-created_at", 200),
@@ -133,11 +133,11 @@ export const adminApi = {
 
   // Publications
   listPublications: () => entities.Reel.list("-created_at", 500),
-  deletePublication: (id) => apiClient.callFunction("manageReel", { action: "delete", id }),
+  deletePublication: (id) => entities.Reel.delete(id),
   togglePublicationStatus: async (id) => {
     const pub = await entities.Reel.get(id);
     const newStatus = pub.status === "publie" ? "brouillon" : "publie";
-    return apiClient.callFunction("manageReel", { action: "update", id, data: { status: newStatus } });
+    return entities.Reel.update(id, { status: newStatus });
   },
 
   // Produits
