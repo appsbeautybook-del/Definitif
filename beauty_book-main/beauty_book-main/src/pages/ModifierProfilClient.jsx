@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, Image } from "lucide-react";
+import { ArrowLeft, Camera, Image, Instagram, Facebook, Globe } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from '@/api/supabaseClient';
 import { useProfileMedia } from "@/hooks/useProfileMedia";
@@ -37,6 +37,9 @@ export default function ModifierProfilClient() {
     bio: "",
     email: "",
     phone: "",
+    instagram: "",
+    facebook: "",
+    website: "",
   });
 
   useEffect(() => {
@@ -50,6 +53,9 @@ export default function ModifierProfilClient() {
           bio: data.bio || "",
           email: data.email || user?.email || "",
           phone: data.phone || "",
+          instagram: data.instagram || "",
+          facebook: data.facebook || "",
+          website: data.website || "",
         });
       }
     };
@@ -88,6 +94,9 @@ export default function ModifierProfilClient() {
       if (form.username !== undefined) profileData.username = form.username;
       if (form.email !== undefined) profileData.email = form.email;
       if (form.phone !== undefined) profileData.phone = form.phone;
+      if (form.instagram !== undefined) profileData.instagram = form.instagram;
+      if (form.facebook !== undefined) profileData.facebook = form.facebook;
+      if (form.website !== undefined) profileData.website = form.website;
 
       // Upload avatar via Supabase Storage
       if (pendingAvatarRef.current) {
@@ -224,6 +233,28 @@ export default function ModifierProfilClient() {
             <textarea value={form.bio} onChange={e => e.target.value.length <= bioMax && setForm(f => ({ ...f, bio: e.target.value }))}
               rows={4} placeholder="Parlez de vous..." className="w-full bg-gray-100 rounded-2xl px-4 py-3.5 text-[15px] font-medium text-gray-800 outline-none resize-none" />
             <p className="text-right text-[11px] text-gray-400 font-medium mt-1">{form.bio.length} / {bioMax}</p>
+          </div>
+
+          {/* Réseaux sociaux */}
+          <div>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Réseaux Sociaux</p>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 bg-gray-100 rounded-2xl px-4 py-3">
+                <Instagram className="w-5 h-5 text-pink-500 flex-shrink-0" />
+                <input value={form.instagram} onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))}
+                  placeholder="Nom Instagram" className="flex-1 bg-transparent text-[15px] font-medium text-gray-800 outline-none placeholder:text-gray-400" />
+              </div>
+              <div className="flex items-center gap-3 bg-gray-100 rounded-2xl px-4 py-3">
+                <Facebook className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <input value={form.facebook} onChange={e => setForm(f => ({ ...f, facebook: e.target.value }))}
+                  placeholder="Nom Facebook" className="flex-1 bg-transparent text-[15px] font-medium text-gray-800 outline-none placeholder:text-gray-400" />
+              </div>
+              <div className="flex items-center gap-3 bg-gray-100 rounded-2xl px-4 py-3">
+                <Globe className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                <input value={form.website} onChange={e => setForm(f => ({ ...f, website: e.target.value }))}
+                  placeholder="Site web (optionnel)" className="flex-1 bg-transparent text-[15px] font-medium text-gray-800 outline-none placeholder:text-gray-400" />
+              </div>
+            </div>
           </div>
         </div>
       </div>

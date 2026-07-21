@@ -7,7 +7,8 @@ import {
   Flag, UserMinus, X, PhoneCall, PhoneOff, Video, Mic, MicOff,
   Baby, CreditCard, Accessibility, Shirt, Sofa, Music, PawPrint,
   Snowflake, Sparkles, Clock, Zap, Droplets, Flower2, Brush,
-  ChevronLeft, Play, Volume2, VolumeX, Maximize2, Palette, RotateCw
+  ChevronLeft, Play, Volume2, VolumeX, Maximize2, Palette, RotateCw,
+  Instagram, Facebook, Globe
 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { entities } from '@/api/entities';
@@ -804,6 +805,39 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
             </button>
           ))}
         </div>
+
+        {/* Réseaux sociaux */}
+        {(proInfo?.instagram || proInfo?.facebook || proInfo?.website) && (
+          <div className="flex gap-3 mt-4 justify-center">
+            {proInfo.instagram && (
+              <a href={`https://instagram.com/${proInfo.instagram.replace('@','')}`} target="_blank" rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1.5 active:scale-95 transition-all">
+                <div className="w-14 h-12 bg-pink-50 rounded-2xl flex items-center justify-center">
+                  <Instagram className="w-5 h-5 text-pink-500" />
+                </div>
+                <span className="text-[9px] font-black text-gray-500 uppercase tracking-wider">INSTAGRAM</span>
+              </a>
+            )}
+            {proInfo.facebook && (
+              <a href={`https://facebook.com/${proInfo.facebook.replace('@','')}`} target="_blank" rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1.5 active:scale-95 transition-all">
+                <div className="w-14 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
+                  <Facebook className="w-5 h-5 text-blue-600" />
+                </div>
+                <span className="text-[9px] font-black text-gray-500 uppercase tracking-wider">FACEBOOK</span>
+              </a>
+            )}
+            {proInfo.website && (
+              <a href={proInfo.website.startsWith('http') ? proInfo.website : `https://${proInfo.website}`} target="_blank" rel="noopener noreferrer"
+                className="flex flex-col items-center gap-1.5 active:scale-95 transition-all">
+                <div className="w-14 h-12 bg-violet-50 rounded-2xl flex items-center justify-center">
+                  <Globe className="w-5 h-5 text-violet-500" />
+                </div>
+                <span className="text-[9px] font-black text-gray-500 uppercase tracking-wider">SITE WEB</span>
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-0 mt-4 border-t border-gray-100 pt-4">
