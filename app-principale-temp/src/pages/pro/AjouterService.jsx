@@ -693,13 +693,38 @@ export default function AjouterService() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!editService && data && Object.keys(data).length > 0) {
-      const timer = setTimeout(() => {
+    if (editService || !user?.email) return;
+    if (!data.name && !data.description && !data.category) return;
+    const timer = setTimeout(async () => {
+      const payload = {
+        pro_email: user.email,
+        name: data.name || "",
+        title: data.name || "",
+        description: data.description || "",
+        category: data.category || "",
+        style: data.style || null,
+        price: parseFloat(data.price) || 0,
+        image_url: (data.images || [])[0] || "",
+        images: (data.images || []).slice(1),
+        addons: (data.addons || []).map(a => ({ name: a.name, price: parseFloat(a.price) || 0 })),
+        status: "brouillon",
+      };
+      try {
+        if (data._editId) {
+          await entities.Service.update(data._editId, payload);
+        } else {
+          const res = await entities.Service.create(payload);
+          const newId = res?.data?.service?.id || res?.result?.id || res?.id;
+          if (newId) {
+            setData(d => ({ ...d, _editId: newId }));
+            localStorage.setItem("bb_service_draft", JSON.stringify({ ...data, _editId: newId, _ts: Date.now() }));
+          }
+        }
         localStorage.setItem("bb_service_draft", JSON.stringify({ ...data, _ts: Date.now() }));
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [data, editService]);
+      } catch {}
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [data, editService, user?.email]);
 
   const goBack = () => {
     if (step > 1) setStep(s => s - 1);
@@ -722,7 +747,6 @@ export default function AjouterService() {
         category: data.category,
         style: data.style || null,
         price: parseFloat(data.price) || 0,
-        duration_min: parseInt(data.duration) || 60,
         image_url: (data.images || [])[0] || "",
         images: (data.images || []).slice(1),
         addons: (data.addons || []).map(a => ({ name: a.name, price: parseFloat(a.price) || 0 })),
