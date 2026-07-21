@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   X, Plus, Sparkles, Search,
   Wand2, History, Bot, Send, Mic,
