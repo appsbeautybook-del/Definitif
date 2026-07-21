@@ -698,6 +698,7 @@ export default function AjouterService() {
     const timer = setTimeout(async () => {
       const payload = {
         pro_email: user.email,
+        created_by_id: user.id || null,
         name: data.name || "",
         title: data.name || "",
         description: data.description || "",
@@ -740,6 +741,7 @@ export default function AjouterService() {
     try {
       const payload = {
         pro_email: user?.email || "",
+        created_by_id: user?.id || null,
         name: data.name,
         title: data.name,
         description: data.description || "",
