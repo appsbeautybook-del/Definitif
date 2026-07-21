@@ -21,7 +21,7 @@ const SCAN_IMG = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q
 const STYLE_IMG = "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400";
 
 // ─── Side Drawer ──────────────────────────────────────────────────────────────
-function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, onOpenSimulator, onScanCapillaire, onStylisteIA, onSocialMedia }) {
+function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, onOpenSimulator, onScanCapillaire, onStylisteIA }) {
   return (
     <>
       {open && <div className="absolute inset-0 bg-black/30 z-40 backdrop-blur-sm" onClick={onClose} />}
@@ -32,24 +32,6 @@ function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, o
             <X className="w-5 h-5" />
           </button>
         </div>
-
-        {/* Réseaux Sociaux */}
-        <div className="px-4 mb-2">
-          <button
-            onClick={() => { onSocialMedia(); onClose(); }}
-            className="w-full flex items-center gap-3 bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-2xl px-4 py-3 active:scale-[0.98] transition-all"
-          >
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
-              <span className="text-[16px]">🌐</span>
-            </div>
-            <div className="text-left">
-              <span className="text-[14px] font-black text-purple-700">Réseaux Sociaux</span>
-              <p className="text-[10px] text-purple-400 font-medium">Gestion & Conversion</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Nouveau Chat */}
         <div className="px-4 mb-2">
           <button
             onClick={() => { onNewChat(); onClose(); }}
@@ -494,6 +476,31 @@ export default function Maria() {
     let action = null;
     let voiceUrl = null;
 
+    const MARIA_SYSTEM_PROMPT = `Tu es Maria, l'assistante IA beauté de l'application BeautyBook.
+Tu es une experte en coiffure, soins capillaires, skincare, maquillage et bien-être.
+Tu parles de manière chaleureuse, professionnelle et personnalisée.
+Tu t'adresses à l'utilisateur directement, en tutoyant ou vouvoyant selon le contexte.
+Tu donnes des conseils pratiques, des recommandations de produits réels, et des routines personnalisées.
+Tu réponds toujours en français. Tu es concise mais complète.
+
+RÈGLE IMPORTANTE — ACTIONS:
+Quand l'utilisateur te demande d'ouvrir une page, naviguer, réserver, acheter, ou effectuer TOUTE action dans l'app, tu DOIS retourner un bloc JSON d'action EN PLUS de ta réponse textuelle.
+Format obligatoire: ta réponse textuelle d'abord, puis sur une nouvelle ligne un bloc code markdown:
+\`\`\`json
+{"type": "NAVIGATE", "path": "/chemin"}
+\`\`\`
+
+Actions disponibles:
+- NAVIGATE: {"type": "NAVIGATE", "path": "/boutique"} | "/rendez-vous" | "/profil" | "/messages" | "/services" | "/mon-solde" | "/parametres" | "/notifications" | "/live" | "/reels" | "/scan-capillaire" | "/immobilier" | "/mes-commandes" | "/programme-fidelite" | "/abonnements" | "/profil-pro" | "/pro/equipe" | "/pro/catalogue-services" | "/pro/analytics" | "/devenir-pro"
+- SEARCH_PRODUCTS: {"type": "SEARCH_PRODUCTS", "query": "terme de recherche"}
+
+Exemples:
+User: "Ouvre la boutique"
+Tu: "Je t'ouvre la boutique ! 🛍️\n\`\`\`json\n{"type": "NAVIGATE", "path": "/boutique"}\n\`\`\`"
+
+User: "Salut" (pas d'action demandée)
+Tu: Réponds normalement SANS bloc JSON.`;
+
     try {
       const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
       const { data: { session } } = await supabase.auth.getSession();
@@ -510,7 +517,41 @@ export default function Maria() {
       action = data.action || null;
       voiceUrl = data.voice_url || null;
     } catch (err) {
-      console.error("[Maria] sendMessage error:", err);
+      console.error("[Maria] Backend error, trying direct OpenCode.ai:", err);
+      try {
+        const historyMsgs = messages.slice(-10).map(m => ({
+          role: m.role === "assistant" ? "assistant" : "user",
+          content: m.content,
+        }));
+        const apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer sk-ziv83S32mc2ZSb6g5h4faZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw',
+          },
+          body: JSON.stringify({
+            model: 'mimo-v2.5-free',
+            messages: [
+              { role: 'system', content: MARIA_SYSTEM_PROMPT },
+              ...historyMsgs,
+              { role: 'user', content },
+            ],
+            temperature: 0.7,
+            max_tokens: 2048,
+          }),
+        });
+        if (!apiRes.ok) throw new Error(`OpenCode API ${apiRes.status}`);
+        const apiData = await apiRes.json();
+        const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
+        reply = rawReply || reply;
+        const jsonMatch = rawReply.match(/```json\s*({[^`]+})\s*```/);
+        if (jsonMatch) {
+          try { action = JSON.parse(jsonMatch[1]); } catch {}
+        }
+      } catch (err2) {
+        console.error("[Maria] Direct API also failed:", err2);
+        reply = "Désolée, je rencontre un problème technique. Réessaie dans quelques instants ! 💫";
+      }
     }
 
     // Accumuler les données du profil pro si step guidé
@@ -639,7 +680,7 @@ export default function Maria() {
   if (view === "chat") {
     return (
       <div className={`font-display flex flex-col h-full relative overflow-hidden ${isDark ? "bg-gray-950" : "bg-white"}`}>
-        <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} onSocialMedia={() => navigate("/social-media")} />
+        <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} />
         {showSimulator && <FiltreAIModal styleTitle="" onClose={() => setShowSimulator(false)} onResultSaved={handleSimulationSaved} />}
 
         <div className={`px-4 pt-5 pb-4 flex items-center justify-between border-b ${headerBorder}`} style={{ background: headerBg }}>
@@ -848,7 +889,7 @@ export default function Maria() {
   // ── HOME VIEW ──────────────────────────────────────────────────────────────
   return (
     <div className={`font-display flex flex-col h-full relative overflow-hidden ${homeBodyBg}`}>
-      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} onSocialMedia={() => navigate("/social-media")} />
+      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} onNewChat={handleNewChat} recentChats={recentChats} savedSimulations={savedSimulations} onOpenSimulator={() => setShowSimulator(true)} onScanCapillaire={() => navigate("/scan-capillaire")} onStylisteIA={() => navigate("/sh-ai")} />
       {showSimulator && <FiltreAIModal styleTitle="" onClose={() => setShowSimulator(false)} onResultSaved={handleSimulationSaved} />}
 
       <div className={`px-4 pt-5 pb-3 flex items-center justify-between border-b ${homeHeaderBg}`}>

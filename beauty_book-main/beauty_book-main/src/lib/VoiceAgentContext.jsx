@@ -224,6 +224,15 @@ export function VoiceAgentProvider({ children }) {
     let reply = "Désolée, une erreur s'est produite.";
     let action = null;
 
+    const MARIA_SYSTEM_PROMPT = `Tu es Maria, l'assistante IA beauté de l'application BeautyBook.
+Tu es une experte en coiffure, soins capillaires, skincare, maquillage et bien-être.
+Tu parles de manière chaleureuse, professionnelle et personnalisée.
+Tu réponds toujours en français. Tu es concise mais complète.
+Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action:
+\`\`\`json
+{"type": "NAVIGATE", "path": "/chemin"}
+\`\`\``;
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const headers = { 'Content-Type': 'application/json' };
@@ -244,7 +253,36 @@ export function VoiceAgentProvider({ children }) {
       reply = data.reply || reply;
       action = data.action || null;
     } catch (err) {
-      console.error("sendVoiceMessage error:", err);
+      console.error("[VoiceAgent] Backend error, trying direct OpenCode.ai:", err);
+      try {
+        const apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer sk-ziv83S32mc2ZSb6g5h4faZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw',
+          },
+          body: JSON.stringify({
+            model: 'mimo-v2.5-free',
+            messages: [
+              { role: 'system', content: MARIA_SYSTEM_PROMPT },
+              { role: 'user', content: text },
+            ],
+            temperature: 0.7,
+            max_tokens: 2048,
+          }),
+        });
+        if (!apiRes.ok) throw new Error(`OpenCode API ${apiRes.status}`);
+        const apiData = await apiRes.json();
+        const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
+        reply = rawReply || reply;
+        const jsonMatch = rawReply.match(/```json\s*({[^`]+})\s*```/);
+        if (jsonMatch) {
+          try { action = JSON.parse(jsonMatch[1]); } catch {}
+        }
+      } catch (err2) {
+        console.error("[VoiceAgent] Direct API also failed:", err2);
+        reply = "Désolée, je rencontre un problème technique. Réessaie dans quelques instants ! 💫";
+      }
     }
 
     // Fallback: détecter l'action par mots-clés si l'IA n'a pas retourné de JSON
