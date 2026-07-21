@@ -704,8 +704,7 @@ export default function AjouterService() {
         category: data.category || "",
         style: data.style || null,
         price: parseFloat(data.price) || 0,
-        image_url: (data.images || [])[0] || "",
-        images: (data.images || []).slice(1),
+        images: (data.images || []),
         addons: (data.addons || []).map(a => ({ name: a.name, price: parseFloat(a.price) || 0 })),
         status: "brouillon",
       };
@@ -747,8 +746,7 @@ export default function AjouterService() {
         category: data.category,
         style: data.style || null,
         price: parseFloat(data.price) || 0,
-        image_url: (data.images || [])[0] || "",
-        images: (data.images || []).slice(1),
+        images: (data.images || []),
         addons: (data.addons || []).map(a => ({ name: a.name, price: parseFloat(a.price) || 0 })),
         status: asDraft ? "brouillon" : "actif",
       };
