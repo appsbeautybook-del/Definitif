@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Star, CheckCircle, Crown, Car, MapPin, Calendar, Zap, Loader2 } from "lucide-react";
 import { entities } from '@/api/entities';
@@ -8,7 +8,7 @@ import { apiClient } from '@/lib/apiClient';
 
 const BEAUTY_PLUS_PRICE_ID = "price_1Td7eOLaNWrAdvdeA59wSI0m";
 
-const PLANS = [
+const FALLBACK_PLANS = [
   {
     id: "gratuit",
     name: "Gratuit",
@@ -49,9 +49,73 @@ const PLANS = [
   },
 ];
 
+const FEATURE_ICONS = {
+  "Réservation de base": CheckCircle,
+  "Accès aux styles": Star,
+  "Messagerie": CheckCircle,
+  "Réservations illimitées": CheckCircle,
+  "Priorité de réservation": Star,
+  "Support prioritaire": CheckCircle,
+  "Cashback 5%": Zap,
+  "Accès aux lives exclusifs": Crown,
+};
+
 export default function AbonnementsClient() {
   const navigate = useNavigate();
   const [loadingId, setLoadingId] = useState(null);
+  const [plans, setPlans] = useState(FALLBACK_PLANS);
+
+  useEffect(() => {
+    entities.AppConfig.filter({ key: "payment_settings" }, "-created_at", 1)
+      .then(res => {
+        const results = res?.results || res || [];
+        const row = Array.isArray(results) ? results[0] : results;
+        const cfg = row?.value;
+        if (cfg?.abonnement_client) {
+          const ac = cfg.abonnement_client;
+          const dynamicPlans = [];
+          if (ac.free) {
+            dynamicPlans.push({
+              id: "gratuit",
+              name: ac.free.label || "Gratuit",
+              price: ac.free.price || 0,
+              priceId: null,
+              current: true,
+              popular: false,
+              btnLabel: "PLAN ACTUEL",
+              btnStyle: "bg-gray-200 text-gray-600 cursor-default",
+              badge: null,
+              color: "border-gray-200",
+              features: (ac.free.features || []).map(f => ({
+                icon: FEATURE_ICONS[f] || CheckCircle,
+                label: f,
+              })),
+            });
+          }
+          if (ac.premium) {
+            dynamicPlans.push({
+              id: "beautyplus",
+              name: ac.premium.label || "Premium",
+              price: ac.premium.price || 9.99,
+              priceId: BEAUTY_PLUS_PRICE_ID,
+              current: false,
+              popular: true,
+              btnLabel: "DEVENIR VIP",
+              btnStyle: "bg-primary text-white shadow-lg shadow-primary/40",
+              badge: "⭐ VIP",
+              color: "border-primary/30",
+              features: (ac.premium.features || []).map(f => ({
+                icon: FEATURE_ICONS[f] || Star,
+                label: f,
+                highlight: true,
+              })),
+            });
+          }
+          if (dynamicPlans.length > 0) setPlans(dynamicPlans);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubscribe = async (plan) => {
     if (!plan.priceId) return;
@@ -106,7 +170,7 @@ export default function AbonnementsClient() {
         </div>
 
         {/* Plan cards */}
-        {PLANS.map((plan) => (
+        {plans.map((plan) => (
           <div key={plan.id} className="relative">
             {plan.popular && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">

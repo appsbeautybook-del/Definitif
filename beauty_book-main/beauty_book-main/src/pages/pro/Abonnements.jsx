@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Eye, BarChart2, ShieldCheck, Award, TrendingUp, Infinity, Headphones, Star, Users, Mic, Percent, CheckCircle, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
@@ -9,7 +9,7 @@ import { supabase } from '@/api/supabaseClient';
 const PREMIUM_PRICE_ID = "price_1Td7eOLaNWrAdvdeq3Tf30i5";
 const GOLD_PRICE_ID = "price_1Td7eOLaNWrAdvdepth9zQuk";
 
-const PLANS = [
+const FALLBACK_PLANS = [
   {
     id: "basique",
     name: "Basique",
@@ -60,6 +60,20 @@ const PLANS = [
   },
 ];
 
+const FEATURE_ICONS = {
+  "Profil basique": CheckCircle, "Profil standard": CheckCircle,
+  "Accès à l'annuaire": CheckCircle, "Services illimités": CheckCircle,
+  "Réservations limitées": CheckCircle, "Réservations illimitées": Infinity,
+  "Statistiques de base": BarChart2, "Statistiques avancées": TrendingUp,
+  "Notifications clients": Eye, "Badge Pro": Award, "Badge certifié": Award,
+  "Calendrier avancé": Eye, "Support prioritaire": Headphones,
+  "Support dédié 24/7": Headphones,
+  "Publication styles": Star, "Live streaming": Mic, "Visite 3D": Eye,
+  "Commission réduite": Percent, "Tout Pro inclus": Star,
+  "Mise en avant \"Salon du Mois\"": Eye, 'Mise en avant "Salon du Mois"': Eye,
+  "Gestion d'équipe complète": Users, "Assistant Vocal AI inclus": Mic,
+};
+
 const WHY_PREMIUM = [
   { icon: Eye, title: "Visibilité accrue", desc: "Apparaissez en tête des résultats de recherche locaux." },
   { icon: BarChart2, title: "Décisions basées sur les données", desc: "Comprenez le comportement de vos clients grâce à nos rapports." },
@@ -70,6 +84,50 @@ export default function Abonnements() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [loadingId, setLoadingId] = useState(null);
+  const [plans, setPlans] = useState(FALLBACK_PLANS);
+
+  useEffect(() => {
+    entities.AppConfig.filter({ key: "payment_settings" }, "-created_at", 1)
+      .then(res => {
+        const results = res?.results || res || [];
+        const row = Array.isArray(results) ? results[0] : results;
+        const cfg = row?.value;
+        if (cfg?.abonnement_pro) {
+          const ap = cfg.abonnement_pro;
+          const planIds = ["free", "pro", "premium"];
+          const btnStyles = {
+            free: "bg-gray-200 text-gray-600",
+            pro: "bg-primary text-white shadow-lg shadow-primary/40",
+            premium: "bg-[#1a2035] text-white",
+          };
+          const priceIds = { free: null, pro: PREMIUM_PRICE_ID, premium: GOLD_PRICE_ID };
+          const labels = { free: "PLAN ACTUEL", pro: "CHOISIR CE PLAN", premium: "CHOISIR CE PLAN" };
+          const populars = { free: false, pro: true, premium: false };
+          const dynamicPlans = [];
+          for (const key of planIds) {
+            const planData = ap[key];
+            if (!planData) continue;
+            dynamicPlans.push({
+              id: key,
+              name: planData.label || key,
+              price: planData.price || 0,
+              priceId: priceIds[key],
+              current: key === "free",
+              popular: populars[key],
+              btnLabel: labels[key],
+              btnStyle: btnStyles[key],
+              features: (planData.features || []).map(f => ({
+                icon: FEATURE_ICONS[f] || CheckCircle,
+                label: f,
+                highlight: key !== "free",
+              })),
+            });
+          }
+          if (dynamicPlans.length > 0) setPlans(dynamicPlans);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubscribe = async (plan) => {
     if (!plan.priceId) return;
@@ -125,7 +183,7 @@ export default function Abonnements() {
         </div>
 
         {/* Plan cards */}
-        {PLANS.map((plan) => (
+        {plans.map((plan) => (
           <div key={plan.id} className="relative">
             {plan.popular && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
