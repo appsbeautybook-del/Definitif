@@ -523,11 +523,12 @@ Tu: Réponds normalement SANS bloc JSON.`;
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
       }));
+      console.log('[Maria] Calling OpenRouter...');
       const apiRes = await fetch('/ai-proxy/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${__OPENROUTER_KEY__}`,
+          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
           'HTTP-Referer': window.location.origin,
           'X-Title': 'BeautyBook Maria AI',
         },
@@ -542,9 +543,10 @@ Tu: Réponds normalement SANS bloc JSON.`;
           max_tokens: 2048,
         }),
       });
+      console.log('[Maria] OpenRouter response:', apiRes.status, apiRes.statusText);
       if (!apiRes.ok) {
         const errBody = await apiRes.text();
-        throw new Error(`OpenRouter ${apiRes.status}: ${errBody}`);
+        throw new Error(`HTTP ${apiRes.status}: ${errBody.substring(0, 200)}`);
       }
       const apiData = await apiRes.json();
       const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
@@ -555,7 +557,7 @@ Tu: Réponds normalement SANS bloc JSON.`;
       }
     } catch (err2) {
       console.error("[Maria] OpenRouter failed:", err2);
-      reply = "Désolée, je rencontre un problème technique. Réessaie dans quelques instants ! 💫";
+      reply = `[DEBUG] Erreur: ${err2.message || err2}`;
     }
 
     // Accumuler les données du profil pro si step guidé
