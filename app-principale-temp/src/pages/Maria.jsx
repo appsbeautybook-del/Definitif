@@ -184,6 +184,67 @@ function BookingSummaryCard({ data }) {
   );
 }
 
+// ─── Service Recap Card (réservation guidée) ─────────────────────────────────
+function ServiceRecapCard({ data, onConfirm, onModify }) {
+  const steps = [
+    { icon: "💇", label: "Service", value: data.service_name },
+    { icon: "📅", label: "Date", value: data.date },
+    { icon: "🕐", label: "Heure", value: data.time_slot },
+    { icon: "⏱️", label: "Durée", value: data.duration_min ? `${data.duration_min} min` : null },
+    { icon: "💰", label: "Prix", value: data.price ? `${data.price}€` : null },
+    { icon: "📍", label: "Lieu", value: data.salon_name || data.address },
+    { icon: "👤", label: "Prestataire", value: data.pro_name },
+  ].filter(s => s.value);
+
+  return (
+    <div className="bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200 rounded-2xl p-5 mt-2 shadow-lg shadow-orange-100/50">
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="w-10 h-10 bg-gradient-to-br from-orange-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-md shadow-orange-200">
+          <CheckCircle className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <span className="text-[13px] font-black text-orange-700 uppercase tracking-widest block">Récapitulatif</span>
+          <span className="text-[11px] text-gray-500 font-medium">Vérifiez les détails avant de confirmer</span>
+        </div>
+      </div>
+
+      <div className="bg-white/80 rounded-2xl p-4 mb-4 space-y-2.5 border border-orange-100">
+        {steps.map(({ icon, label, value }) => (
+          <div key={label} className="flex items-center gap-3">
+            <span className="text-[16px]">{icon}</span>
+            <div className="flex-1 flex justify-between items-center">
+              <span className="text-[12px] text-gray-500 font-medium">{label}</span>
+              <span className="text-[13px] font-black text-gray-900">{value}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {data.notes && (
+        <div className="bg-white/60 rounded-xl px-4 py-3 mb-4 border border-orange-100">
+          <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest mb-1">Notes</p>
+          <p className="text-[13px] text-gray-700 font-medium">{data.notes}</p>
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <button
+          onClick={onModify}
+          className="flex-1 bg-white border-2 border-orange-200 text-orange-600 text-[12px] font-black uppercase tracking-widest py-3.5 rounded-2xl active:scale-95 transition-all"
+        >
+          Modifier
+        </button>
+        <button
+          onClick={onConfirm}
+          className="flex-[2] bg-gradient-to-r from-orange-500 to-orange-600 text-white text-[12px] font-black uppercase tracking-widest py-3.5 rounded-2xl shadow-lg shadow-orange-300/40 active:scale-95 transition-all flex items-center justify-center gap-2"
+        >
+          <CheckCircle className="w-4 h-4" /> Confirmer la réservation
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Action Card (service créé) ───────────────────────────────────────────────
 function ServiceCreatedCard({ service }) {
   const navigate = useNavigate();
@@ -278,6 +339,7 @@ export default function Maria() {
   const [muted, setMuted] = useState(false);
   const [vocalActive, setVocalActive] = useState(false);
   const [proFormData, setProFormData] = useState({});
+  const [serviceData, setServiceData] = useState({});
   const [typingText, setTypingText] = useState(""); // texte en cours de frappe
   const [typingIndex, setTypingIndex] = useState(null); // index du message en cours de frappe
   const [voiceboxReady, setVoiceboxReady] = useState(null); // null=checking, true/false
@@ -405,8 +467,9 @@ export default function Maria() {
 
   const speakWithWebSpeech = (text, msgIndex, withTyping) => {
     const clean = text
+      .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
       .replace(/\*\*/g, "").replace(/\*/g, "").replace(/#{1,6}\s/g, "")
-      .replace(/`[^`]+`/g, "").replace(/\n/g, " ").trim()
+      .replace(/`[^`]+`/g, "").replace(/\n/g, " ").replace(/\s{2,}/g, " ").trim()
       .slice(0, 400);
 
     if (!clean) { setSpeaking(false); return; }
@@ -502,24 +565,67 @@ Tu parles de manière chaleureuse, professionnelle et personnalisée.
 Tu t'adresses à l'utilisateur directement, en tutoyant ou vouvoyant selon le contexte.
 Tu donnes des conseils pratiques, des recommandations de produits réels, et des routines personnalisées.
 Tu réponds toujours en français. Tu es concise mais complète.
+Tu n'utilises JAMAIS d'emojis dans tes réponses texte.
 
-RÈGLE IMPORTANTE — ACTIONS:
-Quand l'utilisateur te demande d'ouvrir une page, naviguer, réserver, acheter, ou effectuer TOUTE action dans l'app, tu DOIS retourner un bloc JSON d'action EN PLUS de ta réponse textuelle.
-Format obligatoire: ta réponse textuelle d'abord, puis sur une nouvelle ligne un bloc code markdown:
+═══════════════════════════════════════════════════════════
+FLUX DE RÉSERVATION GUIDÉE — TRÈS IMPORTANT
+═══════════════════════════════════════════════════════════
+Quand l'utilisateur veut réserver un service ( RDV, prestation, brushing, coupe, coloration, soin, manucure, maquillage, etc. ), tu DOIS suivre ce processus:
+
+1. POSE UNE QUESTION À LA FOIS (une seule question par message)
+   - D'abord: "Quel service souhaites-tu?"
+   - Puis: "Pour quelle date?"
+   - Puis: "À quelle heure?"
+   - Puis: "Combien de temps environ?" (durée estimée)
+   - Puis: "As-tu un budget en tête?" (prix)
+   - Puis: "As-tu des préférences de lieu?" (quartier, ville)
+   - Puis: "Des notes ou demandes spéciales?"
+
+2. APRÈS CHAQUE RÉPONSE de l'utilisateur, tu accumules les infos et tu passes à la question suivante.
+   Tu confirmes brièvement la réponse reçue avant de poser la question suivante.
+   Exemple: "Noté pour le brushing le vendredi. Et à quelle heure souhaites-tu?"
+
+3. QUAND TOUTES LES INFOS SONT COLLECTÉES, tu envoies le RÉCAPITULATIF avec l'action SERVICE_RECAP:
 \`\`\`json
-{"type": "NAVIGATE", "path": "/chemin"}
+{"type": "SERVICE_RECAP", "data": {"service_name": "...", "date": "...", "time_slot": "...", "duration_min": ..., "price": "...", "salon_name": "...", "pro_name": "...", "notes": "..."}}
 \`\`\`
 
-Actions disponibles:
+4. L'utilisateur voit une carte avec récap + boutons "Modifier" et "Confirmer"
+   - S'il clique "Confirmer" → tu envoies NAVIGATE vers /rendez-vous
+   - S'il dit "modifier" ou "changer" → tu relances la question concernée
+
+═══════════════════════════════════════════════════════════
+AUTRES ACTIONS DISPONIBLES
+═══════════════════════════════════════════════════════════
 - NAVIGATE: {"type": "NAVIGATE", "path": "/boutique"} | "/rendez-vous" | "/profil" | "/messages" | "/services" | "/mon-solde" | "/parametres" | "/notifications" | "/live" | "/reels" | "/scan-capillaire" | "/immobilier" | "/mes-commandes" | "/programme-fidelite" | "/abonnements" | "/profil-pro" | "/pro/equipe" | "/pro/catalogue-services" | "/pro/analytics" | "/devenir-pro"
 - SEARCH_PRODUCTS: {"type": "SEARCH_PRODUCTS", "query": "terme de recherche"}
+- SERVICE_RECAP: {"type": "SERVICE_RECAP", "data": {"service_name": "...", "date": "...", "time_slot": "...", "duration_min": ..., "price": "...", "salon_name": "...", "pro_name": "...", "notes": "..."}}
 
-Exemples:
-User: "Ouvre la boutique"
-Tu: "Je t'ouvre la boutique ! 🛍️\n\`\`\`json\n{"type": "NAVIGATE", "path": "/boutique"}\n\`\`\`"
+═══════════════════════════════════════════════════════════
+EXEMPLES DE FLUX
+═══════════════════════════════════════════════════════════
+User: "Je veux réserver un brushing"
+Maria: "Super choix ! Quel type de brushing souhaites-tu? Classique, défrisé, lissage, ou autre?"
+User: "Lissage"
+Maria: "Parfait, un brushing lissage. Pour quelle date souhaites-tu?"
+User: "Vendredi"
+Maria: "Vendredi, c'est noté. Et à quelle heure?"
+User: "14h"
+Maria: "14h, parfait. Combien de temps environ dure ce service?"
+User: "1h30"
+Maria: "Noté. As-tu un budget en tête?"
+User: "40€"
+Maria: "Très bien. Tu as une préférence de lieu ou de quartier?"
+User: "Non"
+Maria: "Dernière question: des notes ou demandes spéciales?"
+User: "Non c'est tout"
+Maria: "Voici le récapitulatif de ta réservation:"
+\`\`\`json
+{"type": "SERVICE_RECAP", "data": {"service_name": "Brushing lissage", "date": "Vendredi", "time_slot": "14h", "duration_min": 90, "price": "40€", "notes": ""}}
+\`\`\`
 
-User: "Salut" (pas d'action demandée)
-Tu: Réponds normalement SANS bloc JSON.`;
+Si l'utilisateur dit "Ouvre la boutique" → NAVIGATE direct sans poser de questions.
+Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
 
     try {
       const historyMsgs = messages.slice(-10).map(m => ({
@@ -531,7 +637,7 @@ Tu: Réponds normalement SANS bloc JSON.`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'deepseek/deepseek-chat-v3-0324',
+          model: 'google/gemini-2.0-flash-001',
           messages: [
             { role: 'system', content: MARIA_SYSTEM_PROMPT },
             ...historyMsgs,
@@ -576,6 +682,11 @@ Tu: Réponds normalement SANS bloc JSON.`;
       setProFormData(prev => ({ ...prev, [action.field]: action.value }));
     }
 
+    // Accumuler les données de réservation si SERVICE_RECAP
+    if (action?.type === "SERVICE_RECAP" && action.data) {
+      setServiceData(action.data);
+    }
+
     const assistantMsg = {
       role: "assistant",
       content: reply,
@@ -605,6 +716,7 @@ Tu: Réponds normalement SANS bloc JSON.`;
     setMessages([]);
     setAttachedFiles([]);
     setProFormData({});
+    setServiceData({});
     setView("home");
     setConversationId(null);
     try {
@@ -811,6 +923,27 @@ Tu: Réponds normalement SANS bloc JSON.`;
                   )}
                   {!isTypingThis && msg.action?.type === "SEARCH_PRODUCTS" && (
                     <SearchProductsCard query={msg.action.query} />
+                  )}
+                  {!isTypingThis && msg.action?.type === "SERVICE_RECAP" && !msg.action?.confirmed && (
+                    <ServiceRecapCard
+                      data={msg.action.data || serviceData}
+                      onConfirm={() => {
+                        setMessages(prev => prev.map((m, mi) => mi === i
+                          ? { ...m, action: { ...m.action, confirmed: true } }
+                          : m
+                        ));
+                        navigate("/rendez-vous", {
+                          state: { prefill: msg.action.data || serviceData }
+                        });
+                      }}
+                      onModify={() => {
+                        setMessages(prev => [
+                          ...prev,
+                          { role: "user", content: "Je veux modifier les détails de ma réservation", timestamp: new Date().toISOString() }
+                        ]);
+                        sendMessage("Je veux modifier les détails de ma réservation", false);
+                      }}
+                    />
                   )}
                   {!isTypingThis && msg.action?.type === "OPEN_PRO_FORM" && (
                     <OpenProFormCard proData={msg.action.proData || proFormData} />
