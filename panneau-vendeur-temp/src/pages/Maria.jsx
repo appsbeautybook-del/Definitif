@@ -627,6 +627,17 @@ Maria: "Voici le récapitulatif de ta réservation:"
 Si l'utilisateur dit "Ouvre la boutique" → NAVIGATE direct sans poser de questions.
 Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
 
+    // Construire le contenu utilisateur avec images si présentes
+    let userContent;
+    if (fileUrls.length > 0) {
+      userContent = [
+        { type: "text", text: content || "Regarde cette image et dis-moi ce que tu en penses." },
+        ...fileUrls.map(url => ({ type: "image_url", image_url: { url } })),
+      ];
+    } else {
+      userContent = content;
+    }
+
     try {
       const historyMsgs = messages.slice(-10).map(m => ({
         role: m.role === "assistant" ? "assistant" : "user",
@@ -641,7 +652,7 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
           messages: [
             { role: 'system', content: MARIA_SYSTEM_PROMPT },
             ...historyMsgs,
-            { role: 'user', content },
+            { role: 'user', content: userContent },
           ],
           temperature: 0.7,
           max_tokens: 2048,
