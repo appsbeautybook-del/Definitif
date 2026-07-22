@@ -516,34 +516,40 @@ Tu: Réponds normalement SANS bloc JSON.`;
 
     try {
       const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers = { 'Content-Type': 'application/json' };
-      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-      const res = await fetch(`${API_BASE}/api/ai/maria`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ message: content, fileUrls, voiceMode: fromVocal, voiceEnabled: false }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      reply = data.reply || reply;
-      action = data.action || null;
-      voiceUrl = data.voice_url || null;
+      if (API_BASE) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+        const res = await fetch(`${API_BASE}/api/ai/maria`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ message: content, fileUrls, voiceMode: fromVocal, voiceEnabled: false }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        reply = data.reply || reply;
+        action = data.action || null;
+        voiceUrl = data.voice_url || null;
+      } else {
+        throw new Error("No backend configured");
+      }
     } catch (err) {
-      console.error("[Maria] Backend error, trying direct OpenCode.ai:", err);
+      console.error("[Maria] Backend unavailable, using OpenRouter:", err.message);
       try {
         const historyMsgs = messages.slice(-10).map(m => ({
           role: m.role === "assistant" ? "assistant" : "user",
           content: m.content,
         }));
-        const apiRes = await fetch('/ai-proxy/zen/v1/chat/completions', {
+        const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer sk-ziv83S32mc2ZSb6g5h4faZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw',
+            'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'BeautyBook Maria AI',
           },
           body: JSON.stringify({
-            model: 'mimo-v2.5-free',
+            model: 'deepseek/deepseek-chat-v3-0324',
             messages: [
               { role: 'system', content: MARIA_SYSTEM_PROMPT },
               ...historyMsgs,
@@ -553,7 +559,10 @@ Tu: Réponds normalement SANS bloc JSON.`;
             max_tokens: 2048,
           }),
         });
-        if (!apiRes.ok) throw new Error(`OpenCode API ${apiRes.status}`);
+        if (!apiRes.ok) {
+          const errBody = await apiRes.text();
+          throw new Error(`OpenRouter ${apiRes.status}: ${errBody}`);
+        }
         const apiData = await apiRes.json();
         const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
         reply = rawReply || reply;
@@ -562,7 +571,7 @@ Tu: Réponds normalement SANS bloc JSON.`;
           try { action = JSON.parse(jsonMatch[1]); } catch {}
         }
       } catch (err2) {
-        console.error("[Maria] Direct API also failed:", err2);
+        console.error("[Maria] OpenRouter also failed:", err2);
         reply = "Désolée, je rencontre un problème technique. Réessaie dans quelques instants ! 💫";
       }
     }

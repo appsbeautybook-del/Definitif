@@ -234,35 +234,35 @@ Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action
 \`\`\``;
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const headers = { 'Content-Type': 'application/json' };
-      if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
-
-      const res = await fetch(`${API_BASE}/ai/maria`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          message: text,
-          fileUrls: [],
-          voiceMode: true,
-          voiceEnabled: true,
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      reply = data.reply || reply;
-      action = data.action || null;
+      if (API_BASE) {
+        const { data: { session } } = await supabase.auth.getSession();
+        const headers = { 'Content-Type': 'application/json' };
+        if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`;
+        const res = await fetch(`${API_BASE}/ai/maria`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ message: text, fileUrls: [], voiceMode: true, voiceEnabled: true }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        reply = data.reply || reply;
+        action = data.action || null;
+      } else {
+        throw new Error("No backend configured");
+      }
     } catch (err) {
-      console.error("[VoiceAgent] Backend error, trying direct OpenCode.ai:", err);
+      console.error("[VoiceAgent] Backend unavailable, using OpenRouter:", err.message);
       try {
-        const apiRes = await fetch('/ai-proxy/zen/v1/chat/completions', {
+        const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer sk-ziv83S32mc2ZSb6g5h4faZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw',
+            'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
+            'HTTP-Referer': window.location.origin,
+            'X-Title': 'BeautyBook Maria AI',
           },
           body: JSON.stringify({
-            model: 'mimo-v2.5-free',
+            model: 'deepseek/deepseek-chat-v3-0324',
             messages: [
               { role: 'system', content: MARIA_SYSTEM_PROMPT },
               { role: 'user', content: text },
@@ -271,7 +271,10 @@ Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action
             max_tokens: 2048,
           }),
         });
-        if (!apiRes.ok) throw new Error(`OpenCode API ${apiRes.status}`);
+        if (!apiRes.ok) {
+          const errBody = await apiRes.text();
+          throw new Error(`OpenRouter ${apiRes.status}: ${errBody}`);
+        }
         const apiData = await apiRes.json();
         const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
         reply = rawReply || reply;
@@ -280,7 +283,7 @@ Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action
           try { action = JSON.parse(jsonMatch[1]); } catch {}
         }
       } catch (err2) {
-        console.error("[VoiceAgent] Direct API also failed:", err2);
+        console.error("[VoiceAgent] OpenRouter also failed:", err2);
         reply = "Désolée, je rencontre un problème technique. Réessaie dans quelques instants ! 💫";
       }
     }
