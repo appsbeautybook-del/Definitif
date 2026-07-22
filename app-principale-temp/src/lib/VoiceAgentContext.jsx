@@ -253,7 +253,7 @@ Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action
     } catch (err) {
       console.error("[VoiceAgent] Backend unavailable, using OpenRouter:", err.message);
       try {
-        const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        const apiRes = await fetch('/ai-proxy/api/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -13,7 +13,7 @@ export default defineConfig({
     open: '/',
     proxy: {
       '/ai-proxy': {
-        target: 'https://opencode.ai',
+        target: 'https://openrouter.ai',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/ai-proxy/, ''),
       },
