@@ -523,17 +523,15 @@ Tu: Réponds normalement SANS bloc JSON.`;
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
       }));
-      console.log('[Maria] Calling OpenRouter...');
-      const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      console.log('[Maria] Trying OpenCode API...');
+      let apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'BeautyBook Maria AI',
+          'Authorization': 'Bearer sk-FPP6sh78YsOhyjj0mmztchS7PGvuH2EE3nIM8vCNeaWUYhAmzlADOrSJtZ0QTu5u',
         },
         body: JSON.stringify({
-          model: 'deepseek/deepseek-chat-v3-0324',
+          model: 'mimo-v2.5-free',
           messages: [
             { role: 'system', content: MARIA_SYSTEM_PROMPT },
             ...historyMsgs,
@@ -543,6 +541,28 @@ Tu: Réponds normalement SANS bloc JSON.`;
           max_tokens: 2048,
         }),
       });
+
+      if (!apiRes.ok) {
+        console.log('[Maria] OpenCode failed, trying OpenRouter...');
+        const OR_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
+        apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${OR_KEY}`,
+          },
+          body: JSON.stringify({
+            model: 'deepseek/deepseek-chat-v3-0324',
+            messages: [
+              { role: 'system', content: MARIA_SYSTEM_PROMPT },
+              ...historyMsgs,
+              { role: 'user', content },
+            ],
+            temperature: 0.7,
+            max_tokens: 2048,
+          }),
+        });
+      }
       console.log('[Maria] OpenRouter response:', apiRes.status, apiRes.statusText);
       if (!apiRes.ok) {
         const errBody = await apiRes.text();

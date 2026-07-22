@@ -234,24 +234,42 @@ Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action
 \`\`\``;
 
     try {
-        const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'BeautyBook Maria AI',
-        },
-        body: JSON.stringify({
-          model: 'deepseek/deepseek-chat-v3-0324',
-          messages: [
-            { role: 'system', content: MARIA_SYSTEM_PROMPT },
-            { role: 'user', content: text },
-          ],
-          temperature: 0.7,
-          max_tokens: 2048,
-        }),
-      });
+        let apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer sk-FPP6sh78YsOhyjj0mmztchS7PGvuH2EE3nIM8vCNeaWUYhAmzlADOrSJtZ0QTu5u',
+          },
+          body: JSON.stringify({
+            model: 'mimo-v2.5-free',
+            messages: [
+              { role: 'system', content: MARIA_SYSTEM_PROMPT },
+              { role: 'user', content: text },
+            ],
+            temperature: 0.7,
+            max_tokens: 2048,
+          }),
+        });
+
+        if (!apiRes.ok) {
+          const OR_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
+          apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OR_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'deepseek/deepseek-chat-v3-0324',
+              messages: [
+                { role: 'system', content: MARIA_SYSTEM_PROMPT },
+                { role: 'user', content: text },
+              ],
+              temperature: 0.7,
+              max_tokens: 2048,
+            }),
+          });
+        }
       if (!apiRes.ok) {
         const errBody = await apiRes.text();
         throw new Error(`OpenRouter ${apiRes.status}: ${errBody}`);
