@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 import {
-  ArrowLeft, Link2, Globe, MessageSquare, Video, Phone,
-  CheckCircle2, Shield, Eye, EyeOff, ChevronRight, ExternalLink,
-  Zap, Settings, Power, PowerOff
+  ArrowLeft, CheckCircle2, Shield, Eye, EyeOff, ChevronRight,
+  ExternalLink, Settings, Power, PowerOff, BarChart3, MessageCircle,
+  Bot, Users, TrendingUp, Clock
 } from "lucide-react";
 
 const PLATFORMS = [
@@ -14,8 +14,8 @@ const PLATFORMS = [
     color: "#E4405F", gradient: "from-pink-500 to-rose-500",
     desc: "DMs, commentaires et stories avec IA",
     fields: [
-      { key: "accessToken", label: "Token d'accès", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/" },
-      { key: "businessId", label: "Business Account ID", placeholder: "17841400...", type: "text", link: "https://business.facebook.com/settings/" },
+      { key: "accessToken", label: "Token d'accès", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/", required: true },
+      { key: "businessId", label: "Business Account ID", placeholder: "17841400...", type: "text", link: "https://business.facebook.com/settings/", required: true },
     ],
     features: ["Réponses auto DM", "Réponses commentaires", "Story replies", "Gestion mentions"]
   },
@@ -25,8 +25,8 @@ const PLATFORMS = [
     color: "#1877F2", gradient: "from-blue-600 to-blue-500",
     desc: "Messenger et commentaires automatisés",
     fields: [
-      { key: "pageAccessToken", label: "Page Access Token", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/" },
-      { key: "pageId", label: "Page ID", placeholder: "123456789...", type: "text", link: "https://www.facebook.com/settings/pages/" },
+      { key: "pageAccessToken", label: "Page Access Token", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/", required: true },
+      { key: "pageId", label: "Page ID", placeholder: "123456789...", type: "text", link: "https://www.facebook.com/settings/pages/", required: true },
     ],
     features: ["Messenger auto-reply", "Comment auto-reply", "Broadcast", "Lead generation"]
   },
@@ -36,8 +36,8 @@ const PLATFORMS = [
     color: "#25D366", gradient: "from-emerald-500 to-green-500",
     desc: "Convertissez les prospects via WhatsApp",
     fields: [
-      { key: "phoneNumberId", label: "Phone Number ID", placeholder: "123456789...", type: "text", link: "https://developers.facebook.com/apps/" },
-      { key: "accessToken", label: "Token permanent", placeholder: "EAA...", type: "password", link: "https://business.facebook.com/wa/manage/" },
+      { key: "phoneNumberId", label: "Phone Number ID", placeholder: "123456789...", type: "text", link: "https://developers.facebook.com/apps/", required: true },
+      { key: "accessToken", label: "Token permanent", placeholder: "EAA...", type: "password", link: "https://business.facebook.com/wa/manage/", required: true },
     ],
     features: ["Messages texte/image", "Templates WhatsApp", "Catalogue produits", "Paiements"]
   },
@@ -47,8 +47,8 @@ const PLATFORMS = [
     color: "#000000", gradient: "from-gray-900 to-gray-700",
     desc: "Commentaires et DMs TikTok automatisés",
     fields: [
-      { key: "accessToken", label: "Access Token", placeholder: "TikTok access token...", type: "password", link: "https://developers.tiktok.com/" },
-      { key: "openId", label: "Open ID", placeholder: "open_id...", type: "text", link: "https://business.tiktok.com/" },
+      { key: "accessToken", label: "Access Token", placeholder: "TikTok access token...", type: "password", link: "https://developers.tiktok.com/", required: true },
+      { key: "openId", label: "Open ID", placeholder: "open_id...", type: "text", link: "https://business.tiktok.com/", required: true },
     ],
     features: ["Réponses commentaires", "DM automation", "Analytics"]
   },
@@ -67,20 +67,33 @@ export default function SocialMedia() {
   const { theme } = useTheme();
   const isDark = theme === "dark" || theme === "night";
 
+  const [activeTab, setActiveTab] = useState("platforms");
   const [expandedId, setExpandedId] = useState(null);
+  const [validating, setValidating] = useState(null);
   const [platforms, setPlatforms] = useState(
-    PLATFORMS.map(p => ({ ...p, connected: false, keys: {}, showKeys: {} }))
+    PLATFORMS.map(p => ({ ...p, connected: false, keys: {}, showKeys: {}, validKeys: {} }))
   );
 
-  const toggleConnect = (id) => {
-    setPlatforms(prev => prev.map(p => {
-      if (p.id !== id) return p;
-      return { ...p, connected: !p.connected, keys: {} };
-    }));
+  const areKeysValid = (p) => {
+    return p.fields.filter(f => f.required).every(f => p.keys[f.key]?.trim());
+  };
+
+  const toggleConnect = async (id) => {
+    const platform = platforms.find(p => p.id === id);
+    if (platform.connected) {
+      setPlatforms(prev => prev.map(p => p.id === id ? { ...p, connected: false, validKeys: {} } : p));
+      return;
+    }
+    if (!areKeysValid(platform)) return;
+
+    setValidating(id);
+    await new Promise(r => setTimeout(r, 800));
+    setPlatforms(prev => prev.map(p => p.id === id ? { ...p, connected: true, validKeys: { ...p.keys } } : p));
+    setValidating(null);
   };
 
   const setKey = (id, key, value) => {
-    setPlatforms(prev => prev.map(p => p.id === id ? { ...p, keys: { ...p.keys, [key]: value } } : p));
+    setPlatforms(prev => prev.map(p => p.id === id ? { ...p, keys: { ...p.keys, [key]: value }, connected: false } : p));
   };
 
   const toggleShowKey = (id, key) => {
@@ -97,130 +110,240 @@ export default function SocialMedia() {
     text: isDark ? "text-white" : "text-gray-900",
     textSub: isDark ? "text-gray-400" : "text-gray-500",
     input: isDark ? "bg-white/5 border-white/10 text-white placeholder:text-gray-600" : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400",
+    inputError: "border-red-300 dark:border-red-500/30",
     tag: isDark ? "bg-white/5 text-gray-400" : "bg-gray-100 text-gray-500",
     divider: isDark ? "border-white/[0.06]" : "border-gray-100",
+    statCard: isDark ? "bg-white/[0.04] border-white/[0.06]" : "bg-white border-gray-100",
   };
 
   return (
     <div className={`font-display min-h-screen ${c.page}`}>
       {/* Header */}
-      <div className={`${c.header} px-5 pt-12 pb-8`}>
+      <div className={`${c.header} px-5 pt-12 pb-6`}>
         <div className="flex items-center gap-3 mb-5">
           <button onClick={() => navigate(-1)} className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center active:scale-95 transition-all">
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
           <div className="flex-1">
             <h1 className="text-[22px] font-black text-white">Réseaux Sociaux</h1>
-            <p className="text-[12px] text-white/60 mt-0.5">Connectez vos plateformes à Maria AI</p>
+            <p className="text-[12px] text-white/60 mt-0.5">Maria AI · Connectez vos plateformes</p>
           </div>
           <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center">
             <Settings className="w-5 h-5 text-white" />
           </div>
         </div>
 
-        {/* Connection status */}
-        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3">
-          <div className={`w-2.5 h-2.5 rounded-full ${connectedCount > 0 ? "bg-green-400 animate-pulse" : "bg-white/40"}`} />
-          <span className="text-[13px] font-medium text-white/80">
-            {connectedCount > 0 ? `${connectedCount} plateforme${connectedCount > 1 ? "s" : ""} connectée${connectedCount > 1 ? "s" : ""}` : "Aucune connexion active"}
-          </span>
+        {/* Tabs */}
+        <div className="flex gap-2">
+          {[
+            { id: "platforms", label: "Plateformes" },
+            { id: "stats", label: "Statistiques" },
+          ].map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-3 rounded-2xl text-[14px] font-black transition-all ${activeTab === tab.id ? "bg-white text-gray-900" : "bg-white/10 text-white/70"}`}>
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
       <div className="px-4 pb-32 space-y-3 pt-4">
-        {platforms.map(p => {
-          const isExpanded = expandedId === p.id;
-          return (
-            <div key={p.id} className={`rounded-3xl overflow-hidden transition-all border ${p.connected ? c.cardActive : c.card}`}>
-              {/* Platform header */}
-              <div className="p-4 flex items-center gap-3.5">
-                <div className={`w-12 h-12 bg-gradient-to-br ${p.gradient} rounded-2xl flex items-center justify-center shrink-0 shadow-lg`}>
-                  <SocialIcon path={p.icon} color="white" size={22} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className={`text-[15px] font-black ${c.text}`}>{p.name}</p>
-                    {p.connected && (
-                      <div className="flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full">
-                        <Power className="w-3 h-3 text-green-500" />
-                        <span className="text-[10px] font-bold text-green-500">ACTIF</span>
+        {activeTab === "platforms" && (
+          <>
+            {/* Status */}
+            <div className={`flex items-center justify-between ${c.card} border rounded-2xl px-4 py-3`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-2.5 h-2.5 rounded-full ${connectedCount > 0 ? "bg-green-400 animate-pulse" : isDark ? "bg-gray-600" : "bg-gray-300"}`} />
+                <span className={`text-[13px] font-medium ${c.textSub}`}>
+                  {connectedCount > 0 ? `${connectedCount} plateforme${connectedCount > 1 ? "s" : ""} active${connectedCount > 1 ? "s" : ""}` : "Aucune plateforme connectée"}
+                </span>
+              </div>
+              {connectedCount > 0 && <CheckCircle2 className="w-5 h-5 text-green-500" />}
+            </div>
+
+            {/* Platform cards */}
+            {platforms.map(p => {
+              const isExpanded = expandedId === p.id;
+              const keysValid = areKeysValid(p);
+              return (
+                <div key={p.id} className={`rounded-3xl overflow-hidden transition-all border ${p.connected ? c.cardActive : c.card}`}>
+                  {/* Header */}
+                  <div className="p-4 flex items-center gap-3.5">
+                    <div className={`w-12 h-12 bg-gradient-to-br ${p.gradient} rounded-2xl flex items-center justify-center shrink-0 shadow-lg`}>
+                      <SocialIcon path={p.icon} color="white" size={22} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className={`text-[15px] font-black ${c.text}`}>{p.name}</p>
+                        {p.connected && (
+                          <div className="flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full">
+                            <Power className="w-3 h-3 text-green-500" />
+                            <span className="text-[10px] font-bold text-green-500">ACTIF</span>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <p className={`text-[12px] ${c.textSub} mt-0.5`}>{p.desc}</p>
+                    </div>
                   </div>
-                  <p className={`text-[12px] ${c.textSub} mt-0.5`}>{p.desc}</p>
+
+                  {/* Features */}
+                  {!isExpanded && (
+                    <div className="px-4 pb-3">
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.features.map((f, i) => (
+                          <span key={i} className={`text-[10px] font-medium ${c.tag} px-2.5 py-1 rounded-full`}>{f}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expanded config */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 space-y-3">
+                      <div className={`${c.card} border rounded-2xl p-3.5 space-y-3`}>
+                        <p className={`text-[11px] font-bold ${c.textSub} uppercase tracking-wider`}>Clés API</p>
+                        {p.fields.map(field => {
+                          const hasValue = p.keys[field.key]?.trim();
+                          const showError = field.required && !hasValue && p.connected === false;
+                          return (
+                            <div key={field.key}>
+                              <div className="flex items-center justify-between mb-1.5">
+                                <p className={`text-[12px] font-medium ${c.textSub}`}>{field.label}</p>
+                                {field.link && (
+                                  <a href={field.link} target="_blank" rel="noopener noreferrer"
+                                    className="flex items-center gap-1 text-[11px] text-primary font-medium">
+                                    Obtenir <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                )}
+                              </div>
+                              <div className={`flex items-center ${c.input} border rounded-xl overflow-hidden ${hasValue ? "border-green-300 dark:border-green-500/30" : ""}`}>
+                                <input
+                                  type={p.showKeys[field.key] ? "text" : field.type}
+                                  value={p.keys[field.key] || ""}
+                                  onChange={e => setKey(p.id, field.key, e.target.value)}
+                                  placeholder={field.placeholder}
+                                  className={`flex-1 bg-transparent text-[13px] px-4 py-3 outline-none font-mono ${c.text}`}
+                                />
+                                <div className="flex items-center gap-1 pr-3">
+                                  {hasValue && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                                  <button onClick={() => toggleShowKey(p.id, field.key)} className="opacity-40">
+                                    {p.showKeys[field.key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-2.5 bg-green-500/5 border border-green-500/10 rounded-2xl p-3.5">
+                        <Shield className="w-4 h-4 text-green-500 shrink-0" />
+                        <p className={`text-[11px] ${c.textSub}`}>Clés chiffrées et stockées de manière sécurisée.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="px-4 pb-4 flex gap-2">
+                    <button
+                      onClick={() => toggleConnect(p.id)}
+                      disabled={validating === p.id || (!p.connected && !keysValid)}
+                      className={`flex-1 py-3 rounded-2xl text-[13px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed ${
+                        p.connected
+                          ? "bg-red-50 text-red-500 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20"
+                          : keysValid
+                            ? isDark ? "bg-white text-gray-900" : "bg-primary text-white"
+                            : isDark ? "bg-white/5 text-gray-500 border border-white/10" : "bg-gray-100 text-gray-400 border border-gray-200"
+                      }`}>
+                      {validating === p.id ? (
+                        <span className="flex items-center gap-2">
+                          <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          Validation…
+                        </span>
+                      ) : p.connected ? (
+                        <><PowerOff className="w-4 h-4" /> Déconnecter</>
+                      ) : (
+                        <><Power className="w-4 h-4" /> Connecter</>
+                      )}
+                    </button>
+                    <button onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                      className={`w-12 rounded-2xl flex items-center justify-center transition-all active:scale-[0.98] border ${isDark ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"}`}>
+                      <ChevronRight className={`w-5 h-5 ${isDark ? "text-gray-400" : "text-gray-500"} transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </>
+        )}
+
+        {activeTab === "stats" && (
+          <>
+            <div className={`${isDark ? "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/20" : "bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200"} border rounded-3xl p-5`}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className={`w-10 h-10 ${isDark ? "bg-purple-500/20" : "bg-purple-100"} rounded-xl flex items-center justify-center`}>
+                  <BarChart3 className={`w-5 h-5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
+                </div>
+                <div>
+                  <p className={`text-[16px] font-black ${c.text}`}>Performance globale</p>
+                  <p className={`text-[12px] ${c.textSub}`}>Derniers 30 jours</p>
                 </div>
               </div>
-
-              {/* Features */}
-              {!isExpanded && (
-                <div className="px-4 pb-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {p.features.map((f, i) => (
-                      <span key={i} className={`text-[10px] font-medium ${c.tag} px-2.5 py-1 rounded-full`}>{f}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Expanded config */}
-              {isExpanded && (
-                <div className="px-4 pb-4 space-y-3">
-                  {/* API keys */}
-                  <div className={`${c.card} border rounded-2xl p-3.5 space-y-3`}>
-                    <p className={`text-[11px] font-bold ${c.textSub} uppercase tracking-wider`}>Clés API</p>
-                    {p.fields.map(field => (
-                      <div key={field.key}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <p className={`text-[12px] font-medium ${c.textSub}`}>{field.label}</p>
-                          {field.link && (
-                            <a href={field.link} target="_blank" rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-[11px] text-primary font-medium">
-                              Obtenir <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                        </div>
-                        <div className={`flex items-center ${c.input} border rounded-xl overflow-hidden`}>
-                          <input
-                            type={p.showKeys[field.key] ? "text" : field.type}
-                            value={p.keys[field.key] || ""}
-                            onChange={e => setKey(p.id, field.key, e.target.value)}
-                            placeholder={field.placeholder}
-                            className={`flex-1 bg-transparent text-[13px] px-4 py-3 outline-none font-mono ${c.text}`}
-                          />
-                          <button onClick={() => toggleShowKey(p.id, field.key)} className="px-3 opacity-40">
-                            {p.showKeys[field.key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                          </button>
-                        </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "Messages", value: "—", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-500/10" },
+                  { label: "Réponses auto", value: "—", icon: Bot, color: "text-purple-500", bg: "bg-purple-500/10" },
+                  { label: "Prospects", value: "—", icon: Users, color: "text-orange-500", bg: "bg-orange-500/10" },
+                  { label: "Conversions", value: "—", icon: TrendingUp, color: "text-green-500", bg: "bg-green-500/10" },
+                ].map((s, i) => {
+                  const Icon = s.icon;
+                  return (
+                    <div key={i} className={`${c.statCard} border rounded-2xl p-4`}>
+                      <div className={`w-8 h-8 ${s.bg} rounded-xl flex items-center justify-center mb-2`}>
+                        <Icon className={`w-4 h-4 ${s.color}`} />
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Security */}
-                  <div className="flex items-center gap-2.5 bg-green-500/5 border border-green-500/10 rounded-2xl p-3.5">
-                    <Shield className="w-4 h-4 text-green-500 shrink-0" />
-                    <p className={`text-[11px] ${c.textSub}`}>Clés chiffrées et stockées de manière sécurisée.</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="px-4 pb-4 flex gap-2">
-                <button onClick={() => toggleConnect(p.id)}
-                  className={`flex-1 py-3 rounded-2xl text-[13px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
-                    p.connected
-                      ? "bg-red-50 text-red-500 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20"
-                      : isDark ? "bg-white text-gray-900" : "bg-primary text-white"
-                  }`}>
-                  {p.connected ? <><PowerOff className="w-4 h-4" /> Déconnecter</> : <><Power className="w-4 h-4" /> Connecter</>}
-                </button>
-                <button onClick={() => setExpandedId(isExpanded ? null : p.id)}
-                  className={`w-12 rounded-2xl flex items-center justify-center transition-all active:scale-[0.98] border ${isDark ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"}`}>
-                  <ChevronRight className={`w-5 h-5 ${isDark ? "text-gray-400" : "text-gray-500"} transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                </button>
+                      <p className={`text-[20px] font-black ${c.text}`}>{s.value}</p>
+                      <p className={`text-[11px] ${c.textSub}`}>{s.label}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          );
-        })}
+
+            {connectedCount === 0 && (
+              <div className={`${c.card} border rounded-3xl p-8 text-center`}>
+                <div className={`w-14 h-14 ${isDark ? "bg-white/5" : "bg-gray-100"} rounded-2xl flex items-center justify-center mx-auto mb-4`}>
+                  <BarChart3 className={`w-7 h-7 ${isDark ? "text-gray-600" : "text-gray-300"}`} />
+                </div>
+                <p className={`text-[15px] font-black ${c.text} mb-1`}>Aucune donnée</p>
+                <p className={`text-[13px] ${c.textSub}`}>Connectez une plateforme pour voir les statistiques.</p>
+              </div>
+            )}
+
+            {connectedCount > 0 && (
+              <div className={`${c.statCard} border rounded-3xl p-5`}>
+                <p className={`text-[12px] font-bold ${c.textSub} uppercase tracking-wider mb-3`}>Plateformes actives</p>
+                <div className="space-y-3">
+                  {platforms.filter(p => p.connected).map(p => (
+                    <div key={p.id} className="flex items-center gap-3">
+                      <div className={`w-8 h-8 bg-gradient-to-br ${p.gradient} rounded-xl flex items-center justify-center`}>
+                        <SocialIcon path={p.icon} color="white" size={16} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-[13px] font-bold ${c.text}`}>{p.name}</p>
+                        <p className={`text-[11px] ${c.textSub}`}>Connecté</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Power className="w-3.5 h-3.5 text-green-500" />
+                        <span className="text-[11px] font-bold text-green-500">Actif</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
