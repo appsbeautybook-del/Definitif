@@ -128,9 +128,6 @@ export default function SocialMedia() {
             <h1 className="text-[22px] font-black text-white">Réseaux Sociaux</h1>
             <p className="text-[12px] text-white/60 mt-0.5">Maria AI · Connectez vos plateformes</p>
           </div>
-          <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-            <Settings className="w-5 h-5 text-white" />
-          </div>
         </div>
 
         {/* Tabs */}
