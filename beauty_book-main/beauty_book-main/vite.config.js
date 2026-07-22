@@ -17,7 +17,7 @@ try {
       })
   )
   if (envVars.VITE_OPENROUTER_KEY) {
-    extraDefines['import.meta.env.VITE_OPENROUTER_KEY'] = JSON.stringify(envVars.VITE_OPENROUTER_KEY)
+    extraDefines['__OPENROUTER_KEY__'] = JSON.stringify(envVars.VITE_OPENROUTER_KEY)
   }
 } catch {}
 

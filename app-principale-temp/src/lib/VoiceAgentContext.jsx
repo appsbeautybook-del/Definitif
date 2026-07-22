@@ -238,7 +238,7 @@ Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
+            'Authorization': `Bearer ${__OPENROUTER_KEY__}`,
           'HTTP-Referer': window.location.origin,
           'X-Title': 'BeautyBook Maria AI',
         },

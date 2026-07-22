@@ -467,9 +467,13 @@ export default function Maria() {
     setView("chat");
 
     const fileUrls = [];
-    for (const af of attachedFiles) {
-      const { file_url } = await uploadFile({ file: af.file });
-      fileUrls.push(file_url);
+    try {
+      for (const af of attachedFiles) {
+        const { file_url } = await uploadFile({ file: af.file });
+        fileUrls.push(file_url);
+      }
+    } catch (uploadErr) {
+      console.error("[Maria] File upload failed:", uploadErr);
     }
 
     const userMsg = {
@@ -523,7 +527,7 @@ Tu: Réponds normalement SANS bloc JSON.`;
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_OPENROUTER_KEY}`,
+          'Authorization': `Bearer ${__OPENROUTER_KEY__}`,
           'HTTP-Referer': window.location.origin,
           'X-Title': 'BeautyBook Maria AI',
         },
