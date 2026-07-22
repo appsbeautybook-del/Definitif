@@ -536,7 +536,7 @@ Tu: Réponds normalement SANS bloc JSON.`;
           role: m.role === "assistant" ? "assistant" : "user",
           content: m.content,
         }));
-        const apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+        const apiRes = await fetch('/ai-proxy/zen/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

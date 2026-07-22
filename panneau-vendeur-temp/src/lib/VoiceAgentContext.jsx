@@ -255,7 +255,7 @@ Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action
     } catch (err) {
       console.error("[VoiceAgent] Backend error, trying direct OpenCode.ai:", err);
       try {
-        const apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+        const apiRes = await fetch('/ai-proxy/zen/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -10,7 +10,14 @@ export default defineConfig({
   },
   server: {
     port: 5175,
-    open: '/'
+    open: '/',
+    proxy: {
+      '/ai-proxy': {
+        target: 'https://opencode.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ai-proxy/, ''),
+      },
+    },
   },
   plugins: [
     react(),

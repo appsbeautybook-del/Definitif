@@ -7,7 +7,14 @@ export default defineConfig({
   logLevel: 'info',
   server: {
     port: 5173,
-    open: '/'
+    open: '/',
+    proxy: {
+      '/ai-proxy': {
+        target: 'https://opencode.ai',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/ai-proxy/, ''),
+      },
+    },
   },
   plugins: [
     base44({
