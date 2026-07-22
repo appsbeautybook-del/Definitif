@@ -549,9 +549,22 @@ Tu: Réponds normalement SANS bloc JSON.`;
       const apiData = await apiRes.json();
       const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
       reply = rawReply || reply;
-      const jsonMatch = rawReply.match(/```json\s*({[^`]+})\s*```/);
-      if (jsonMatch) {
-        try { action = JSON.parse(jsonMatch[1]); } catch {}
+
+      // Extraire l'action JSON (avec ou sans bloc code)
+      let action = null;
+      const jsonBlockMatch = reply.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+      const jsonInlineMatch = reply.match(/(\{"type"\s*:\s*"[^"]+"\s*,\s*"path"\s*:\s*"[^"]+"\s*\})/);
+      const jsonStr = jsonBlockMatch?.[1] || jsonInlineMatch?.[1];
+      if (jsonStr) {
+        try {
+          action = JSON.parse(jsonStr);
+        } catch {}
+      }
+
+      // Nettoyer le texte : supprimer les blocs JSON affichés
+      if (action) {
+        reply = reply.replace(/```[\s\S]*?```/g, '').replace(/\{"type"\s*:.*?\}/g, '').trim();
+        if (!reply) reply = action.type === 'NAVIGATE' ? `Je t'ouvre la page !` : 'Action effectuée.';
       }
     } catch (err2) {
       console.error("[Maria] OpenRouter failed:", err2);
