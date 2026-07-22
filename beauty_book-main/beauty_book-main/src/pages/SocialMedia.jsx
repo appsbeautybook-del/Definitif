@@ -2,67 +2,71 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 import {
-  ArrowLeft, Instagram, Facebook, MessageCircle, Video, Send,
-  Bot, CheckCircle2, Lock, Eye, EyeOff, Shield, Zap, Clock,
-  Users, TrendingUp, BarChart3, ChevronRight, ExternalLink, Key
+  ArrowLeft, Link2, Globe, MessageSquare, Video, Phone,
+  CheckCircle2, Shield, Eye, EyeOff, ChevronRight, ExternalLink,
+  Zap, Settings, Power, PowerOff
 } from "lucide-react";
 
 const PLATFORMS = [
   {
-    id: "instagram", name: "Instagram", icon: Instagram, color: "#E1306C",
-    gradient: "from-pink-500 to-purple-500", desc: "Gérez vos DMs et commentaires avec Maria AI",
+    id: "instagram", name: "Instagram",
+    icon: "M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z",
+    color: "#E4405F", gradient: "from-pink-500 to-rose-500",
+    desc: "DMs, commentaires et stories avec IA",
     fields: [
-      { key: "accessToken", label: "Access Token", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/" },
+      { key: "accessToken", label: "Token d'accès", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/" },
       { key: "businessId", label: "Business Account ID", placeholder: "17841400...", type: "text", link: "https://business.facebook.com/settings/" },
     ],
-    features: ["Réponses auto DM", "Réponses commentaires", "Story replies", "Gestion des mentions"]
+    features: ["Réponses auto DM", "Réponses commentaires", "Story replies", "Gestion mentions"]
   },
   {
-    id: "facebook", name: "Facebook", icon: Facebook, color: "#1877F2",
-    gradient: "from-blue-600 to-blue-500", desc: "Automatisez vos messages Messenger et commentaires",
+    id: "facebook", name: "Facebook",
+    icon: "M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z",
+    color: "#1877F2", gradient: "from-blue-600 to-blue-500",
+    desc: "Messenger et commentaires automatisés",
     fields: [
       { key: "pageAccessToken", label: "Page Access Token", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/" },
       { key: "pageId", label: "Page ID", placeholder: "123456789...", type: "text", link: "https://www.facebook.com/settings/pages/" },
-      { key: "verifyToken", label: "Verify Token", placeholder: "mon_token_secret", type: "password" },
     ],
     features: ["Messenger auto-reply", "Comment auto-reply", "Broadcast", "Lead generation"]
   },
   {
-    id: "tiktok", name: "TikTok", icon: Video, color: "#000000",
-    gradient: "from-gray-900 to-gray-700", desc: "Répondez aux commentaires et DMs TikTok",
+    id: "whatsapp", name: "WhatsApp Business",
+    icon: "M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z",
+    color: "#25D366", gradient: "from-emerald-500 to-green-500",
+    desc: "Convertissez les prospects via WhatsApp",
+    fields: [
+      { key: "phoneNumberId", label: "Phone Number ID", placeholder: "123456789...", type: "text", link: "https://developers.facebook.com/apps/" },
+      { key: "accessToken", label: "Token permanent", placeholder: "EAA...", type: "password", link: "https://business.facebook.com/wa/manage/" },
+    ],
+    features: ["Messages texte/image", "Templates WhatsApp", "Catalogue produits", "Paiements"]
+  },
+  {
+    id: "tiktok", name: "TikTok",
+    icon: "M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1v-3.5a6.37 6.37 0 00-.79-.05A6.34 6.34 0 003.15 15.2a6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.34-6.34V8.73a8.19 8.19 0 004.76 1.52v-3.4a4.85 4.85 0 01-1-.16z",
+    color: "#000000", gradient: "from-gray-900 to-gray-700",
+    desc: "Commentaires et DMs TikTok automatisés",
     fields: [
       { key: "accessToken", label: "Access Token", placeholder: "TikTok access token...", type: "password", link: "https://developers.tiktok.com/" },
       { key: "openId", label: "Open ID", placeholder: "open_id...", type: "text", link: "https://business.tiktok.com/" },
     ],
     features: ["Réponses commentaires", "DM automation", "Analytics"]
   },
-  {
-    id: "whatsapp", name: "WhatsApp Business", icon: Send, color: "#25D366",
-    gradient: "from-green-500 to-emerald-500", desc: "Convertissez les prospects via WhatsApp",
-    fields: [
-      { key: "phoneNumberId", label: "Phone Number ID", placeholder: "123456789...", type: "text", link: "https://developers.facebook.com/apps/" },
-      { key: "accessToken", label: "Permanent Token", placeholder: "EAA...", type: "password", link: "https://business.facebook.com/wa/manage/" },
-      { key: "businessAccountId", label: "WhatsApp Business Account ID", placeholder: "WABA ID...", type: "text", link: "https://business.facebook.com/wa/manage/" },
-    ],
-    features: ["Messages texte/image", "Templates WhatsApp", "Catalogue produits", "Paiements intégrés"]
-  },
-  {
-    id: "messenger", name: "Messenger", icon: MessageCircle, color: "#00B2FF",
-    gradient: "from-sky-500 to-blue-500", desc: "Messagerie instantanée avec IA",
-    fields: [
-      { key: "pageAccessToken", label: "Page Access Token", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/" },
-      { key: "pageId", label: "Page ID", placeholder: "123456789...", type: "text", link: "https://www.facebook.com/settings/pages/" },
-    ],
-    features: ["Réponses auto", "Handover protocol", "Persistent menu", "Bienvenue"]
-  },
 ];
+
+function SocialIcon({ path, color, size = 24 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d={path} />
+    </svg>
+  );
+}
 
 export default function SocialMedia() {
   const navigate = useNavigate();
   const { theme } = useTheme();
   const isDark = theme === "dark" || theme === "night";
 
-  const [activeTab, setActiveTab] = useState("platforms");
   const [expandedId, setExpandedId] = useState(null);
   const [platforms, setPlatforms] = useState(
     PLATFORMS.map(p => ({ ...p, connected: false, keys: {}, showKeys: {} }))
@@ -71,8 +75,7 @@ export default function SocialMedia() {
   const toggleConnect = (id) => {
     setPlatforms(prev => prev.map(p => {
       if (p.id !== id) return p;
-      const connected = !p.connected;
-      return { ...p, connected, keys: connected ? p.keys : {} };
+      return { ...p, connected: !p.connected, keys: {} };
     }));
   };
 
@@ -87,305 +90,137 @@ export default function SocialMedia() {
   const connectedCount = platforms.filter(p => p.connected).length;
 
   const c = {
-    page: isDark ? "bg-[#0f0f1a]" : "bg-gray-50",
-    header: isDark ? "bg-gray-900" : "bg-primary",
-    card: isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-100",
-    cardActive: isDark ? "bg-white/10 border-white/15" : "bg-white border-primary/20 shadow-sm",
+    page: isDark ? "bg-[#0a0a1a]" : "bg-gray-50",
+    header: isDark ? "bg-gradient-to-br from-gray-900 to-gray-800" : "bg-gradient-to-br from-primary to-orange-600",
+    card: isDark ? "bg-white/[0.04] border-white/[0.06]" : "bg-white border-gray-100",
+    cardActive: isDark ? "bg-primary/10 border-primary/20" : "bg-orange-50 border-primary/20",
     text: isDark ? "text-white" : "text-gray-900",
     textSub: isDark ? "text-gray-400" : "text-gray-500",
-    textMuted: isDark ? "text-gray-500" : "text-gray-400",
-    badge: isDark ? "bg-white/5 text-gray-400" : "bg-gray-100 text-gray-500",
     input: isDark ? "bg-white/5 border-white/10 text-white placeholder:text-gray-600" : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400",
-    iconBg: isDark ? "bg-white/10" : "bg-gray-100",
-    divider: isDark ? "border-white/10" : "border-gray-100",
-    warning: isDark ? "bg-yellow-500/10 border-yellow-500/20" : "bg-amber-50 border-amber-200",
-    success: isDark ? "bg-green-500/10 border-green-500/20 text-green-400" : "bg-green-50 border-green-200 text-green-600",
-    statCard: isDark ? "bg-white/5 border-white/10" : "bg-white border-gray-100 shadow-sm",
-    progress: isDark ? "bg-white/5" : "bg-gray-100",
     tag: isDark ? "bg-white/5 text-gray-400" : "bg-gray-100 text-gray-500",
+    divider: isDark ? "border-white/[0.06]" : "border-gray-100",
   };
 
   return (
     <div className={`font-display min-h-screen ${c.page}`}>
       {/* Header */}
-      <div className={`${c.header} px-5 pt-12 pb-6`}>
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center active:scale-95">
+      <div className={`${c.header} px-5 pt-12 pb-8`}>
+        <div className="flex items-center gap-3 mb-5">
+          <button onClick={() => navigate(-1)} className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center active:scale-95 transition-all">
             <ArrowLeft className="w-5 h-5 text-white" />
           </button>
-          <div>
-            <h1 className={`text-[24px] font-black ${isDark ? "text-white" : "text-white"}`}>Réseaux Sociaux</h1>
-            <p className="text-[13px] text-white/60">Maria AI · Connectez vos plateformes</p>
+          <div className="flex-1">
+            <h1 className="text-[22px] font-black text-white">Réseaux Sociaux</h1>
+            <p className="text-[12px] text-white/60 mt-0.5">Connectez vos plateformes à Maria AI</p>
+          </div>
+          <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+            <Settings className="w-5 h-5 text-white" />
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2">
-          {[
-            { id: "platforms", label: "Plateformes" },
-            { id: "stats", label: "Statistiques" },
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 py-3 rounded-2xl text-[14px] font-black transition-all ${activeTab === tab.id ? "bg-white text-gray-900" : "bg-white/10 text-white/70"}`}>
-              {tab.label}
-            </button>
-          ))}
+        {/* Connection status */}
+        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-sm rounded-2xl px-4 py-3">
+          <div className={`w-2.5 h-2.5 rounded-full ${connectedCount > 0 ? "bg-green-400 animate-pulse" : "bg-white/40"}`} />
+          <span className="text-[13px] font-medium text-white/80">
+            {connectedCount > 0 ? `${connectedCount} plateforme${connectedCount > 1 ? "s" : ""} connectée${connectedCount > 1 ? "s" : ""}` : "Aucune connexion active"}
+          </span>
         </div>
       </div>
 
-      <div className="px-4 pb-32 space-y-4 pt-4">
-        {activeTab === "platforms" && (
-          <>
-            {/* Status badge */}
-            <div className={`flex items-center justify-between ${c.card} border rounded-2xl px-4 py-3`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full ${connectedCount > 0 ? "bg-green-400 animate-pulse" : isDark ? "bg-gray-600" : "bg-gray-300"}`}></div>
-                <span className={`text-[13px] font-medium ${c.textSub}`}>
-                  {connectedCount > 0 ? `${connectedCount} plateforme${connectedCount > 1 ? "s" : ""} active${connectedCount > 1 ? "s" : ""}` : "Aucune plateforme connectée"}
-                </span>
-              </div>
-              {connectedCount > 0 && <CheckCircle2 className="w-5 h-5 text-green-500" />}
-            </div>
-
-            {/* Platform cards */}
-            {platforms.map(p => {
-              const Icon = p.icon;
-              const isExpanded = expandedId === p.id;
-              return (
-                <div key={p.id} className={`rounded-3xl overflow-hidden transition-all border ${p.connected ? c.cardActive : c.card}`}>
-                  {/* Header */}
-                  <div className="p-4 flex items-center gap-4">
-                    <div className={`w-14 h-14 bg-gradient-to-br ${p.gradient} rounded-2xl flex items-center justify-center shrink-0 shadow-lg`}>
-                      <Icon className="w-7 h-7 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`text-[16px] font-black ${c.text}`}>{p.name}</p>
-                        {p.connected && (
-                          <span className="text-[10px] font-black text-green-500 bg-green-500/10 px-2 py-0.5 rounded-full">ACTIF</span>
-                        )}
+      <div className="px-4 pb-32 space-y-3 pt-4">
+        {platforms.map(p => {
+          const isExpanded = expandedId === p.id;
+          return (
+            <div key={p.id} className={`rounded-3xl overflow-hidden transition-all border ${p.connected ? c.cardActive : c.card}`}>
+              {/* Platform header */}
+              <div className="p-4 flex items-center gap-3.5">
+                <div className={`w-12 h-12 bg-gradient-to-br ${p.gradient} rounded-2xl flex items-center justify-center shrink-0 shadow-lg`}>
+                  <SocialIcon path={p.icon} color="white" size={22} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className={`text-[15px] font-black ${c.text}`}>{p.name}</p>
+                    {p.connected && (
+                      <div className="flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded-full">
+                        <Power className="w-3 h-3 text-green-500" />
+                        <span className="text-[10px] font-bold text-green-500">ACTIF</span>
                       </div>
-                      <p className={`text-[12px] ${c.textSub} mt-0.5`}>{p.desc}</p>
-                    </div>
+                    )}
                   </div>
+                  <p className={`text-[12px] ${c.textSub} mt-0.5`}>{p.desc}</p>
+                </div>
+              </div>
 
-                  {/* Features preview */}
-                  {!isExpanded && (
-                    <div className="px-4 pb-4">
-                      <div className="flex flex-wrap gap-1.5">
-                        {p.features.map((f, i) => (
-                          <span key={i} className={`text-[10px] font-medium ${c.tag} px-2.5 py-1 rounded-full`}>{f}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+              {/* Features */}
+              {!isExpanded && (
+                <div className="px-4 pb-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.features.map((f, i) => (
+                      <span key={i} className={`text-[10px] font-medium ${c.tag} px-2.5 py-1 rounded-full`}>{f}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-                  {/* Expanded config */}
-                  {isExpanded && (
-                    <div className="px-4 pb-4 space-y-4">
-                      {/* API Config */}
-                      <div className={`${c.card} border rounded-2xl p-4 space-y-3`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <Key className="w-4 h-4 text-yellow-500" />
-                          <p className={`text-[12px] font-black ${c.text} uppercase tracking-wider`}>Configuration API</p>
+              {/* Expanded config */}
+              {isExpanded && (
+                <div className="px-4 pb-4 space-y-3">
+                  {/* API keys */}
+                  <div className={`${c.card} border rounded-2xl p-3.5 space-y-3`}>
+                    <p className={`text-[11px] font-bold ${c.textSub} uppercase tracking-wider`}>Clés API</p>
+                    {p.fields.map(field => (
+                      <div key={field.key}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className={`text-[12px] font-medium ${c.textSub}`}>{field.label}</p>
+                          {field.link && (
+                            <a href={field.link} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-[11px] text-primary font-medium">
+                              Obtenir <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
                         </div>
-                        {p.fields.map(field => (
-                          <div key={field.key}>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <p className={`text-[12px] font-medium ${c.textSub}`}>{field.label}</p>
-                              {field.link && (
-                                <a href={field.link} target="_blank" rel="noopener noreferrer"
-                                  className="flex items-center gap-1 text-[11px] text-blue-500 font-medium">
-                                  Obtenir <ExternalLink className="w-3 h-3" />
-                                </a>
-                              )}
-                            </div>
-                            <div className={`flex items-center ${c.input} border rounded-xl overflow-hidden`}>
-                              <input
-                                type={p.showKeys[field.key] ? "text" : field.type}
-                                value={p.keys[field.key] || ""}
-                                onChange={e => setKey(p.id, field.key, e.target.value)}
-                                placeholder={field.placeholder}
-                                className={`flex-1 bg-transparent text-[13px] px-4 py-3 outline-none font-mono ${c.text}`}
-                              />
-                              <button onClick={() => toggleShowKey(p.id, field.key)}
-                                className={`px-3 ${c.textMuted}`}>
-                                {p.showKeys[field.key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Features */}
-                      <div className={`${c.card} border rounded-2xl p-4`}>
-                        <p className={`text-[12px] font-black ${c.text} uppercase tracking-wider mb-3`}>Fonctionnalités Maria AI</p>
-                        <div className="space-y-2">
-                          {p.features.map((f, i) => (
-                            <div key={i} className="flex items-center gap-3">
-                              <div className="w-5 h-5 bg-green-500/10 rounded-full flex items-center justify-center">
-                                <CheckCircle2 className="w-3 h-3 text-green-500" />
-                              </div>
-                              <span className={`text-[13px] font-medium ${c.textSub}`}>{f}</span>
-                            </div>
-                          ))}
+                        <div className={`flex items-center ${c.input} border rounded-xl overflow-hidden`}>
+                          <input
+                            type={p.showKeys[field.key] ? "text" : field.type}
+                            value={p.keys[field.key] || ""}
+                            onChange={e => setKey(p.id, field.key, e.target.value)}
+                            placeholder={field.placeholder}
+                            className={`flex-1 bg-transparent text-[13px] px-4 py-3 outline-none font-mono ${c.text}`}
+                          />
+                          <button onClick={() => toggleShowKey(p.id, field.key)} className="px-3 opacity-40">
+                            {p.showKeys[field.key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
                         </div>
                       </div>
+                    ))}
+                  </div>
 
-                      {/* Security */}
-                      <div className={`flex items-start gap-3 ${c.warning} border rounded-2xl p-4`}>
-                        <Shield className="w-5 h-5 text-yellow-500 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-[12px] font-black text-yellow-600 dark:text-yellow-400">Sécurité</p>
-                          <p className={`text-[11px] ${c.textMuted} mt-0.5`}>Vos clés API sont chiffrées et stockées de manière sécurisée. Maria AI les utilise uniquement pour gérer vos messages.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Action buttons */}
-                  <div className="px-4 pb-4">
-                    <div className="flex gap-2">
-                      <button onClick={() => toggleConnect(p.id)}
-                        className={`flex-1 py-3.5 rounded-2xl text-[14px] font-black transition-all active:scale-[0.98] ${p.connected ? "bg-red-50 text-red-500 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20" : isDark ? "bg-white text-gray-900" : "bg-primary text-white"}`}>
-                        {p.connected ? "Déconnecter" : "Connecter"}
-                      </button>
-                      <button onClick={() => setExpandedId(isExpanded ? null : p.id)}
-                        className={`w-14 rounded-2xl flex items-center justify-center transition-all active:scale-[0.98] ${isExpanded ? c.iconBg : c.badge}`}>
-                        <ChevronRight className={`w-5 h-5 ${c.textSub} transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                      </button>
-                    </div>
+                  {/* Security */}
+                  <div className="flex items-center gap-2.5 bg-green-500/5 border border-green-500/10 rounded-2xl p-3.5">
+                    <Shield className="w-4 h-4 text-green-500 shrink-0" />
+                    <p className={`text-[11px] ${c.textSub}`}>Clés chiffrées et stockées de manière sécurisée.</p>
                   </div>
                 </div>
-              );
-            })}
+              )}
 
-            {/* Help */}
-            <div className="text-center py-4">
-              <a href="https://docs.beautybook.app/api" target="_blank" rel="noopener noreferrer"
-                className={`inline-flex items-center gap-2 text-[13px] ${c.textMuted} font-medium`}>
-                Besoin d'aide ? Consultez la documentation API
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </>
-        )}
-
-        {activeTab === "stats" && (
-          <>
-            {/* Performance header */}
-            <div className={`${isDark ? "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border-purple-500/20" : "bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200"} border rounded-3xl p-5`}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className={`w-10 h-10 ${isDark ? "bg-purple-500/20" : "bg-purple-100"} rounded-xl flex items-center justify-center`}>
-                  <BarChart3 className={`w-5 h-5 ${isDark ? "text-purple-400" : "text-purple-600"}`} />
-                </div>
-                <div>
-                  <p className={`text-[16px] font-black ${c.text}`}>Performance globale</p>
-                  <p className={`text-[12px] ${c.textSub}`}>Derniers 30 jours</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "Messages", value: "247", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-500/10", trend: "+18%" },
-                  { label: "Réponses auto", value: "189", icon: Bot, color: "text-purple-500", bg: "bg-purple-500/10", trend: "+24%" },
-                  { label: "Prospects", value: "52", icon: Users, color: "text-orange-500", bg: "bg-orange-500/10", trend: "+12%" },
-                  { label: "Conversions", value: "18", icon: TrendingUp, color: "text-green-500", bg: "bg-green-500/10", trend: "+8%" },
-                ].map((s, i) => {
-                  const Icon = s.icon;
-                  return (
-                    <div key={i} className={`${c.statCard} border rounded-2xl p-4`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className={`w-8 h-8 ${s.bg} rounded-xl flex items-center justify-center`}>
-                          <Icon className={`w-4 h-4 ${s.color}`} />
-                        </div>
-                        <span className="text-[10px] font-black text-green-500">{s.trend}</span>
-                      </div>
-                      <p className={`text-[20px] font-black ${c.text}`}>{s.value}</p>
-                      <p className={`text-[11px] ${c.textMuted}`}>{s.label}</p>
-                    </div>
-                  );
-                })}
+              {/* Actions */}
+              <div className="px-4 pb-4 flex gap-2">
+                <button onClick={() => toggleConnect(p.id)}
+                  className={`flex-1 py-3 rounded-2xl text-[13px] font-bold transition-all active:scale-[0.98] flex items-center justify-center gap-2 ${
+                    p.connected
+                      ? "bg-red-50 text-red-500 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20"
+                      : isDark ? "bg-white text-gray-900" : "bg-primary text-white"
+                  }`}>
+                  {p.connected ? <><PowerOff className="w-4 h-4" /> Déconnecter</> : <><Power className="w-4 h-4" /> Connecter</>}
+                </button>
+                <button onClick={() => setExpandedId(isExpanded ? null : p.id)}
+                  className={`w-12 rounded-2xl flex items-center justify-center transition-all active:scale-[0.98] border ${isDark ? "border-white/10 bg-white/5" : "border-gray-200 bg-gray-50"}`}>
+                  <ChevronRight className={`w-5 h-5 ${isDark ? "text-gray-400" : "text-gray-500"} transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                </button>
               </div>
             </div>
-
-            {/* Response rate */}
-            <div className={`${c.statCard} border rounded-3xl p-5`}>
-              <p className={`text-[12px] font-black ${c.textMuted} uppercase tracking-wider mb-4`}>Taux de réponse</p>
-              <div className="flex items-center gap-4 mb-3">
-                <div className={`flex-1 h-4 ${c.progress} rounded-full overflow-hidden`}>
-                  <div className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full" style={{ width: "76%" }}></div>
-                </div>
-                <span className={`text-[20px] font-black ${c.text}`}>76%</span>
-              </div>
-              <p className={`text-[12px] ${c.textSub}`}>189 réponses auto sur 247 messages reçus</p>
-            </div>
-
-            {/* Conversion */}
-            <div className={`${c.statCard} border rounded-3xl p-5`}>
-              <p className={`text-[12px] font-black ${c.textMuted} uppercase tracking-wider mb-4`}>Taux de conversion</p>
-              <div className="flex items-center gap-4 mb-3">
-                <div className={`flex-1 h-4 ${c.progress} rounded-full overflow-hidden`}>
-                  <div className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full" style={{ width: "35%" }}></div>
-                </div>
-                <span className={`text-[20px] font-black ${c.text}`}>35%</span>
-              </div>
-              <p className={`text-[12px] ${c.textSub}`}>18 conversions sur 52 prospects qualifiés</p>
-            </div>
-
-            {/* Per platform */}
-            <div className={`${c.statCard} border rounded-3xl overflow-hidden`}>
-              <div className={`p-5 border-b ${c.divider}`}>
-                <p className={`text-[12px] font-black ${c.textMuted} uppercase tracking-wider`}>Par plateforme</p>
-              </div>
-              {[
-                { name: "Instagram", msgs: 98, replies: 82, color: "#E1306C" },
-                { name: "Facebook", msgs: 67, replies: 54, color: "#1877F2" },
-                { name: "WhatsApp", msgs: 52, replies: 38, color: "#25D366" },
-                { name: "Messenger", msgs: 30, replies: 15, color: "#00B2FF" },
-              ].map((p, i) => (
-                <div key={i} className={`flex items-center gap-4 px-5 py-4 border-b ${c.divider} last:border-0`}>
-                  <div className="w-1 h-10 rounded-full" style={{ backgroundColor: p.color }}></div>
-                  <div className="flex-1">
-                    <p className={`text-[14px] font-black ${c.text}`}>{p.name}</p>
-                    <p className={`text-[12px] ${c.textSub}`}>{p.msgs} messages · {p.replies} réponses</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-[16px] font-black ${c.text}`}>{Math.round(p.replies / p.msgs * 100)}%</p>
-                    <p className={`text-[10px] ${c.textMuted}`}>réponse</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Activity */}
-            <div className={`${c.statCard} border rounded-3xl overflow-hidden`}>
-              <div className={`p-5 border-b ${c.divider}`}>
-                <p className={`text-[12px] font-black ${c.textMuted} uppercase tracking-wider`}>Activité récente</p>
-              </div>
-              <div className={`divide-y ${c.divider}`}>
-                {[
-                  { time: "5 min", platform: "Instagram", type: "message", text: "Nouveau message de @sarah_beauty" },
-                  { time: "12 min", platform: "Facebook", type: "reply", text: "Réponse auto envoyée à Marie D." },
-                  { time: "25 min", platform: "WhatsApp", type: "booking", text: "Réservation confirmée pour Jean P." },
-                  { time: "1h", platform: "Instagram", type: "conversion", text: "Prospect converti : @lisa_nails" },
-                ].map((a, i) => (
-                  <div key={i} className="px-5 py-4 flex items-start gap-3">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${a.type === "message" ? "bg-blue-500/10" : a.type === "reply" ? "bg-purple-500/10" : a.type === "booking" ? "bg-green-500/10" : "bg-orange-500/10"}`}>
-                      {a.type === "message" && <MessageCircle className="w-4 h-4 text-blue-500" />}
-                      {a.type === "reply" && <Bot className="w-4 h-4 text-purple-500" />}
-                      {a.type === "booking" && <Clock className="w-4 h-4 text-green-500" />}
-                      {a.type === "conversion" && <TrendingUp className="w-4 h-4 text-orange-500" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-[13px] font-medium ${c.text} truncate`}>{a.text}</p>
-                      <p className={`text-[11px] ${c.textMuted}`}>{a.platform} · il y a {a.time}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
+          );
+        })}
       </div>
     </div>
   );

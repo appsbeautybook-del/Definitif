@@ -37,12 +37,15 @@ function SideDrawer({ open, onClose, onNewChat, recentChats, savedSimulations, o
         <div className="px-4 mb-2">
           <button
             onClick={() => { navigate("/social-media"); onClose(); }}
-            className="w-full flex items-center gap-3 bg-purple-50 rounded-2xl px-4 py-3 active:scale-[0.98] transition-all"
+            className="w-full flex items-center gap-3 bg-gradient-to-r from-orange-500/10 to-pink-500/10 rounded-2xl px-4 py-3.5 active:scale-[0.98] transition-all border border-orange-200/50"
           >
-            <div className="w-8 h-8 rounded-full border-2 border-purple-500 flex items-center justify-center shrink-0">
-              <Instagram className="w-4 h-4 text-purple-500" />
+            <div className="w-9 h-9 bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl flex items-center justify-center shrink-0 shadow-md">
+              <Globe className="w-4.5 h-4.5 text-white" />
             </div>
-            <span className="text-[16px] font-black text-purple-600">Réseaux Sociaux</span>
+            <div className="text-left">
+              <span className="text-[15px] font-black text-gray-800 block leading-tight">Réseaux Sociaux</span>
+              <span className="text-[11px] text-gray-400 font-medium">Instagram, Facebook, TikTok…</span>
+            </div>
           </button>
         </div>
         <div className="px-4 mb-2">
@@ -523,15 +526,12 @@ Tu: Réponds normalement SANS bloc JSON.`;
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
       }));
-      console.log('[Maria] Trying OpenCode API...');
-      let apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+      console.log('[Maria] Calling /api/ai/maria...');
+      const apiRes = await fetch('/api/ai/maria', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer sk-FPP6sh78YsOhyjj0mmztchS7PGvuH2EE3nIM8vCNeaWUYhAmzlADOrSJtZ0QTu5u',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'mimo-v2.5-free',
+          model: 'deepseek/deepseek-chat-v3-0324',
           messages: [
             { role: 'system', content: MARIA_SYSTEM_PROMPT },
             ...historyMsgs,
@@ -541,28 +541,6 @@ Tu: Réponds normalement SANS bloc JSON.`;
           max_tokens: 2048,
         }),
       });
-
-      if (!apiRes.ok) {
-        console.log('[Maria] OpenCode failed, trying OpenRouter...');
-        const OR_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
-        apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OR_KEY}`,
-          },
-          body: JSON.stringify({
-            model: 'deepseek/deepseek-chat-v3-0324',
-            messages: [
-              { role: 'system', content: MARIA_SYSTEM_PROMPT },
-              ...historyMsgs,
-              { role: 'user', content },
-            ],
-            temperature: 0.7,
-            max_tokens: 2048,
-          }),
-        });
-      }
       console.log('[Maria] OpenRouter response:', apiRes.status, apiRes.statusText);
       if (!apiRes.ok) {
         const errBody = await apiRes.text();
