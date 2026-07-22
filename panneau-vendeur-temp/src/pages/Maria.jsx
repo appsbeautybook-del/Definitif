@@ -524,7 +524,7 @@ Tu: Réponds normalement SANS bloc JSON.`;
         content: m.content,
       }));
       console.log('[Maria] Calling OpenRouter...');
-      const apiRes = await fetch('/ai-proxy/api/v1/chat/completions', {
+      const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
