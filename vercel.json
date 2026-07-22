@@ -3,7 +3,6 @@
   "buildCommand": "cd beauty_book-main/beauty_book-main && npm run build",
   "outputDirectory": "beauty_book-main/beauty_book-main/dist",
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/((?!assets/|api/).*)", "destination": "/index.html" }
   ]
 }
