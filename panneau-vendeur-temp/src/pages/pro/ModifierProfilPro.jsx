@@ -65,10 +65,10 @@ export default function ModifierProfilPro() {
         if (p) {
           const h = {};
           DAYS.forEach(d => { h[d] = { open: false, start: "09:00", end: "19:00" }; });
-          if (p.days && typeof p.days === 'object' && !Array.isArray(p.days)) {
-            Object.keys(p.days).forEach(d => { if (h[d]) h[d] = { ...h[d], ...p.days[d] }; });
-          } else if (Array.isArray(p.days)) {
-            p.days.forEach(d => { if (h[d]) h[d].open = true; });
+          if (p.horaires && typeof p.horaires === 'object' && !Array.isArray(p.horaires)) {
+            Object.keys(p.horaires).forEach(d => { if (h[d]) h[d] = { ...h[d], ...p.horaires[d] }; });
+          } else if (Array.isArray(p.horaires)) {
+            p.horaires.forEach(d => { if (h[d]) h[d].open = true; });
           }
           setData({
             salon_name: p.salon_name || "", phone: p.phone || "", address: p.address || "",
@@ -130,7 +130,7 @@ export default function ModifierProfilPro() {
         city: data.city, zip_code: data.zip_code, seats_count: data.seats,
         bio: data.bio, avatar_url: data.avatar_url, cover_url: data.cover_url,
         specialites: data.specialites, commodites: data.commodites,
-        days: data.hours, updated_at: new Date().toISOString(),
+        horaires: data.hours, updated_at: new Date().toISOString(),
       }).eq('user_email', user.email);
       if (error) throw error;
       setSuccess(true);
