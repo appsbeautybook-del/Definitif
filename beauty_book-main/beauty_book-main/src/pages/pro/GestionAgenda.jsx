@@ -271,11 +271,12 @@ function NouveauRdvModal({ onClose, proEmail, onCreated }) {
       pro_name: form.service.pro_email,
       client_email: form.client.email,
       client_name: form.client.name,
+      client_phone: form.client.phone || "",
       service_id: form.service.id,
       service_name: form.service.title,
       service_price: form.service.price,
       total_price: form.service.price,
-      duration_min: form.service.duration_min || 60,
+      duration_min: form.service.duration || form.service.duration_min || 60,
       date: form.date,
       time_slot: form.time,
       notes: form.notes,
@@ -641,8 +642,17 @@ function CrmTab({ reservations, proEmail }) {
   const [selectedClient, setSelectedClient] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [newClient, setNewClient] = useState({ name: "", email: "", phone: "" });
+  const [manualClients, setManualClients] = useState([]);
 
-  // Construire la base clients depuis les réservations
+  // Charger les clients manuels depuis localStorage
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(`bb_pro_clients_${proEmail}`) || "[]");
+      setManualClients(stored);
+    } catch {}
+  }, [proEmail]);
+
+  // Construire la base clients depuis les réservations ET les clients manuels
   const clientMap = {};
   reservations.forEach(r => {
     if (!r.client_email) return;
@@ -650,6 +660,7 @@ function CrmTab({ reservations, proEmail }) {
       clientMap[r.client_email] = {
         email: r.client_email,
         name: r.client_name || r.client_email,
+        phone: r.client_phone || "",
         rdvs: [],
         totalSpent: 0,
         lastDate: null,
@@ -659,6 +670,19 @@ function CrmTab({ reservations, proEmail }) {
     clientMap[r.client_email].totalSpent += (r.total_price || r.service_price || 0);
     if (!clientMap[r.client_email].lastDate || r.date > clientMap[r.client_email].lastDate) {
       clientMap[r.client_email].lastDate = r.date;
+    }
+  });
+  // Ajouter les clients manuels (qui ne sont pas déjà dans les réservations)
+  manualClients.forEach(c => {
+    if (!clientMap[c.email]) {
+      clientMap[c.email] = {
+        email: c.email,
+        name: c.name,
+        phone: c.phone || "",
+        rdvs: [],
+        totalSpent: 0,
+        lastDate: null,
+      };
     }
   });
   const allClients = Object.values(clientMap);
@@ -810,9 +834,9 @@ function CrmTab({ reservations, proEmail }) {
 
       {/* Modal ajout client */}
       {showAdd && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-end">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAdd(false)} />
-          <div className="relative bg-white w-full max-w-md rounded-3xl px-5 pt-4 pb-8 z-10 shadow-2xl">
+          <div className="relative bg-white w-full rounded-t-3xl px-5 pt-4 pb-8 z-10">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
             <h3 className="text-[18px] font-black text-gray-900 mb-5">Nouveau client</h3>
             <div className="space-y-3">
@@ -820,7 +844,14 @@ function CrmTab({ reservations, proEmail }) {
               <input value={newClient.email} onChange={e => setNewClient(c => ({ ...c, email: e.target.value }))} placeholder="Email" type="email" className="w-full bg-gray-100 rounded-2xl px-4 py-3.5 text-[14px] font-medium text-gray-900 outline-none" />
               <input value={newClient.phone} onChange={e => setNewClient(c => ({ ...c, phone: e.target.value }))} placeholder="Téléphone" type="tel" className="w-full bg-gray-100 rounded-2xl px-4 py-3.5 text-[14px] font-medium text-gray-900 outline-none" />
               <button
-                onClick={() => setShowAdd(false)}
+                onClick={() => {
+                  if (!newClient.name.trim() || !newClient.email.trim()) return;
+                  const updated = [...manualClients, { ...newClient, id: Date.now() }];
+                  localStorage.setItem(`bb_pro_clients_${proEmail}`, JSON.stringify(updated));
+                  setManualClients(updated);
+                  setNewClient({ name: "", email: "", phone: "" });
+                  setShowAdd(false);
+                }}
                 className="w-full bg-primary text-white font-black text-[13px] uppercase tracking-widest py-4 rounded-2xl shadow-lg shadow-primary/30 active:scale-[0.98] transition-all mt-2"
               >
                 Enregistrer
