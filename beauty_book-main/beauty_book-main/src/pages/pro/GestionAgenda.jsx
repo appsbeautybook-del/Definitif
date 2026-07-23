@@ -858,7 +858,7 @@ function CrmTab({ reservations, proEmail }) {
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-end">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAdd(false)} />
-          <div className="relative bg-white w-full rounded-t-3xl px-5 pt-4 pb-8 z-10">
+          <div className="relative bg-white w-full rounded-t-3xl px-5 pt-4 pb-24 z-10">
             <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
             <h3 className="text-[18px] font-black text-gray-900 mb-5">Nouveau client</h3>
             <div className="space-y-3">
