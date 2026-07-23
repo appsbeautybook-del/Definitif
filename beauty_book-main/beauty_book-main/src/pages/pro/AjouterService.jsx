@@ -711,7 +711,7 @@ export default function AjouterService() {
       };
       try {
         if (data._editId) {
-          await entities.Service.update(data._editId, payload);
+          await supabase.from("Service").update(payload).eq("id", data._editId);
         } else {
           const res = await entities.Service.create(payload);
           const newId = res?.data?.service?.id || res?.result?.id || res?.id;
@@ -753,7 +753,7 @@ export default function AjouterService() {
         status: asDraft ? "brouillon" : "actif",
       };
       if (data._editId) {
-        await entities.Service.update(data._editId, payload);
+        await supabase.from("Service").update(payload).eq("id", data._editId);
       } else {
         await entities.Service.create(payload);
       }

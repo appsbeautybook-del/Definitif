@@ -61,11 +61,17 @@ export default function CatalogueServices() {
       .finally(() => setLoading(false));
   }, [user]);
 
-  const toggleActive = (id) => {
+  const toggleActive = async (id) => {
     const svc = services.find(s => s.id === id);
     const newStatus = svc.status === "actif" ? "inactif" : "actif";
-    entities.Service.update(id, { status: newStatus }).catch(() => {});
     setServices(s => s.map(sv => sv.id === id ? { ...sv, status: newStatus } : sv));
+    try {
+      const { error } = await supabase.from("Service").update({ status: newStatus }).eq("id", id);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Toggle status error:", err);
+      setServices(s => s.map(sv => sv.id === id ? { ...sv, status: svc.status } : sv));
+    }
   };
 
   const deleteService = (id) => {
@@ -135,7 +141,7 @@ export default function CatalogueServices() {
               return (
                 <div
                   key={service.id}
-                  className={`bg-white rounded-3xl overflow-hidden shadow-sm transition-all ${isDraft ? "opacity-70" : ""}`}
+                  className={`bg-white rounded-3xl overflow-hidden shadow-sm transition-all ${isDraft ? "opacity-60 grayscale" : ""}`}
                 >
                   {/* Image Slider */}
                   <div className="relative h-44 cursor-pointer">
@@ -143,15 +149,13 @@ export default function CatalogueServices() {
                       const imgs = [];
                       if (service.image_url) imgs.push(service.image_url);
                       if (service.images?.length > 0) service.images.forEach(u => { if (u && u !== service.image_url) imgs.push(u); });
-                      const handleImgClick = isDraft
-                        ? () => navigate("/pro/ajouter-service", { state: { editService: service } })
-                        : () => navigate(`/service/${service.id}`, { state: { id: service.id } });
+                      const handleImgClick = () => navigate("/pro/ajouter-service", { state: { editService: service } });
                       return <ImageSlider images={imgs} onClick={handleImgClick} />;
                     })()}
                     {isDraft && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                         <span className="bg-orange-500 text-white text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full">
-                          Brouillon — Appuyer pour continuer
+                          {service.status === "inactif" ? "Désactivé — Appuyer pour modifier" : "Brouillon — Appuyer pour continuer"}
                         </span>
                       </div>
                     )}
@@ -168,19 +172,16 @@ export default function CatalogueServices() {
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-3 mb-2">
                       <h3
-                        onClick={isActive ? () => navigate(`/service/${service.id}`, { state: { id: service.id } }) : undefined}
-                        className={`text-[22px] font-black leading-tight flex-1 ${isActive ? "text-gray-900 cursor-pointer active:opacity-70" : "text-gray-400"}`}
+                        onClick={() => navigate("/pro/ajouter-service", { state: { editService: service } })}
+                        className={`text-[22px] font-black leading-tight flex-1 cursor-pointer active:opacity-70 ${isActive ? "text-gray-900" : "text-gray-400"}`}
                       >{service.title}</h3>
                       <div className="flex items-center gap-2 mt-1 shrink-0">
-                        {/* Toggle uniquement sur les actifs */}
-                        {isActive && (
-                          <button
-                            onClick={() => toggleActive(service.id)}
-                            className="relative w-12 h-6 rounded-full transition-colors bg-primary"
-                          >
-                            <div className="absolute top-1 w-4 h-4 rounded-full shadow transition-transform translate-x-7 bg-white" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => toggleActive(service.id)}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${isActive ? "bg-primary" : "bg-gray-300"}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full shadow transition-transform bg-white ${isActive ? "translate-x-7" : "translate-x-1"}`} />
+                        </button>
                         <button
                           onClick={() => deleteService(service.id)}
                           className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-red-400 transition-colors"
