@@ -60,7 +60,7 @@ export default function ModifierProfilPro() {
 
   useEffect(() => {
     if (!user?.email) return;
-    supabase.from('ProfilPro').select('*').eq('user_email', user.email).maybeSingle()
+    supabase.from('ProfilPro').select('salon_name, phone, address, city, seats_count, bio, avatar_url, cover_url, specialites, commodites, horaires').eq('user_email', user.email).maybeSingle()
       .then(({ data: p }) => {
         if (p) {
           const h = {};
