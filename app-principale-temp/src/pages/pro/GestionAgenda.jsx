@@ -643,27 +643,38 @@ function CrmTab({ reservations, proEmail }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newClient, setNewClient] = useState({ name: "", email: "", phone: "" });
   const [manualClients, setManualClients] = useState([]);
-  const [tick, setTick] = useState(0);
+  const [loadingClients, setLoadingClients] = useState(true);
 
-  const storageKey = `bb_pro_clients_${proEmail || 'unknown'}`;
-
-  // Charger les clients manuels depuis localStorage
+  // Charger les clients depuis Supabase
   useEffect(() => {
     if (!proEmail) return;
-    try {
-      const stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
-      setManualClients(stored);
-    } catch {}
-  }, [proEmail, tick]);
+    setLoadingClients(true);
+    entities.Client.filter({ pro_email: proEmail }, "-created_at", 500)
+      .then(clients => {
+        setManualClients(clients || []);
+        setLoadingClients(false);
+      })
+      .catch(() => setLoadingClients(false));
+  }, [proEmail]);
 
-  const addClient = (client) => {
-    const updated = [...manualClients, { ...client, id: Date.now() }];
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    setManualClients(updated);
-    setTick(t => t + 1);
+  const addClient = async (client) => {
+    try {
+      const created = await entities.Client.create({
+        pro_email: proEmail,
+        name: client.name,
+        email: client.email,
+        phone: client.phone || "",
+        source: "manuel",
+        total_spent: 0,
+        total_rdv: 0,
+      });
+      setManualClients(prev => [{ ...client, id: created?.id || Date.now(), pro_email: proEmail }, ...prev]);
+    } catch (err) {
+      console.error("Error saving client:", err);
+    }
   };
 
-  // Construire la base clients depuis les réservations ET les clients manuels
+  // Construire la base clients depuis les réservations ET les clients Supabase
   const clientMap = {};
   reservations.forEach(r => {
     if (!r.client_email) return;
@@ -683,18 +694,18 @@ function CrmTab({ reservations, proEmail }) {
       clientMap[r.client_email].lastDate = r.date;
     }
   });
-  // Ajouter les clients manuels (qui ne sont pas déjà dans les réservations)
+  // Ajouter les clients Supabase (qui ne sont pas déjà dans les réservations)
   manualClients.forEach(c => {
-    if (!clientMap[c.email]) {
-      clientMap[c.email] = {
-        email: c.email,
-        name: c.name,
-        phone: c.phone || "",
-        rdvs: [],
-        totalSpent: 0,
-        lastDate: null,
-      };
-    }
+    const email = c.email || c.client_email;
+    if (!email || clientMap[email]) return;
+    clientMap[email] = {
+      email,
+      name: c.name || c.client_name || email,
+      phone: c.phone || "",
+      rdvs: [],
+      totalSpent: c.total_spent || 0,
+      lastDate: c.last_rdv_date || null,
+    };
   });
   const allClients = Object.values(clientMap);
 
@@ -855,9 +866,9 @@ function CrmTab({ reservations, proEmail }) {
               <input value={newClient.email} onChange={e => setNewClient(c => ({ ...c, email: e.target.value }))} placeholder="Email" type="email" className="w-full bg-gray-100 rounded-2xl px-4 py-3.5 text-[14px] font-medium text-gray-900 outline-none" />
               <input value={newClient.phone} onChange={e => setNewClient(c => ({ ...c, phone: e.target.value }))} placeholder="Téléphone" type="tel" className="w-full bg-gray-100 rounded-2xl px-4 py-3.5 text-[14px] font-medium text-gray-900 outline-none" />
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (!newClient.name.trim() || !newClient.email.trim()) return;
-                  addClient(newClient);
+                  await addClient(newClient);
                   setNewClient({ name: "", email: "", phone: "" });
                   setShowAdd(false);
                 }}
