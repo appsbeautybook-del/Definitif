@@ -97,12 +97,16 @@ export default function ProfilPro() {
     loadStats();
   }, [user]);
 
-  // Recharger les données à chaque fois que la page redevient visible
   useEffect(() => {
-    const handleFocus = () => { loadProfil(); loadStats(); };
+    const handleFocus = () => {
+      const ts = sessionStorage.getItem('pro_profile_refresh');
+      if (ts) { sessionStorage.removeItem('pro_profile_refresh'); loadProfil(); loadStats(); }
+    };
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") { loadProfil(); loadStats(); }
+      const ts = sessionStorage.getItem('pro_profile_refresh');
+      if (ts) { sessionStorage.removeItem('pro_profile_refresh'); loadProfil(); loadStats(); }
+      else if (document.visibilityState === "visible") { loadProfil(); loadStats(); }
     });
     return () => window.removeEventListener("focus", handleFocus);
   }, [user]);

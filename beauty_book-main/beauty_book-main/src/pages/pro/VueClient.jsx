@@ -577,28 +577,40 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
 
   useEffect(() => {
     if (!targetEmail) return;
-    Promise.all([
-      entities.Reel.filter({ author_email: targetEmail, status: "publie" }, "-created_at", 30).catch(() => []),
-      entities.ProfilPro.filter({ user_email: targetEmail }, "-created_at", 1).catch(() => []),
-      entities.Service.filter({ pro_email: targetEmail, status: "actif" }, "-created_at", 50).catch(() => []),
-      entities.Avis.filter({ cible_email: targetEmail, type: "client_to_pro" }, "-created_at", 100).catch(() => []),
-      entities.DemandeProV2.filter({ user_email: targetEmail, statut: "approuvee" }, "-created_at", 1).catch(() => []),
-    ]).then(([reels, profils, svcs, avis, demandes]) => {
-      setPublications(reels);
-      setServices(svcs);
-      if (profils.length > 0) {
-        setProInfo(profils[0]);
-        setProInfoId(profils[0].id);
-        // Vérifier abonnement depuis localStorage (clé basée sur l'email du pro)
-        try {
-          const key = `bb_subscribed_${targetEmail}`;
-          setSubscribed(localStorage.getItem(key) === "1");
-        } catch {}
-      }
-      if (demandes.length > 0) setDemandeInfo(demandes[0]);
-      setAvis(avis);
-      setStats({ abonnes: profils[0]?.followers || 0, services: svcs.length, avis: avis.length });
+    const fetchData = () => {
+      Promise.all([
+        entities.Reel.filter({ author_email: targetEmail, status: "publie" }, "-created_at", 30).catch(() => []),
+        entities.ProfilPro.filter({ user_email: targetEmail }, "-created_at", 1).catch(() => []),
+        entities.Service.filter({ pro_email: targetEmail, status: "actif" }, "-created_at", 50).catch(() => []),
+        entities.Avis.filter({ cible_email: targetEmail, type: "client_to_pro" }, "-created_at", 100).catch(() => []),
+        entities.DemandeProV2.filter({ user_email: targetEmail, statut: "approuvee" }, "-created_at", 1).catch(() => []),
+      ]).then(([reels, profils, svcs, avis, demandes]) => {
+        setPublications(reels);
+        setServices(svcs);
+        if (profils.length > 0) {
+          setProInfo(profils[0]);
+          setProInfoId(profils[0].id);
+          try {
+            const key = `bb_subscribed_${targetEmail}`;
+            setSubscribed(localStorage.getItem(key) === "1");
+          } catch {}
+        }
+        if (demandes.length > 0) setDemandeInfo(demandes[0]);
+        setAvis(avis);
+        setStats({ abonnes: profils[0]?.followers || 0, services: svcs.length, avis: avis.length });
+      });
+    };
+    fetchData();
+    const handleFocus = () => {
+      const ts = sessionStorage.getItem('pro_profile_refresh');
+      if (ts) { sessionStorage.removeItem('pro_profile_refresh'); fetchData(); }
+    };
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", () => {
+      const ts = sessionStorage.getItem('pro_profile_refresh');
+      if (ts) { sessionStorage.removeItem('pro_profile_refresh'); fetchData(); }
     });
+    return () => window.removeEventListener("focus", handleFocus);
   }, [targetEmail, user]);
 
   const handleClose = () => {
