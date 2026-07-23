@@ -74,9 +74,16 @@ export default function CatalogueServices() {
     }
   };
 
-  const deleteService = (id) => {
-    entities.Service.delete(id).catch(() => {});
+  const deleteService = async (id) => {
+    if (!confirm("Supprimer ce service ?")) return;
     setServices(s => s.filter(sv => sv.id !== id));
+    try {
+      const { error } = await supabase.from("Service").delete().eq("id", id);
+      if (error) throw error;
+    } catch (err) {
+      console.error("Delete error:", err);
+      entities.Service.filter({ pro_email: user?.email }, "-created_at", 100).then(setServices).catch(() => {});
+    }
   };
 
   const filtered = services.filter(s => {

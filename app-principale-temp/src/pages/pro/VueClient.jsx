@@ -580,7 +580,7 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
     Promise.all([
       entities.Reel.filter({ author_email: targetEmail, status: "publie" }, "-created_at", 30).catch(() => []),
       entities.ProfilPro.filter({ user_email: targetEmail }, "-created_at", 1).catch(() => []),
-      entities.Service.filter({ pro_email: targetEmail, status: "actif" }, "-created_at", 50).catch(() => []),
+      entities.Service.filter({ pro_email: targetEmail }, "-created_at", 50).catch(() => []),
       entities.Avis.filter({ cible_email: targetEmail, type: "client_to_pro" }, "-created_at", 100).catch(() => []),
       entities.DemandeProV2.filter({ user_email: targetEmail, statut: "approuvee" }, "-created_at", 1).catch(() => []),
     ]).then(([reels, profils, svcs, avis, demandes]) => {
