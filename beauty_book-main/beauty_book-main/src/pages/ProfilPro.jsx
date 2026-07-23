@@ -7,7 +7,7 @@ import {
   TrendingUp, Scissors, BarChart2, Camera, Moon,
   CreditCard, ArrowLeft, Radio, UserCircle, Network, Scan, Menu
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 
 function getBannerGradient(theme) {
@@ -41,6 +41,7 @@ const quickActions = [
 export default function ProfilPro() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState("gestion");
   const [nightMode, setNightMode] = useState(false);
@@ -95,18 +96,13 @@ export default function ProfilPro() {
   useEffect(() => {
     loadProfil();
     loadStats();
-  }, [user]);
+  }, [user, location.key]);
 
   useEffect(() => {
-    const handleFocus = () => {
-      const ts = sessionStorage.getItem('pro_profile_refresh');
-      if (ts) { sessionStorage.removeItem('pro_profile_refresh'); loadProfil(); loadStats(); }
-    };
+    const handleFocus = () => { loadProfil(); loadStats(); };
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", () => {
-      const ts = sessionStorage.getItem('pro_profile_refresh');
-      if (ts) { sessionStorage.removeItem('pro_profile_refresh'); loadProfil(); loadStats(); }
-      else if (document.visibilityState === "visible") { loadProfil(); loadStats(); }
+      if (document.visibilityState === "visible") { loadProfil(); loadStats(); }
     });
     return () => window.removeEventListener("focus", handleFocus);
   }, [user]);

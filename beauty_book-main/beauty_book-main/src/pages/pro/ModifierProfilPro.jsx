@@ -133,7 +133,6 @@ export default function ModifierProfilPro() {
         horaires: data.hours, updated_at: new Date().toISOString(),
       }).eq('user_email', user.email);
       if (error) throw error;
-      sessionStorage.setItem('pro_profile_refresh', Date.now().toString());
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
     } catch (e) {
