@@ -643,14 +643,25 @@ function CrmTab({ reservations, proEmail }) {
   const [showAdd, setShowAdd] = useState(false);
   const [newClient, setNewClient] = useState({ name: "", email: "", phone: "" });
   const [manualClients, setManualClients] = useState([]);
+  const [tick, setTick] = useState(0);
+
+  const storageKey = `bb_pro_clients_${proEmail || 'unknown'}`;
 
   // Charger les clients manuels depuis localStorage
   useEffect(() => {
+    if (!proEmail) return;
     try {
-      const stored = JSON.parse(localStorage.getItem(`bb_pro_clients_${proEmail}`) || "[]");
+      const stored = JSON.parse(localStorage.getItem(storageKey) || "[]");
       setManualClients(stored);
     } catch {}
-  }, [proEmail]);
+  }, [proEmail, tick]);
+
+  const addClient = (client) => {
+    const updated = [...manualClients, { ...client, id: Date.now() }];
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+    setManualClients(updated);
+    setTick(t => t + 1);
+  };
 
   // Construire la base clients depuis les réservations ET les clients manuels
   const clientMap = {};
@@ -846,9 +857,7 @@ function CrmTab({ reservations, proEmail }) {
               <button
                 onClick={() => {
                   if (!newClient.name.trim() || !newClient.email.trim()) return;
-                  const updated = [...manualClients, { ...newClient, id: Date.now() }];
-                  localStorage.setItem(`bb_pro_clients_${proEmail}`, JSON.stringify(updated));
-                  setManualClients(updated);
+                  addClient(newClient);
                   setNewClient({ name: "", email: "", phone: "" });
                   setShowAdd(false);
                 }}
