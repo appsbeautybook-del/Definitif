@@ -201,7 +201,7 @@ function ServicesTab() {
       setEditingId(null);
     } else {
       const user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
-      const { data } = await entities.Service.create({ ...serviceData, pro_email: user?.email || "admin@beautybook.fr" });
+      const { data } = await entities.Service.create({ ...serviceData, duration: serviceData.duration_min || 60, pro_email: user?.email || "admin@beautybook.fr" });
       setServices(prev => [data?.result, ...prev]);
     }
     setCreating(false);

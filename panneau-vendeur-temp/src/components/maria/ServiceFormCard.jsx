@@ -45,7 +45,7 @@ export default function ServiceFormCard({ prefill = {}, onSuccess, onCancel }) {
       description: data.description || "",
       category: data.category,
       price: parseFloat(data.price) || 0,
-      duration_min: parseInt(data.duration_min) || 60,
+      duration: parseInt(data.duration_min) || 60,
       audience: data.audience || "",
       image_url: (data.images || [])[0] || "",
       images: data.images || [],
