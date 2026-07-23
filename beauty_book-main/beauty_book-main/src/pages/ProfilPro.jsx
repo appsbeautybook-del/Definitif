@@ -99,6 +99,12 @@ export default function ProfilPro() {
   }, [user, location.key]);
 
   useEffect(() => {
+    const onUpdated = () => { loadProfil(); loadStats(); };
+    window.addEventListener('pro-profile-updated', onUpdated);
+    return () => window.removeEventListener('pro-profile-updated', onUpdated);
+  }, [user]);
+
+  useEffect(() => {
     const handleFocus = () => { loadProfil(); loadStats(); };
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", () => {
