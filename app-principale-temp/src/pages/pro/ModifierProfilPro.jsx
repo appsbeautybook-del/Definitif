@@ -43,7 +43,7 @@ export default function ModifierProfilPro() {
   const themeBg = useThemeBg();
 
   const [data, setData] = useState({
-    salon_name: "", phone: "", address: "", city: "", zip_code: "",
+    salon_name: "", phone: "", address: "", city: "",
     seats: 1, bio: "", avatar_url: "", cover_url: "",
     specialites: [], commodites: [], hours: {},
     menu_items: [], additional_services: [],
@@ -72,7 +72,7 @@ export default function ModifierProfilPro() {
           }
           setData({
             salon_name: p.salon_name || "", phone: p.phone || "", address: p.address || "",
-            city: p.city || "", zip_code: p.zip_code || "", seats: p.seats_count || 1,
+            city: p.city || "", seats: p.seats_count || 1,
             bio: p.bio || "", avatar_url: p.avatar_url || "", cover_url: p.cover_url || "",
             specialites: p.specialites || [], commodites: p.commodites || [],
             hours: h, menu_items: p.menu_restaurant || [], additional_services: p.additional_services || [],
@@ -127,7 +127,7 @@ export default function ModifierProfilPro() {
     try {
       const { error } = await supabase.from('ProfilPro').update({
         salon_name: data.salon_name, phone: data.phone, address: data.address,
-        city: data.city, zip_code: data.zip_code, seats_count: data.seats,
+        city: data.city, seats_count: data.seats,
         bio: data.bio, avatar_url: data.avatar_url, cover_url: data.cover_url,
         specialites: data.specialites, commodites: data.commodites,
         horaires: data.hours, updated_at: new Date().toISOString(),
@@ -273,19 +273,11 @@ export default function ModifierProfilPro() {
                 </p>
                 <input value={data.address} onChange={e => setData(d => ({ ...d, address: e.target.value }))} placeholder="Ex: 12 rue de la Paix, Paris" className={inputCls} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                    <Building2 className="w-3 h-3" /> Ville
-                  </p>
-                  <input value={data.city} onChange={e => setData(d => ({ ...d, city: e.target.value }))} placeholder="Paris" className={inputCls} />
-                </div>
-                <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-                    <FileText className="w-3 h-3" /> Code postal
-                  </p>
-                  <input value={data.zip_code} onChange={e => setData(d => ({ ...d, zip_code: e.target.value }))} placeholder="75001" className={inputCls} />
-                </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <Building2 className="w-3 h-3" /> Ville
+                </p>
+                <input value={data.city} onChange={e => setData(d => ({ ...d, city: e.target.value }))} placeholder="Paris" className={inputCls} />
               </div>
               <div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nombre de postes simultanés</p>
