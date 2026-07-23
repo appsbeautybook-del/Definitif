@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, Plus, Trash2, ChevronDown, ChevronUp, Scissors, Clock, Star, Zap, Package, Check } from "lucide-react";
+import {
+  ArrowLeft, Camera, Plus, Trash2, ChevronDown, ChevronUp,
+  Scissors, Clock, Star, Zap, Check, Store, Phone, MapPin,
+  Building2, FileText, Image, Palette, Wifi, Car, Snowflake,
+  Baby, Coffee, CreditCard, Accessibility, Shirt, Sofa, ShowerHead,
+  Wine, Music, UtensilsCrossed, ArrowRight, CircleDot, Save
+} from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/api/supabaseClient";
 import { uploadFile } from "@/api/entities";
@@ -14,9 +20,18 @@ const SPECIALITES_LIST = [
 ];
 
 const COMMODITES_LIST = [
-  "Wifi", "Parking", "Climatisation", "Espace bébé", "Café offert",
-  "Paiement CB", "Accessible PMR", "Vestiaire", "Salle d'attente",
-  "Douches", "Champagne", "Musique live"
+  { name: "Wifi", Icon: Wifi },
+  { name: "Parking", Icon: Car },
+  { name: "Climatisation", Icon: Snowflake },
+  { name: "Espace bébé", Icon: Baby },
+  { name: "Café offert", Icon: Coffee },
+  { name: "Paiement CB", Icon: CreditCard },
+  { name: "Accessible PMR", Icon: Accessibility },
+  { name: "Vestiaire", Icon: Shirt },
+  { name: "Salle d'attente", Icon: Sofa },
+  { name: "Douches", Icon: ShowerHead },
+  { name: "Champagne", Icon: Wine },
+  { name: "Musique live", Icon: Music },
 ];
 
 const DAYS = ["Lundi", "Mardi", "Mercredi", "Vendredi", "Samedi", "Dimanche"];
@@ -26,7 +41,6 @@ export default function ModifierProfilPro() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const themeBg = useThemeBg();
-  const isDark = theme === "dark" || theme === "night";
 
   const [data, setData] = useState({
     salon_name: "", phone: "", address: "", city: "", zip_code: "",
@@ -36,7 +50,7 @@ export default function ModifierProfilPro() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [expanded, setExpanded] = useState({});
+  const [expanded, setExpanded] = useState({ infos: true });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const avatarRef = useRef(null);
@@ -50,12 +64,12 @@ export default function ModifierProfilPro() {
       .then(({ data: p }) => {
         if (p) {
           const h = {};
-          DAYS.forEach(d => { h[d] = { open: true, start: "09:00", end: "19:00" }; });
-          if (p.days) {
-            if (Array.isArray(p.days)) p.days.forEach(d => { if (h[d]) h[d].open = true; });
+          DAYS.forEach(d => { h[d] = { open: false, start: "09:00", end: "19:00" }; });
+          if (p.days && typeof p.days === 'object' && !Array.isArray(p.days)) {
+            Object.keys(p.days).forEach(d => { if (h[d]) h[d] = { ...h[d], ...p.days[d] }; });
+          } else if (Array.isArray(p.days)) {
+            p.days.forEach(d => { if (h[d]) h[d].open = true; });
           }
-          if (p.time_slots && typeof p.time_slots === 'object') Object.assign(h, p.time_slots);
-
           setData({
             salon_name: p.salon_name || "", phone: p.phone || "", address: p.address || "",
             city: p.city || "", zip_code: p.zip_code || "", seats: p.seats_count || 1,
@@ -116,7 +130,7 @@ export default function ModifierProfilPro() {
         city: data.city, zip_code: data.zip_code, seats_count: data.seats,
         bio: data.bio, avatar_url: data.avatar_url, cover_url: data.cover_url,
         specialites: data.specialites, commodites: data.commodites,
-        time_slots: data.hours, updated_at: new Date().toISOString(),
+        days: data.hours, updated_at: new Date().toISOString(),
       }).eq('user_email', user.email);
       if (error) throw error;
       setSuccess(true);
@@ -127,47 +141,81 @@ export default function ModifierProfilPro() {
     setSaving(false);
   };
 
-  const inputCls = `w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-[#E8732A]`;
+  const inputCls = "w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-[#E8732A] transition-colors";
   const sectionCls = "bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden";
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-7 h-7 border-2 border-[#E8732A] border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <div className="w-7 h-7 border-2 border-[#E8732A] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   return (
     <div className="font-display min-h-screen" style={{ background: themeBg }}>
       {/* Header */}
-      <div className="sticky top-0 z-20 bg-gray-900 text-white px-5 pt-12 pb-4 flex items-center justify-between shadow-lg">
-        <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center active:scale-95">
-            <ArrowLeft className="w-4 h-4 text-white" />
-          </button>
-          <div>
-            <h1 className="text-[20px] font-black">Modifier le Profil Pro</h1>
-            <p className="text-[11px] font-bold text-[#E8732A]">PRO</p>
+      <div className="sticky top-0 z-20 bg-gradient-to-r from-gray-900 to-gray-800 text-white px-5 pt-12 pb-5 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="w-10 h-10 bg-white/10 backdrop-blur rounded-xl flex items-center justify-center active:scale-95 transition-transform">
+              <ArrowLeft className="w-5 h-5 text-white" />
+            </button>
+            <div>
+              <h1 className="text-[18px] font-black tracking-tight">Modifier le Profil Pro</h1>
+              <p className="text-[11px] font-bold text-[#E8732A] flex items-center gap-1">
+                <CircleDot className="w-2.5 h-2.5 fill-[#E8732A]" /> Espace professionnel
+              </p>
+            </div>
           </div>
+          <span className="bg-gradient-to-r from-[#E8732A] to-[#F59E0B] text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow-lg shadow-orange-500/25">PRO</span>
         </div>
-        <span className="bg-[#E8732A] text-white text-[11px] font-black px-3 py-1 rounded-full">PRO</span>
       </div>
 
       <div className="px-4 pb-32 space-y-3 pt-4">
-        {error && <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3"><p className="text-[12px] text-red-500 font-bold">{error}</p></div>}
-        {success && <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3"><p className="text-[12px] text-green-600 font-bold">✓ Modifications enregistrées !</p></div>}
+        {/* Notifications */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-2">
+            <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-red-500 text-[10px] font-black">!</span>
+            </div>
+            <p className="text-[12px] text-red-500 font-bold">{error}</p>
+          </div>
+        )}
+        {success && (
+          <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3 flex items-center gap-2">
+            <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Check className="w-3 h-3 text-green-600" />
+            </div>
+            <p className="text-[12px] text-green-600 font-bold">Modifications enregistrées !</p>
+          </div>
+        )}
 
         {/* Photos */}
         <div className={sectionCls + " p-4"}>
           <div className="flex flex-col items-center gap-4">
             <div className="relative">
-              <div onClick={() => avatarRef.current?.click()} className="w-24 h-24 rounded-full border-4 border-[#E8732A] overflow-hidden cursor-pointer">
-                {data.avatar_url ? <img src={data.avatar_url} className="w-full h-full object-cover" /> : <div className="w-full h-24 bg-gray-100 flex items-center justify-center"><Camera className="w-8 h-8 text-gray-300" /></div>}
+              <div onClick={() => avatarRef.current?.click()} className="w-24 h-24 rounded-full border-4 border-[#E8732A] overflow-hidden cursor-pointer shadow-lg shadow-orange-500/20 transition-transform active:scale-95">
+                {data.avatar_url
+                  ? <img src={data.avatar_url} className="w-full h-full object-cover" />
+                  : <div className="w-full h-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center"><Camera className="w-8 h-8 text-orange-300" /></div>
+                }
               </div>
-              <button onClick={() => avatarRef.current?.click()} className="absolute bottom-0 right-0 w-8 h-8 bg-gray-900 rounded-full border-2 border-white flex items-center justify-center">
-                <Camera className="w-4 h-4 text-white" />
+              <button onClick={() => avatarRef.current?.click()} className="absolute -bottom-1 -right-1 w-8 h-8 bg-gray-900 rounded-full border-2 border-white flex items-center justify-center shadow-lg">
+                <Camera className="w-3.5 h-3.5 text-white" />
               </button>
             </div>
-            <button onClick={() => avatarRef.current?.click()} className="text-[12px] font-black text-[#E8732A]">{uploadingAvatar ? "Upload..." : "CHANGER LA PHOTO"}</button>
+            <button onClick={() => avatarRef.current?.click()} className="text-[12px] font-black text-[#E8732A] active:scale-95 transition-transform">
+              {uploadingAvatar ? "Upload..." : "CHANGER LA PHOTO"}
+            </button>
             <input ref={avatarRef} type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload(e, 'avatar')} />
           </div>
-          <div onClick={() => bannerRef.current?.click()} className="relative mt-3 h-28 rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 cursor-pointer">
-            {data.cover_url ? <img src={data.cover_url} className="w-full h-full object-cover opacity-80" /> : <div className="w-full h-full flex flex-col items-center justify-center"><Camera className="w-6 h-6 text-gray-300" /><span className="text-[11px] text-gray-400">MODIFIER LA BANNIÈRE</span></div>}
+          <div onClick={() => bannerRef.current?.click()} className="relative mt-3 h-28 rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 cursor-pointer hover:border-[#E8732A]/40 transition-colors">
+            {data.cover_url
+              ? <img src={data.cover_url} className="w-full h-full object-cover opacity-80" />
+              : <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                  <Image className="w-6 h-6 text-gray-300" />
+                  <span className="text-[11px] text-gray-400 font-medium">MODIFIER LA BANNIERE</span>
+                </div>
+            }
           </div>
           <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={e => handlePhotoUpload(e, 'cover')} />
         </div>
@@ -175,15 +223,20 @@ export default function ModifierProfilPro() {
         {/* Images du salon */}
         <div className={sectionCls}>
           <button onClick={() => toggleSection('images')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-pink-50 rounded-xl flex items-center justify-center"><span className="text-[20px]">🖼️</span></div>
-            <p className="flex-1 text-[15px] font-black text-gray-900">Images du salon</p>
-            {expanded.images ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            <div className="w-11 h-11 bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl flex items-center justify-center">
+              <Palette className="w-5 h-5 text-pink-500" />
+            </div>
+            <p className="flex-1 text-left text-[14px] font-black text-gray-900">Images du salon</p>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${expanded.images ? 'rotate-180' : ''}`}>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </div>
           </button>
           {expanded.images && (
             <div className="px-4 pb-4">
               <p className="text-[11px] text-gray-400 mb-3">0 photos · Appuyez sur + pour en ajouter</p>
-              <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer">
-                <Plus className="w-6 h-6 text-gray-300" /><span className="text-[10px] text-gray-400">Ajouter</span>
+              <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-[#E8732A]/40 transition-colors">
+                <Plus className="w-5 h-5 text-gray-300" />
+                <span className="text-[10px] text-gray-400 mt-0.5">Ajouter</span>
               </div>
             </div>
           )}
@@ -192,45 +245,68 @@ export default function ModifierProfilPro() {
         {/* Informations générales */}
         <div className={sectionCls}>
           <button onClick={() => toggleSection('infos')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center"><span className="text-[20px]">🛡️</span></div>
-            <p className="flex-1 text-[15px] font-black text-gray-900">Informations générales</p>
-            {expanded.infos ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            <div className="w-11 h-11 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl flex items-center justify-center">
+              <Store className="w-5 h-5 text-blue-500" />
+            </div>
+            <p className="flex-1 text-left text-[14px] font-black text-gray-900">Informations générales</p>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${expanded.infos ? 'rotate-180' : ''}`}>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </div>
           </button>
           {expanded.infos && (
             <div className="px-4 pb-4 space-y-3">
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nom du salon / commerce *</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <Store className="w-3 h-3" /> Nom du salon / commerce *
+                </p>
                 <input value={data.salon_name} onChange={e => setData(d => ({ ...d, salon_name: e.target.value }))} placeholder="Ex: Jigen Beauty" className={inputCls} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Téléphone</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <Phone className="w-3 h-3" /> Téléphone
+                </p>
                 <input value={data.phone} onChange={e => setData(d => ({ ...d, phone: e.target.value }))} placeholder="+33 6 00 00 00 00" className={inputCls} />
               </div>
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Adresse</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <MapPin className="w-3 h-3" /> Adresse
+                </p>
                 <input value={data.address} onChange={e => setData(d => ({ ...d, address: e.target.value }))} placeholder="Ex: 12 rue de la Paix, Paris" className={inputCls} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Ville</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <Building2 className="w-3 h-3" /> Ville
+                  </p>
                   <input value={data.city} onChange={e => setData(d => ({ ...d, city: e.target.value }))} placeholder="Paris" className={inputCls} />
                 </div>
                 <div>
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Code postal</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                    <FileText className="w-3 h-3" /> Code postal
+                  </p>
                   <input value={data.zip_code} onChange={e => setData(d => ({ ...d, zip_code: e.target.value }))} placeholder="75001" className={inputCls} />
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Nombre de sièges / postes simultanés</p>
-                <p className="text-[11px] text-gray-400 mb-2">Définit combien de clients peuvent être servis en même temps.</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Nombre de postes simultanés</p>
+                <p className="text-[11px] text-gray-400 mb-2">Clients servis en même temps.</p>
                 <div className="flex items-center gap-4 justify-center">
-                  <button onClick={() => setData(d => ({ ...d, seats: Math.max(1, d.seats - 1) }))} className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-2xl font-bold text-gray-600">−</button>
-                  <div className="text-center"><span className="text-[28px] font-black text-gray-900">{data.seats}</span><p className="text-[10px] text-gray-400 font-bold uppercase">Siège{data.seats > 1 ? 's' : ''}</p></div>
-                  <button onClick={() => setData(d => ({ ...d, seats: d.seats + 1 }))} className="w-12 h-12 bg-[#E8732A] rounded-full flex items-center justify-center text-2xl font-bold text-white">+</button>
+                  <button onClick={() => setData(d => ({ ...d, seats: Math.max(1, d.seats - 1) }))} className="w-11 h-11 bg-gray-100 rounded-full flex items-center justify-center text-xl font-bold text-gray-500 active:scale-95 transition-transform">
+                    -
+                  </button>
+                  <div className="text-center min-w-[60px]">
+                    <span className="text-[28px] font-black text-gray-900">{data.seats}</span>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase">Poste{data.seats > 1 ? 's' : ''}</p>
+                  </div>
+                  <button onClick={() => setData(d => ({ ...d, seats: d.seats + 1 }))} className="w-11 h-11 bg-[#E8732A] rounded-full flex items-center justify-center text-xl font-bold text-white active:scale-95 transition-transform shadow-lg shadow-orange-500/25">
+                    +
+                  </button>
                 </div>
               </div>
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Biographie professionnelle</p>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <FileText className="w-3 h-3" /> Biographie professionnelle
+                </p>
                 <textarea value={data.bio} onChange={e => e.target.value.length <= 300 && setData(d => ({ ...d, bio: e.target.value }))} rows={4} placeholder="Décrivez votre expertise..." className={inputCls + " resize-none"} />
                 <p className="text-right text-[10px] text-gray-400 mt-1">{data.bio.length} / 300</p>
               </div>
@@ -241,27 +317,31 @@ export default function ModifierProfilPro() {
         {/* Horaires d'ouverture */}
         <div className={sectionCls}>
           <button onClick={() => toggleSection('horaires')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center"><Clock className="w-5 h-5 text-blue-500" /></div>
-            <p className="flex-1 text-[15px] font-black text-gray-900">Horaires d'ouverture</p>
-            {expanded.horaires ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            <div className="w-11 h-11 bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl flex items-center justify-center">
+              <Clock className="w-5 h-5 text-violet-500" />
+            </div>
+            <p className="flex-1 text-left text-[14px] font-black text-gray-900">Horaires d'ouverture</p>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${expanded.horaires ? 'rotate-180' : ''}`}>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </div>
           </button>
           {expanded.horaires && (
-            <div className="px-4 pb-4 space-y-3">
+            <div className="px-4 pb-4 space-y-2">
               {DAYS.map(day => {
                 const h = data.hours[day] || { open: false, start: "09:00", end: "19:00" };
                 return (
-                  <div key={day} className="bg-gray-50 rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <p className="text-[14px] font-black text-gray-900">{day}</p>
-                      <div onClick={() => toggleDay(day)} className={`w-12 h-6 rounded-full transition-all flex items-center px-0.5 cursor-pointer ${h.open ? "bg-[#E8732A]" : "bg-gray-300"}`}>
-                        <div className={`w-5 h-5 bg-white rounded-full shadow transition-all ${h.open ? "translate-x-6" : "translate-x-0"}`} />
+                  <div key={day} className="bg-gray-50 rounded-2xl p-3.5">
+                    <div className="flex items-center justify-between mb-2.5">
+                      <p className="text-[13px] font-black text-gray-900">{day}</p>
+                      <div onClick={() => toggleDay(day)} className={`w-11 h-6 rounded-full transition-all flex items-center px-0.5 cursor-pointer ${h.open ? "bg-[#E8732A]" : "bg-gray-300"}`}>
+                        <div className={`w-5 h-5 bg-white rounded-full shadow transition-all ${h.open ? "translate-x-5" : "translate-x-0"}`} />
                       </div>
                     </div>
                     {h.open && (
                       <div className="flex items-center gap-2">
-                        <input type="time" value={h.start} onChange={e => updateHours(day, 'start', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[13px] text-gray-800" />
-                        <span className="text-gray-400">→</span>
-                        <input type="time" value={h.end} onChange={e => updateHours(day, 'end', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[13px] text-gray-800" />
+                        <input type="time" value={h.start} onChange={e => updateHours(day, 'start', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                        <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                        <input type="time" value={h.end} onChange={e => updateHours(day, 'end', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
                       </div>
                     )}
                   </div>
@@ -274,15 +354,22 @@ export default function ModifierProfilPro() {
         {/* Nos spécialités */}
         <div className={sectionCls}>
           <button onClick={() => toggleSection('specs')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-yellow-50 rounded-xl flex items-center justify-center"><Star className="w-5 h-5 text-yellow-500" /></div>
-            <p className="flex-1 text-[15px] font-black text-gray-900">Nos spécialités</p>
-            {expanded.specs ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            <div className="w-11 h-11 bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl flex items-center justify-center">
+              <Star className="w-5 h-5 text-amber-500" />
+            </div>
+            <p className="flex-1 text-left text-[14px] font-black text-gray-900">Nos spécialités</p>
+            {data.specialites.length > 0 && (
+              <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full">{data.specialites.length}</span>
+            )}
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${expanded.specs ? 'rotate-180' : ''}`}>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </div>
           </button>
           {expanded.specs && (
             <div className="px-4 pb-4 flex flex-wrap gap-2">
               {SPECIALITES_LIST.map(s => (
                 <button key={s} onClick={() => toggleSpecialite(s)}
-                  className={`px-3 py-2 rounded-full text-[12px] font-bold border-2 transition-all ${data.specialites.includes(s) ? "border-[#E8732A] bg-[#E8732A] text-white" : "border-gray-200 text-gray-600 bg-white"}`}>
+                  className={`px-3 py-2 rounded-full text-[11px] font-bold border-2 transition-all active:scale-95 ${data.specialites.includes(s) ? "border-[#E8732A] bg-[#E8732A] text-white shadow-md shadow-orange-500/20" : "border-gray-200 text-gray-600 bg-white"}`}>
                   {s}
                 </button>
               ))}
@@ -293,18 +380,25 @@ export default function ModifierProfilPro() {
         {/* Commodités */}
         <div className={sectionCls}>
           <button onClick={() => toggleSection('commodites')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-cyan-50 rounded-xl flex items-center justify-center"><Zap className="w-5 h-5 text-cyan-500" /></div>
-            <p className="flex-1 text-[15px] font-black text-gray-900">Commodités</p>
-            {expanded.commodites ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            <div className="w-11 h-11 bg-gradient-to-br from-cyan-50 to-teal-50 rounded-xl flex items-center justify-center">
+              <Zap className="w-5 h-5 text-cyan-500" />
+            </div>
+            <p className="flex-1 text-left text-[14px] font-black text-gray-900">Commodités</p>
+            {data.commodites.length > 0 && (
+              <span className="bg-cyan-100 text-cyan-700 text-[10px] font-black px-2 py-0.5 rounded-full">{data.commodites.length}</span>
+            )}
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${expanded.commodites ? 'rotate-180' : ''}`}>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </div>
           </button>
           {expanded.commodites && (
             <div className="px-4 pb-4 grid grid-cols-3 gap-2">
-              {COMMODITES_LIST.map(c => (
-                <button key={c} onClick={() => toggleCommodite(c)}
-                  className={`flex flex-col items-center gap-1 p-3 rounded-2xl border-2 transition-all ${data.commodites.includes(c) ? "border-[#E8732A] bg-orange-50" : "border-gray-100 bg-white"}`}>
-                  <span className="text-[18px]">{c === "Wifi" ? "📶" : c === "Parking" ? "🅿️" : c === "Climatisation" ? "💨" : c === "Espace bébé" ? "👶" : c === "Café offert" ? "☕" : c === "Paiement CB" ? "💳" : c === "Accessible PMR" ? "♿" : c === "Vestiaire" ? "👔" : c === "Salle d'attente" ? "🛋️" : c === "Douches" ? "🚿" : c === "Champagne" ? "🥂" : "🎵"}</span>
-                  <span className="text-[11px] font-bold text-gray-700">{c}</span>
-                  {data.commodites.includes(c) && <Check className="w-3 h-3 text-[#E8732A]" />}
+              {COMMODITES_LIST.map(({ name, Icon }) => (
+                <button key={name} onClick={() => toggleCommodite(name)}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all active:scale-95 ${data.commodites.includes(name) ? "border-[#E8732A] bg-orange-50" : "border-gray-100 bg-white"}`}>
+                  <Icon className={`w-5 h-5 ${data.commodites.includes(name) ? 'text-[#E8732A]' : 'text-gray-400'}`} />
+                  <span className="text-[10px] font-bold text-gray-700 leading-tight text-center">{name}</span>
+                  {data.commodites.includes(name) && <Check className="w-3 h-3 text-[#E8732A]" />}
                 </button>
               ))}
             </div>
@@ -314,14 +408,18 @@ export default function ModifierProfilPro() {
         {/* Services additionnels */}
         <div className={sectionCls}>
           <button onClick={() => toggleSection('services')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center"><Scissors className="w-5 h-5 text-green-500" /></div>
-            <p className="flex-1 text-[15px] font-black text-gray-900">Services additionnels</p>
-            {expanded.services ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            <div className="w-11 h-11 bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl flex items-center justify-center">
+              <Scissors className="w-5 h-5 text-emerald-500" />
+            </div>
+            <p className="flex-1 text-left text-[14px] font-black text-gray-900">Services additionnels</p>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${expanded.services ? 'rotate-180' : ''}`}>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </div>
           </button>
           {expanded.services && (
             <div className="px-4 pb-4">
-              <button className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-6 flex items-center justify-center gap-2 text-[13px] font-bold text-gray-400">
-                <Plus className="w-5 h-5" /> AJOUTER UN SERVICE
+              <button className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-5 flex items-center justify-center gap-2 text-[12px] font-bold text-gray-400 hover:border-[#E8732A]/40 hover:text-[#E8732A] transition-colors active:scale-95">
+                <Plus className="w-4 h-4" /> AJOUTER UN SERVICE
               </button>
             </div>
           )}
@@ -330,14 +428,18 @@ export default function ModifierProfilPro() {
         {/* Menu / Carte */}
         <div className={sectionCls}>
           <button onClick={() => toggleSection('menu')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center"><span className="text-[20px]">🍽️</span></div>
-            <p className="flex-1 text-[15px] font-black text-gray-900">Menu / Carte</p>
-            {expanded.menu ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            <div className="w-11 h-11 bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl flex items-center justify-center">
+              <UtensilsCrossed className="w-5 h-5 text-amber-500" />
+            </div>
+            <p className="flex-1 text-left text-[14px] font-black text-gray-900">Menu / Carte</p>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform ${expanded.menu ? 'rotate-180' : ''}`}>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </div>
           </button>
           {expanded.menu && (
             <div className="px-4 pb-4">
-              <button className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-6 flex items-center justify-center gap-2 text-[13px] font-bold text-gray-400">
-                <Plus className="w-5 h-5" /> AJOUTER UN ÉLÉMENT
+              <button className="w-full border-2 border-dashed border-gray-200 rounded-2xl py-5 flex items-center justify-center gap-2 text-[12px] font-bold text-gray-400 hover:border-[#E8732A]/40 hover:text-[#E8732A] transition-colors active:scale-95">
+                <Plus className="w-4 h-4" /> AJOUTER UN ELEMENT
               </button>
             </div>
           )}
@@ -345,30 +447,39 @@ export default function ModifierProfilPro() {
 
         {/* Gérer les services */}
         <div className={sectionCls}>
-          <button onClick={() => navigate('/pro/catalogue-services')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center"><Scissors className="w-5 h-5 text-[#E8732A]" /></div>
+          <button onClick={() => navigate('/pro/catalogue-services')} className="w-full flex items-center gap-3 p-4 active:bg-gray-50 transition-colors">
+            <div className="w-11 h-11 bg-gradient-to-br from-[#E8732A]/10 to-orange-100 rounded-xl flex items-center justify-center">
+              <Scissors className="w-5 h-5 text-[#E8732A]" />
+            </div>
             <div className="flex-1 text-left">
-              <p className="text-[15px] font-black text-gray-900">Gérer les services</p>
+              <p className="text-[14px] font-black text-gray-900">Gérer les services</p>
               <p className="text-[11px] text-gray-400">Voir le catalogue de prestations</p>
             </div>
-            <span className="text-gray-300 text-lg">›</span>
+            <ArrowRight className="w-4 h-4 text-gray-300" />
           </button>
         </div>
 
         {/* Supprimer mon compte */}
         <div className={sectionCls}>
-          <button onClick={() => navigate('/supprimer-compte')} className="w-full flex items-center gap-3 p-4">
-            <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center"><Trash2 className="w-5 h-5 text-red-400" /></div>
-            <p className="text-[15px] font-bold text-red-500">Supprimer mon compte</p>
+          <button onClick={() => navigate('/supprimer-compte')} className="w-full flex items-center gap-3 p-4 active:bg-gray-50 transition-colors">
+            <div className="w-11 h-11 bg-gradient-to-br from-red-50 to-rose-50 rounded-xl flex items-center justify-center">
+              <Trash2 className="w-5 h-5 text-red-400" />
+            </div>
+            <p className="text-[14px] font-bold text-red-500">Supprimer mon compte</p>
           </button>
         </div>
       </div>
 
       {/* Fixed bottom button */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-5 z-[99]" style={{ paddingTop: "12px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-gray-100 px-5 z-[99]" style={{ paddingTop: "12px", paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
         <button onClick={handleSave} disabled={saving}
-          className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white transition-all active:scale-95"
-          style={{ background: saving ? "#d1d5db" : "#E8732A", boxShadow: saving ? "none" : "0 0 30px rgba(232,115,42,0.35)" }}>
+          className="w-full py-4 rounded-2xl font-black text-[13px] uppercase tracking-widest text-white transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+          style={{ background: saving ? "#d1d5db" : "linear-gradient(135deg, #E8732A, #F59E0B)", boxShadow: saving ? "none" : "0 8px 30px rgba(232,115,42,0.35)" }}>
+          {saving ? (
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
           {saving ? "Enregistrement..." : "Enregistrer les modifications"}
         </button>
       </div>
