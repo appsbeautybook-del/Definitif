@@ -63,7 +63,7 @@ const stripUnknownColumns = async (tableName, payload) => {
   let known = KNOWN_COLUMNS[tableName];
   if (!known) {
     try {
-      const { data } = await supabase.from(tableName).select('*').limit(1);
+      const { data } = await supabase.from(tableName).select(getSelectColumns(tableName)).limit(1);
       if (data && data[0]) known = Object.keys(data[0]);
     } catch {}
   }
@@ -75,12 +75,18 @@ const stripUnknownColumns = async (tableName, payload) => {
   return cleaned;
 };
 
+const getSelectColumns = (tableName) => {
+  const cols = KNOWN_COLUMNS[tableName];
+  if (cols && cols.length > 0) return cols.join(',');
+  return '*';
+};
+
 const createEntity = (tableName) => ({
   filter: async (filters = {}, orderBy = '-created_at', limit = 1000) => {
     // Aller directement à Supabase si pas de backend
     if (!CRUD_API) {
       try {
-        let query = supabase.from(tableName).select('*');
+        let query = supabase.from(tableName).select(getSelectColumns(tableName));
         if (orderBy) {
           const desc = orderBy.startsWith('-');
           const raw = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
@@ -112,7 +118,7 @@ const createEntity = (tableName) => ({
       return data;
     } catch (e) {
       try {
-        let query = supabase.from(tableName).select('*');
+        let query = supabase.from(tableName).select(getSelectColumns(tableName));
         if (orderBy) {
           const desc = orderBy.startsWith('-');
           const raw = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
@@ -135,7 +141,7 @@ const createEntity = (tableName) => ({
     if (!CRUD_API) {
       try {
         const { column, ascending } = parseOrder(orderBy);
-        const { data, error } = await supabase.from(tableName).select('*').order(column, { ascending }).limit(limit);
+        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
         if (error) return [];
         return data || [];
       } catch { return []; }
@@ -152,7 +158,7 @@ const createEntity = (tableName) => ({
     } catch (e) {
       try {
         const { column, ascending } = parseOrder(orderBy);
-        const { data, error } = await supabase.from(tableName).select('*').order(column, { ascending }).limit(limit);
+        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
         if (error) return [];
         return data || [];
       } catch { return []; }
@@ -162,7 +168,7 @@ const createEntity = (tableName) => ({
   get: async (id) => {
     if (!CRUD_API) {
       try {
-        const { data, error } = await supabase.from(tableName).select('*').eq('id', id).single();
+        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).eq('id', id).single();
         if (error) return null;
         return data;
       } catch { return null; }
@@ -178,7 +184,7 @@ const createEntity = (tableName) => ({
       return (result || []).find(r => r.id === id) || null;
     } catch (e) {
       try {
-        const { data, error } = await supabase.from(tableName).select('*').eq('id', id).single();
+        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).eq('id', id).single();
         if (error) return null;
         return data;
       } catch { return null; }
@@ -390,7 +396,7 @@ export const fetchProduits = async (params = {}) => {
   } catch (e) {
     console.warn('[fetchProduits] backend failed, trying Supabase:', e.message);
     try {
-      let query = supabase.from('Produit').select('*').order('created_at', { ascending: false });
+      let query = supabase.from('Produit').select(getSelectColumns('Produit')).order('created_at', { ascending: false });
       if (params.status) query = query.eq('status', params.status);
       if (params.limit) query = query.limit(params.limit);
       const { data, error } = await query;
