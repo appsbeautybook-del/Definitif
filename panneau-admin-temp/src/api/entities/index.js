@@ -31,7 +31,7 @@ const parseOrder = (orderBy) => {
 };
 
 const KNOWN_COLUMNS = {
-  Reel: ['id','title','description','video_url','thumbnail_url','images','category','tags','status','pub_type','likes','views','comments_count','author_email','author_name','author_avatar','is_sponsored','music_title','music_artist','music_url','product_id','product_name','product_img','service_id','service_name','created_at','updated_at','created_by_id'],
+  Reel: ['id','title','description','video_url','thumbnail_url','images','category','tags','status','likes','views','comments_count','author_email','author_name','author_avatar','created_at','updated_at','created_by_id'],
   Style: ['id','title','description','category','images','image_url','video_url','tags','pro_email','status','likes','views','featured','author_email','author_name','author_avatar','created_at','updated_at'],
   Produit: ['id','name','description','price','old_price','images','category','brand','stock','status','tags','rating','reviews_count','shopify_id','source','featured','external_url','min_qty','created_at','updated_at','created_by_id'],
   Publication: ['id','author_email','author_name','author_avatar','content','images','video_url','type','status','likes','comments_count','tags','created_at','updated_at','created_by_id'],
@@ -48,8 +48,9 @@ const KNOWN_COLUMNS = {
   DemandefFranchise: ['id','user_email','user_name','full_name','email','phone','city','budget','experience','message','status','created_at','updated_at','created_by_id'],
   MembreEquipe: ['id','pro_email','membre_email','membre_name','membre_avatar','name','role','specialites','specialties','experience','days','horaires','status','created_at','updated_at','created_by_id'],
   CatalogueOption: ['id','name','description','price','duration_min','service_id','pro_email','category','usage_count','created_at','updated_at','created_by_id'],
+  Client: ['id','pro_email','name','email','phone','notes','tags','source','total_spent','total_rdv','last_rdv_date','created_at','updated_at','created_by_id'],
   Annonce: ['id','title','description','type','target_url','status','pro_email','pro_name','sponsor_name','budget','start_date','end_date','impressions','clicks','created_at','updated_at','created_by_id'],
-  ProfilPro: ['id','user_email','nom','prenom','salon_name','bio','specialites','avatar_url','cover_url','address','city','phone','status','rating','reviews_count','travail_nuit','horaires','jours_repos','conges','ouverture','team_emails','latitude','longitude','_lat','_lng','abonnement','abonnement_expires_at','stripe_customer_id','categorie','tags','galerie_urls','presentation_video_url','website','instagram','facebook','services_count','followers','created_at','updated_at','created_by_id'],
+  ProfilPro: ['id','user_email','nom','prenom','salon_name','bio','specialites','avatar_url','cover_url','address','city','phone','status','rating','reviews_count','travail_nuit','horaires','jours_repos','conges','ouverture','team_emails','latitude','longitude','_lat','_lng','abonnement','abonnement_expires_at','stripe_customer_id','categorie','tags','galerie_urls','presentation_video_url','website','instagram','facebook','services_count','followers','commodites','seats_count','se_deplace','created_at','updated_at','created_by_id'],
   RoutineBeaute: ['id','user_email','name','emoji','description','steps','tasks','frequency','status','reminders','reminder_active','category','created_at','updated_at','created_by_id'],
   profiles: ['id','email','full_name','avatar_url','cover_url','role','gender','beauty_interests','maria_name','maria_memory','created_at','updated_at'],
   user_like: ['id','user_email','user_name','user_avatar','target_id','target_type','created_at'],
@@ -62,7 +63,7 @@ const stripUnknownColumns = async (tableName, payload) => {
   let known = KNOWN_COLUMNS[tableName];
   if (!known) {
     try {
-      const { data } = await supabase.from(tableName).select('*').limit(1);
+      const { data } = await supabase.from(tableName).select(getSelectColumns(tableName)).limit(1);
       if (data && data[0]) known = Object.keys(data[0]);
     } catch {}
   }
@@ -72,6 +73,12 @@ const stripUnknownColumns = async (tableName, payload) => {
     if (known.includes(key)) cleaned[key] = payload[key];
   }
   return cleaned;
+};
+
+const getSelectColumns = (tableName) => {
+  const cols = KNOWN_COLUMNS[tableName];
+  if (cols && cols.length > 0) return cols.join(',');
+  return '*';
 };
 
 const createEntity = (tableName) => ({
@@ -96,7 +103,7 @@ const createEntity = (tableName) => ({
     // Aller directement à Supabase si pas de backend
     if (!CRUD_API) {
       try {
-        let query = supabase.from(tableName).select('*');
+        let query = supabase.from(tableName).select(getSelectColumns(tableName));
         query = applyFilters(query);
         query = applyOrder(query);
         query = query.limit(limit);
@@ -120,7 +127,7 @@ const createEntity = (tableName) => ({
       return data;
     } catch (e) {
       try {
-        let query = supabase.from(tableName).select('*');
+        let query = supabase.from(tableName).select(getSelectColumns(tableName));
         query = applyFilters(query);
         query = applyOrder(query);
         query = query.limit(limit);
@@ -135,7 +142,7 @@ const createEntity = (tableName) => ({
     if (!CRUD_API) {
       try {
         const { column, ascending } = parseOrder(orderBy);
-        const { data, error } = await supabase.from(tableName).select('*').order(column, { ascending }).limit(limit);
+        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
         if (error) return [];
         return data || [];
       } catch { return []; }
@@ -152,7 +159,7 @@ const createEntity = (tableName) => ({
     } catch (e) {
       try {
         const { column, ascending } = parseOrder(orderBy);
-        const { data, error } = await supabase.from(tableName).select('*').order(column, { ascending }).limit(limit);
+        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
         if (error) return [];
         return data || [];
       } catch { return []; }
@@ -162,7 +169,7 @@ const createEntity = (tableName) => ({
   get: async (id) => {
     if (!CRUD_API) {
       try {
-        const { data, error } = await supabase.from(tableName).select('*').eq('id', id).single();
+        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).eq('id', id).single();
         if (error) return null;
         return data;
       } catch { return null; }
@@ -178,7 +185,7 @@ const createEntity = (tableName) => ({
       return (result || []).find(r => r.id === id) || null;
     } catch (e) {
       try {
-        const { data, error } = await supabase.from(tableName).select('*').eq('id', id).single();
+        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).eq('id', id).single();
         if (error) return null;
         return data;
       } catch { return null; }
@@ -304,6 +311,7 @@ export const entities = {
   CallLog:            createEntity('CallLog'),
   CallSignal:         createEntity('CallSignal'),
   CatalogueOption:    createEntity('CatalogueOption'),
+  Client:             createEntity('Client'),
   DemandeProV2:       createEntity('DemandeProV2'),
   DemandefFranchise:  createEntity('DemandefFranchise'),
   ImmobilierListing:  createEntity('ImmobilierListing'),
@@ -389,7 +397,7 @@ export const fetchProduits = async (params = {}) => {
   } catch (e) {
     console.warn('[fetchProduits] backend failed, trying Supabase:', e.message);
     try {
-      let query = supabase.from('Produit').select('*').order('created_at', { ascending: false });
+      let query = supabase.from('Produit').select(getSelectColumns('Produit')).order('created_at', { ascending: false });
       if (params.status) query = query.eq('status', params.status);
       if (params.limit) query = query.limit(params.limit);
       const { data, error } = await query;
