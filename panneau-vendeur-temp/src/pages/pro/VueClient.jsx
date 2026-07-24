@@ -581,8 +581,19 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       const { data: profile } = await supabase.from('ProfilPro').select('id, user_email, salon_name, bio, specialites, avatar_url, cover_url, address, city, phone, seats_count, commodites, horaires, rating, reviews_count, followers, services_count, travail_nuit, se_deplace, status, created_at').eq('user_email', targetEmail).maybeSingle().catch(() => ({ data: null }));
       return profile;
     };
+    const isOwnProfile = targetEmail === user?.email;
+    const getCached = () => {
+      try { return JSON.parse(localStorage.getItem('pro_profile_cache') || 'null'); } catch { return null; }
+    };
+    const applyCache = (p) => {
+      if (!isOwnProfile) return p;
+      const cached = getCached();
+      if (!cached) return p;
+      if (!p) return { id: 'local', user_email: targetEmail, ...cached };
+      return { ...p, avatar_url: cached.avatar_url || p.avatar_url, cover_url: cached.cover_url || p.cover_url, salon_name: cached.salon_name || p.salon_name, bio: cached.bio || p.bio, city: cached.city || p.city, phone: cached.phone || p.phone, address: cached.address || p.address };
+    };
     const fetchData = async () => {
-      const [reels, profile, svcs, avis, demandes] = await Promise.all([
+      const [reels, profileRaw, svcs, avis, demandes] = await Promise.all([
         entities.Reel.filter({ author_email: targetEmail, status: "publie" }, "-created_at", 30).catch(() => []),
         fetchProfil(),
         entities.Service.filter({ pro_email: targetEmail, status: "actif" }, "-created_at", 50).catch(() => []),
@@ -591,16 +602,10 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       ]);
       setPublications(reels);
       setServices(svcs);
+      const profile = applyCache(profileRaw);
       if (profile) {
-        let p = profile;
-        try {
-          const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
-          if (cached && targetEmail === user?.email) {
-            p = { ...p, avatar_url: cached.avatar_url || p.avatar_url, cover_url: cached.cover_url || p.cover_url, salon_name: cached.salon_name || p.salon_name, bio: cached.bio || p.bio, city: cached.city || p.city, phone: cached.phone || p.phone, address: cached.address || p.address };
-          }
-        } catch {}
-        setProInfo(p);
-        setProInfoId(p.id);
+        setProInfo(profile);
+        setProInfoId(profile.id);
         try { setSubscribed(localStorage.getItem(`bb_subscribed_${targetEmail}`) === "1"); } catch {}
       }
       if (demandes.length > 0) setDemandeInfo(demandes[0]);
