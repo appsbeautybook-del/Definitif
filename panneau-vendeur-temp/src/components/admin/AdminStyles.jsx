@@ -50,7 +50,7 @@ export default function AdminStyles() {
         await entities.Style.update(draftId, { ...styleData, status: "brouillon" });
       } else {
         const res = await entities.Style.create({ ...styleData, status: "brouillon" });
-        if (res.data?.style?.id) setDraftId(res.data.style.id);
+        if (res?.id) setDraftId(res.id);
       }
     } catch {}
   };

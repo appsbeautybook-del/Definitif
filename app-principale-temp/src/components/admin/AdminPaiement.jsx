@@ -174,8 +174,8 @@ export default function AdminPaiement() {
       if (recordId) {
         await adminApi.updateConfig(recordId, { value: config });
       } else {
-        const { data } = await adminApi.createConfig({ key: "payment_settings", value: config });
-        setRecordId(data?.result?.id);
+        const created = await adminApi.createConfig({ key: "payment_settings", value: config });
+        if (created?.id) setRecordId(created.id);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);

@@ -47,8 +47,8 @@ export default function AdminImmobilier() {
     e.preventDefault();
     if (!form.title || !form.price) return;
     setSaving(true);
-    const { data } = await adminApi.createImmobilier({ ...form, price: parseFloat(form.price) || 0 });
-    setListings(prev => [data.result, ...prev]);
+    const created = await adminApi.createImmobilier({ ...form, price: parseFloat(form.price) || 0 });
+    setListings(prev => [created, ...prev].filter(Boolean));
     setCreating(false);
     setForm({ ...EMPTY_FORM });
     setSaving(false);

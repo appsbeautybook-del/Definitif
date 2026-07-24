@@ -63,8 +63,8 @@ const stripUnknownColumns = async (tableName, payload) => {
   let known = KNOWN_COLUMNS[tableName];
   if (!known) {
     try {
-      const { data } = await supabase.from(tableName).select(getSelectColumns(tableName)).limit(1);
-      if (data && data[0]) known = Object.keys(data[0]);
+      const { data, error } = await supabase.from(tableName).select('*').limit(1);
+      if (!error && data && data[0]) known = Object.keys(data[0]);
     } catch {}
   }
   if (!known || known.length === 0) return payload;
@@ -76,8 +76,6 @@ const stripUnknownColumns = async (tableName, payload) => {
 };
 
 const getSelectColumns = (tableName) => {
-  const cols = KNOWN_COLUMNS[tableName];
-  if (cols && cols.length > 0) return cols.join(',');
   return '*';
 };
 
@@ -108,9 +106,9 @@ const createEntity = (tableName) => ({
         query = applyOrder(query);
         query = query.limit(limit);
         const { data, error } = await query;
-        if (error) return [];
+        if (error) { console.error(`[entities] ${tableName} filter error:`, error.message); return []; }
         return data || [];
-      } catch { return []; }
+      } catch (e) { console.error(`[entities] ${tableName} filter exception:`, e.message); return []; }
     }
     try {
       const res = await fetch(`${CRUD_API}/crud/list`, {
@@ -132,9 +130,9 @@ const createEntity = (tableName) => ({
         query = applyOrder(query);
         query = query.limit(limit);
         const { data, error } = await query;
-        if (error) return [];
+        if (error) { console.error(`[entities] ${tableName} filter fallback error:`, error.message); return []; }
         return data || [];
-      } catch { return []; }
+      } catch (e2) { console.error(`[entities] ${tableName} filter fallback exception:`, e2.message); return []; }
     }
   },
 
@@ -143,9 +141,9 @@ const createEntity = (tableName) => ({
       try {
         const { column, ascending } = parseOrder(orderBy);
         const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
-        if (error) return [];
+        if (error) { console.error(`[entities] ${tableName} list error:`, error.message); return []; }
         return data || [];
-      } catch { return []; }
+      } catch (e) { console.error(`[entities] ${tableName} list exception:`, e.message); return []; }
     }
     try {
       const res = await fetch(`${CRUD_API}/crud/list`, {
@@ -160,9 +158,9 @@ const createEntity = (tableName) => ({
       try {
         const { column, ascending } = parseOrder(orderBy);
         const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
-        if (error) return [];
+        if (error) { console.error(`[entities] ${tableName} list fallback error:`, error.message); return []; }
         return data || [];
-      } catch { return []; }
+      } catch (e2) { console.error(`[entities] ${tableName} list fallback exception:`, e2.message); return []; }
     }
   },
 
@@ -204,7 +202,7 @@ const createEntity = (tableName) => ({
       }
       const { data: result, error } = await supabase.from(tableName).insert(cleanPayload).select().single();
       if (error) throw error;
-      return { data: { [tableName.toLowerCase()]: result }, result };
+      return result;
     }
     try {
       const res = await fetch(`${CRUD_API}/crud/create`, {
@@ -231,7 +229,7 @@ const createEntity = (tableName) => ({
       const cleanPayload = await stripUnknownColumns(tableName, payload);
       const { data: result, error } = await supabase.from(tableName).update(cleanPayload).eq('id', id).select().single();
       if (error) throw error;
-      return { data: { [tableName.toLowerCase()]: result }, result };
+      return result;
     }
     try {
       const res = await fetch(`${CRUD_API}/crud/update`, {

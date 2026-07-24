@@ -196,13 +196,13 @@ function ServicesTab() {
     setSaving(true);
     const serviceData = { ...form, price: parseFloat(form.price) || 0, duration_min: parseInt(form.duration_min) || 60 };
     if (editingId) {
-      const { data } = await entities.Service.update(editingId, serviceData);
-      setServices(prev => prev.map(s => s.id === editingId ? { ...s, ...data?.result } : s));
+      const updated = await entities.Service.update(editingId, serviceData);
+      setServices(prev => prev.map(s => s.id === editingId ? { ...s, ...(updated || {}) } : s));
       setEditingId(null);
     } else {
       const user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
-      const { data } = await entities.Service.create({ ...serviceData, duration: serviceData.duration_min || 60, pro_email: user?.email || "admin@beautybook.fr" });
-      setServices(prev => [data?.result, ...prev]);
+      const created = await entities.Service.create({ ...serviceData, duration: serviceData.duration_min || 60, pro_email: user?.email || "admin@beautybook.fr" });
+      setServices(prev => [created, ...prev].filter(Boolean));
     }
     setCreating(false);
     setForm({ title: "", description: "", category: "Coiffure", price: "", duration_min: 60, status: "actif" });

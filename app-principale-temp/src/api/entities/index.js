@@ -202,7 +202,7 @@ const createEntity = (tableName) => ({
       }
       const { data: result, error } = await supabase.from(tableName).insert(cleanPayload).select().single();
       if (error) throw error;
-      return { data: { [tableName.toLowerCase()]: result }, result };
+      return result;
     }
     try {
       const res = await fetch(`${CRUD_API}/crud/create`, {
@@ -229,7 +229,7 @@ const createEntity = (tableName) => ({
       const cleanPayload = await stripUnknownColumns(tableName, payload);
       const { data: result, error } = await supabase.from(tableName).update(cleanPayload).eq('id', id).select().single();
       if (error) throw error;
-      return { data: { [tableName.toLowerCase()]: result }, result };
+      return result;
     }
     try {
       const res = await fetch(`${CRUD_API}/crud/update`, {

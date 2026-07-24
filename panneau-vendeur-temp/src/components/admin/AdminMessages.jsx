@@ -206,7 +206,7 @@ export default function AdminMessages() {
 
   const handleSend = async (content) => {
     if (!activeConv) return;
-    const { data: msgData } = await adminApi.createMessage({
+    const msgData = await adminApi.createMessage({
       conversation_id: activeConv.id,
       sender_email: ADMIN_EMAIL,
       sender_name: "BeautyBook Admin",
@@ -216,7 +216,7 @@ export default function AdminMessages() {
       type: "text",
       read: false,
     });
-    setMessages(prev => [...prev, msgData.result]);
+    if (msgData) setMessages(prev => [...prev, msgData]);
     setConversations(prev => prev.map(c => c.id === activeConv.id ? { ...c, lastMessage: content, lastDate: new Date().toISOString() } : c));
   };
 

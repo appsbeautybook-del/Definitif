@@ -223,23 +223,30 @@ export default function Visite3D() {
   const createVisite = async () => {
     if (!user?.email) return;
     setCreating(true);
-    const salonName = proInfo?.salon_name || "Mon établissement";
-    const v = await entities.VisiteVirtuelle.create({
-      name: salonName,
-      description: `Visite virtuelle de ${salonName}`,
-      cover_url: proInfo?.cover_url || proInfo?.avatar_url || "",
-      scenes: [],
-      status: "actif",
-      views: 0,
-      pro_email: user.email,
-      pro_name: salonName,
-      pro_address: proInfo?.address || "",
-      pro_city: proInfo?.city || "",
-    });
-    setVisites(prev => [v, ...prev]);
-    setCreating(false);
-    // Ouvrir directement l'éditeur de scènes
-    setEditingVisite(v);
+    try {
+      const salonName = proInfo?.salon_name || "Mon établissement";
+      const payload = {
+        name: salonName,
+        description: `Visite virtuelle de ${salonName}`,
+        cover_url: proInfo?.cover_url || proInfo?.avatar_url || "",
+        scenes: [],
+        status: "actif",
+        views: 0,
+        pro_email: user.email,
+        pro_name: salonName,
+        pro_address: proInfo?.address || "",
+        pro_city: proInfo?.city || "",
+      };
+      const v = await entities.VisiteVirtuelle.create(payload);
+      if (!v) throw new Error("La création a retourné null — vérifiez que la table VisiteVirtuelle existe dans Supabase et que les RLS policies autorisent l'insertion.");
+      setVisites(prev => [v, ...prev]);
+      setEditingVisite(v);
+    } catch (err) {
+      console.error('[Visite3D] createVisite error:', err);
+      alert("Erreur lors de la création : " + (err.message || err));
+    } finally {
+      setCreating(false);
+    }
   };
 
   const deleteVisite = async (id) => {

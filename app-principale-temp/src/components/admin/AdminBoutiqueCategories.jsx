@@ -44,8 +44,8 @@ export default function AdminBoutiqueCategories({ onSaved }) {
     if (configId) {
       await adminApi.updateConfig(configId, { value: { categories: newCats }, description: "Catégories boutique" });
     } else {
-      const { data } = await adminApi.createConfig({ key: CONFIG_KEY, value: { categories: newCats }, description: "Catégories boutique" });
-      setConfigId(data.result.id);
+      const created = await adminApi.createConfig({ key: CONFIG_KEY, value: { categories: newCats }, description: "Catégories boutique" });
+      if (created?.id) setConfigId(created.id);
     }
     setSaving(false);
     setDirty(false);
