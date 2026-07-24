@@ -1010,7 +1010,15 @@ export default function GestionAgenda() {
         setTravailNuit(event.data.travail_nuit || false);
       }
     });
-    return () => { unsub(); unsubProfil(); };
+    // Listen for pro-profile-updated events (from ProfilPro page)
+    const onProfileUpdated = (e) => {
+      const d = e.detail || {};
+      if (d.travail_nuit !== undefined) {
+        setTravailNuit(d.travail_nuit);
+      }
+    };
+    window.addEventListener('pro-profile-updated', onProfileUpdated);
+    return () => { unsub(); unsubProfil(); window.removeEventListener('pro-profile-updated', onProfileUpdated); };
   }, [proEmail]);
 
   const demandesCount = reservations.filter(r => r.status === "en_attente").length;
@@ -1102,6 +1110,7 @@ export default function GestionAgenda() {
               <GestionTab onNavigate={navigate} travailNuit={travailNuit} profilId={profilId} onToggleNuit={async (val) => {
                 setTravailNuit(val);
                 if (profilId) await entities.ProfilPro.update(profilId, { travail_nuit: val }).catch(() => {});
+                window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { travail_nuit: val } }));
               }} />
             )}
           </>

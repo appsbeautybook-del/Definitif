@@ -222,6 +222,17 @@ export default function HorairesConges() {
       .catch(() => setLoading(false));
   }, [user?.email]);
 
+  useEffect(() => {
+    const onUpdated = (e) => {
+      const d = e.detail || {};
+      if (d.travail_nuit !== undefined) {
+        setTravailNuit(d.travail_nuit);
+      }
+    };
+    window.addEventListener('pro-profile-updated', onUpdated);
+    return () => window.removeEventListener('pro-profile-updated', onUpdated);
+  }, []);
+
   const handleDayChange = (day, value) => {
     setHoraires(prev => ({ ...prev, [day]: value }));
   };
@@ -234,6 +245,7 @@ export default function HorairesConges() {
       ouverture,
       travail_nuit: travailNuit,
     });
+    window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { travail_nuit: travailNuit } }));
     setSaving(false);
   };
 

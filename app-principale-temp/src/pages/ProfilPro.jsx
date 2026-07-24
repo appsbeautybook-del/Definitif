@@ -115,6 +115,9 @@ export default function ProfilPro() {
   useEffect(() => {
     const onUpdated = (e) => {
       const d = e.detail || {};
+      if (d.travail_nuit !== undefined) {
+        setNightMode(d.travail_nuit);
+      }
       if (d.avatar_url || d.cover_url) {
         setProInfo(prev => prev ? { ...prev, avatar_url: d.avatar_url || prev.avatar_url, cover_url: d.cover_url || prev.cover_url } : prev);
       }
@@ -383,6 +386,7 @@ export default function ProfilPro() {
               if (proInfoCurrent?.id) {
                 await entities.ProfilPro.update(proInfoCurrent.id, { travail_nuit: next }).catch(() => {});
               }
+              window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { travail_nuit: next } }));
             }}
             className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${nightMode ? "bg-indigo-500" : "bg-gray-200"}`}
           >
