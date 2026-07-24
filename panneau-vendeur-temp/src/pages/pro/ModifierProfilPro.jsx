@@ -60,22 +60,36 @@ export default function ModifierProfilPro() {
 
   useEffect(() => {
     if (!user?.email) return;
-    supabase.from('ProfilPro').select('salon_name, phone, address, city, seats_count, bio, avatar_url, cover_url, specialites, commodites, horaires').eq('user_email', user.email).maybeSingle()
+    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url').eq('user_email', user.email).maybeSingle()
       .then(({ data: p }) => {
-        if (p) {
+        let profile = p;
+        if (!profile) {
+          try {
+            const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
+            if (cached) profile = { user_email: user.email, ...cached };
+          } catch {}
+        } else {
+          try {
+            const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
+            if (cached) {
+              profile = { ...profile, avatar_url: cached.avatar_url || profile.avatar_url, cover_url: cached.cover_url || profile.cover_url, salon_name: cached.salon_name || profile.salon_name, bio: cached.bio || profile.bio, city: cached.city || profile.city, phone: cached.phone || profile.phone, address: cached.address || profile.address };
+            }
+          } catch {}
+        }
+        if (profile) {
           const h = {};
           DAYS.forEach(d => { h[d] = { open: false, start: "09:00", end: "19:00" }; });
-          if (p.horaires && typeof p.horaires === 'object' && !Array.isArray(p.horaires)) {
-            Object.keys(p.horaires).forEach(d => { if (h[d]) h[d] = { ...h[d], ...p.horaires[d] }; });
-          } else if (Array.isArray(p.horaires)) {
-            p.horaires.forEach(d => { if (h[d]) h[d].open = true; });
+          if (profile.horaires && typeof profile.horaires === 'object' && !Array.isArray(profile.horaires)) {
+            Object.keys(profile.horaires).forEach(d => { if (h[d]) h[d] = { ...h[d], ...profile.horaires[d] }; });
+          } else if (Array.isArray(profile.horaires)) {
+            profile.horaires.forEach(d => { if (h[d]) h[d].open = true; });
           }
           setData({
-            salon_name: p.salon_name || "", phone: p.phone || "", address: p.address || "",
-            city: p.city || "", seats: p.seats_count || 1,
-            bio: p.bio || "", avatar_url: p.avatar_url || "", cover_url: p.cover_url || "",
-            specialites: p.specialites || [], commodites: p.commodites || [],
-            hours: h, menu_items: p.menu_restaurant || [], additional_services: p.additional_services || [],
+            salon_name: profile.salon_name || "", phone: profile.phone || "", address: profile.address || "",
+            city: profile.city || "", seats: profile.seats_count || 1,
+            bio: profile.bio || "", avatar_url: profile.avatar_url || "", cover_url: profile.cover_url || "",
+            specialites: profile.specialites || [], commodites: profile.commodites || [],
+            hours: h, menu_items: profile.menu_restaurant || [], additional_services: profile.additional_services || [],
           });
         }
         setLoading(false);
