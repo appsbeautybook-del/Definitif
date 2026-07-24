@@ -53,18 +53,18 @@ export default function ProfilPro() {
   const loadProfil = () => {
     if (!user?.email) return;
     setProInfo(null);
-    entities.ProfilPro.filter({ user_email: user.email }, "-created_at", 1)
-      .then(res => {
-        if (res.length > 0) {
-          let profile = res[0];
+    supabase.from('ProfilPro').select('id, user_email, salon_name, bio, specialites, avatar_url, cover_url, address, city, phone, seats_count, commodites, horaires, rating, reviews_count, followers, services_count, travail_nuit, se_deplace, status, created_at').eq('user_email', user.email).maybeSingle()
+      .then(({ data: profile }) => {
+        if (profile) {
+          let p = profile;
           try {
             const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
             if (cached) {
-              profile = { ...profile, avatar_url: cached.avatar_url || profile.avatar_url, cover_url: cached.cover_url || profile.cover_url, salon_name: cached.salon_name || profile.salon_name, bio: cached.bio || profile.bio, city: cached.city || profile.city, phone: cached.phone || profile.phone, address: cached.address || profile.address };
+              p = { ...p, avatar_url: cached.avatar_url || p.avatar_url, cover_url: cached.cover_url || p.cover_url, salon_name: cached.salon_name || p.salon_name, bio: cached.bio || p.bio, city: cached.city || p.city, phone: cached.phone || p.phone, address: cached.address || p.address };
             }
           } catch {}
-          setProInfo(profile);
-          setNightMode(profile.travail_nuit || false);
+          setProInfo(p);
+          setNightMode(p.travail_nuit || false);
         }
       })
       .catch(() => {});

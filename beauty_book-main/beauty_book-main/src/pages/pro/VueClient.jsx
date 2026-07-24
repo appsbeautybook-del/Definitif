@@ -577,35 +577,35 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
 
   useEffect(() => {
     if (!targetEmail) return;
-    const fetchData = () => {
-      Promise.all([
+    const fetchProfil = async () => {
+      const { data: profile } = await supabase.from('ProfilPro').select('id, user_email, salon_name, bio, specialites, avatar_url, cover_url, address, city, phone, seats_count, commodites, horaires, rating, reviews_count, followers, services_count, travail_nuit, se_deplace, status, created_at').eq('user_email', targetEmail).maybeSingle().catch(() => ({ data: null }));
+      return profile;
+    };
+    const fetchData = async () => {
+      const [reels, profile, svcs, avis, demandes] = await Promise.all([
         entities.Reel.filter({ author_email: targetEmail, status: "publie" }, "-created_at", 30).catch(() => []),
-        entities.ProfilPro.filter({ user_email: targetEmail }, "-created_at", 1).catch(() => []),
+        fetchProfil(),
         entities.Service.filter({ pro_email: targetEmail, status: "actif" }, "-created_at", 50).catch(() => []),
         entities.Avis.filter({ cible_email: targetEmail, type: "client_to_pro" }, "-created_at", 100).catch(() => []),
         entities.DemandeProV2.filter({ user_email: targetEmail, statut: "approuvee" }, "-created_at", 1).catch(() => []),
-      ]).then(([reels, profils, svcs, avis, demandes]) => {
-        setPublications(reels);
-        setServices(svcs);
-        if (profils.length > 0) {
-          let profile = profils[0];
-          try {
-            const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
-            if (cached) {
-              profile = { ...profile, avatar_url: cached.avatar_url || profile.avatar_url, cover_url: cached.cover_url || profile.cover_url, salon_name: cached.salon_name || profile.salon_name, bio: cached.bio || profile.bio, city: cached.city || profile.city };
-            }
-          } catch {}
-          setProInfo(profile);
-          setProInfoId(profile.id);
-          try {
-            const key = `bb_subscribed_${targetEmail}`;
-            setSubscribed(localStorage.getItem(key) === "1");
-          } catch {}
-        }
-        if (demandes.length > 0) setDemandeInfo(demandes[0]);
-        setAvis(avis);
-        setStats({ abonnes: profils[0]?.followers || 0, services: svcs.length, avis: avis.length });
-      });
+      ]);
+      setPublications(reels);
+      setServices(svcs);
+      if (profile) {
+        let p = profile;
+        try {
+          const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
+          if (cached && targetEmail === user?.email) {
+            p = { ...p, avatar_url: cached.avatar_url || p.avatar_url, cover_url: cached.cover_url || p.cover_url, salon_name: cached.salon_name || p.salon_name, bio: cached.bio || p.bio, city: cached.city || p.city, phone: cached.phone || p.phone, address: cached.address || p.address };
+          }
+        } catch {}
+        setProInfo(p);
+        setProInfoId(p.id);
+        try { setSubscribed(localStorage.getItem(`bb_subscribed_${targetEmail}`) === "1"); } catch {}
+      }
+      if (demandes.length > 0) setDemandeInfo(demandes[0]);
+      setAvis(avis);
+      setStats({ abonnes: profile?.followers || 0, services: svcs.length, avis: avis.length });
     };
     fetchData();
     const onUpdated = (e) => {
