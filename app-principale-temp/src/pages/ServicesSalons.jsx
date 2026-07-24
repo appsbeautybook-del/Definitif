@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useThemeBg } from "@/hooks/useTheme";
 import { useAuth } from "@/lib/AuthContext";
-import { Search, Heart, Clock, MapPin, Share2, MessageSquare, Star, Send, X, SlidersHorizontal, Plus, Play, Tag, Volume2, VolumeX, Sparkles, Palette } from "lucide-react";
+import { Search, Heart, Clock, MapPin, Share2, MessageSquare, Star, Send, X, SlidersHorizontal, Plus, Play, Tag, Volume2, VolumeX, Sparkles, Palette, Scissors, Store, User } from "lucide-react";
 import ProfilSheet from "@/components/salons/ProfilSheet";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
@@ -440,7 +440,9 @@ function StylesTab({ activeCategory }) {
 
   if (filteredStyles.length === 0) return (
     <div className="flex flex-col items-center justify-center gap-3 px-8 text-center" style={{ height: "calc(100vh - 260px)" }}>
-      <span className="text-[48px]">✂️</span>
+      <div className="w-20 h-20 rounded-3xl bg-orange-50 flex items-center justify-center">
+        <Palette className="w-10 h-10 text-orange-400" />
+      </div>
       <p className="text-[16px] font-black text-gray-700">Aucun style publié</p>
       <p className="text-[13px] text-gray-400 font-medium">Les professionnels n'ont pas encore publié de styles.</p>
     </div>
@@ -1115,7 +1117,9 @@ function ServicesTab({ activeCategory }) {
         <div className="flex justify-center py-12"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <span className="text-[48px]">✂️</span>
+          <div className="w-20 h-20 rounded-3xl bg-blue-50 flex items-center justify-center">
+            <Scissors className="w-10 h-10 text-blue-400" />
+          </div>
           <p className="text-[16px] font-black text-gray-700">Aucun service disponible</p>
           <p className="text-[13px] text-gray-400">Aucun professionnel dans cette catégorie.</p>
         </div>
@@ -1414,7 +1418,9 @@ function SalonsTab({ activeCategory }) {
         <div className="flex justify-center py-12"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <span className="text-[48px]">🏪</span>
+          <div className="w-20 h-20 rounded-3xl bg-purple-50 flex items-center justify-center">
+            <Store className="w-10 h-10 text-purple-400" />
+          </div>
           <p className="text-[16px] font-black text-gray-700">Aucun salon disponible</p>
         </div>
       ) : (
@@ -1512,7 +1518,9 @@ function ParticuliersTab({ activeCategory }) {
         <div className="flex justify-center py-12"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <span className="text-[48px]">👤</span>
+          <div className="w-20 h-20 rounded-3xl bg-green-50 flex items-center justify-center">
+            <User className="w-10 h-10 text-green-400" />
+          </div>
           <p className="text-[16px] font-black text-gray-700">Aucun particulier disponible</p>
         </div>
       ) : (
