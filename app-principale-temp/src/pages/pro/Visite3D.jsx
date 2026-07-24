@@ -228,14 +228,10 @@ export default function Visite3D() {
       const payload = {
         name: salonName,
         description: `Visite virtuelle de ${salonName}`,
-        cover_url: proInfo?.cover_url || proInfo?.avatar_url || "",
         scenes: [],
         status: "actif",
         views: 0,
         pro_email: user.email,
-        pro_name: salonName,
-        pro_address: proInfo?.address || "",
-        pro_city: proInfo?.city || "",
       };
       const v = await entities.VisiteVirtuelle.create(payload);
       if (!v) throw new Error("La création a retourné null — vérifiez que la table VisiteVirtuelle existe dans Supabase et que les RLS policies autorisent l'insertion.");
