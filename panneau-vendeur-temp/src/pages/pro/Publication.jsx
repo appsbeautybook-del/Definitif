@@ -2,6 +2,7 @@ import { fetchShopifyProducts } from "@/api/shopifyClient";
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/AuthContext";
 import PageHeader from "@/components/layout/PageHeader";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import {
@@ -2388,6 +2389,7 @@ function PublicationWizard({ onClose, onPublish, onDraft, editData }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Publication() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === "dark" || theme === "night";
   const [activeFilter, setActiveFilter] = useState("Tous");

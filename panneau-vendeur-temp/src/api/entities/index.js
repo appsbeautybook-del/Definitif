@@ -108,9 +108,9 @@ const createEntity = (tableName) => ({
         query = applyOrder(query);
         query = query.limit(limit);
         const { data, error } = await query;
-        if (error) return [];
+        if (error) { console.error(`[entities] ${tableName} filter error:`, error.message); return []; }
         return data || [];
-      } catch { return []; }
+      } catch (e) { console.error(`[entities] ${tableName} filter exception:`, e.message); return []; }
     }
     try {
       const res = await fetch(`${CRUD_API}/crud/list`, {
@@ -132,9 +132,9 @@ const createEntity = (tableName) => ({
         query = applyOrder(query);
         query = query.limit(limit);
         const { data, error } = await query;
-        if (error) return [];
+        if (error) { console.error(`[entities] ${tableName} filter fallback error:`, error.message); return []; }
         return data || [];
-      } catch { return []; }
+      } catch (e2) { console.error(`[entities] ${tableName} filter fallback exception:`, e2.message); return []; }
     }
   },
 
@@ -143,9 +143,9 @@ const createEntity = (tableName) => ({
       try {
         const { column, ascending } = parseOrder(orderBy);
         const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
-        if (error) return [];
+        if (error) { console.error(`[entities] ${tableName} list error:`, error.message); return []; }
         return data || [];
-      } catch { return []; }
+      } catch (e) { console.error(`[entities] ${tableName} list exception:`, e.message); return []; }
     }
     try {
       const res = await fetch(`${CRUD_API}/crud/list`, {
@@ -160,9 +160,9 @@ const createEntity = (tableName) => ({
       try {
         const { column, ascending } = parseOrder(orderBy);
         const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
-        if (error) return [];
+        if (error) { console.error(`[entities] ${tableName} list fallback error:`, error.message); return []; }
         return data || [];
-      } catch { return []; }
+      } catch (e2) { console.error(`[entities] ${tableName} list fallback exception:`, e2.message); return []; }
     }
   },
 
