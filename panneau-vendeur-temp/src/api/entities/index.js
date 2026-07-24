@@ -63,8 +63,8 @@ const stripUnknownColumns = async (tableName, payload) => {
   let known = KNOWN_COLUMNS[tableName];
   if (!known) {
     try {
-      const { data } = await supabase.from(tableName).select(getSelectColumns(tableName)).limit(1);
-      if (data && data[0]) known = Object.keys(data[0]);
+      const { data, error } = await supabase.from(tableName).select('*').limit(1);
+      if (!error && data && data[0]) known = Object.keys(data[0]);
     } catch {}
   }
   if (!known || known.length === 0) return payload;
@@ -76,8 +76,6 @@ const stripUnknownColumns = async (tableName, payload) => {
 };
 
 const getSelectColumns = (tableName) => {
-  const cols = KNOWN_COLUMNS[tableName];
-  if (cols && cols.length > 0) return cols.join(',');
   return '*';
 };
 
