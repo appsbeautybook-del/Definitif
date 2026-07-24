@@ -54,15 +54,22 @@ export default function ProfilPro() {
     if (!user?.email) return;
     setProInfo(null);
     supabase.from('ProfilPro').select('id, user_email, salon_name, bio, specialites, avatar_url, cover_url, address, city, phone, seats_count, commodites, horaires, rating, reviews_count, followers, services_count, travail_nuit, se_deplace, status, created_at').eq('user_email', user.email).maybeSingle()
-      .then(({ data: profile }) => {
-        if (profile) {
-          let p = profile;
+      .then(({ data: profile, error }) => {
+        let p = profile;
+        if (!p) {
+          try {
+            const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
+            if (cached) p = { user_email: user.email, ...cached };
+          } catch {}
+        } else {
           try {
             const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
             if (cached) {
               p = { ...p, avatar_url: cached.avatar_url || p.avatar_url, cover_url: cached.cover_url || p.cover_url, salon_name: cached.salon_name || p.salon_name, bio: cached.bio || p.bio, city: cached.city || p.city, phone: cached.phone || p.phone, address: cached.address || p.address };
             }
           } catch {}
+        }
+        if (p) {
           setProInfo(p);
           setNightMode(p.travail_nuit || false);
         }

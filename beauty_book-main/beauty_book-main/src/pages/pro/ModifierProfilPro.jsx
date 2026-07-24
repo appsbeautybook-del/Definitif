@@ -125,24 +125,40 @@ export default function ModifierProfilPro() {
     setSaving(true);
     setError("");
     try {
-      const payload = {
-        salon_name: data.salon_name, phone: data.phone, address: data.address,
-        city: data.city, seats_count: data.seats,
-        bio: data.bio, avatar_url: data.avatar_url, cover_url: data.cover_url,
-        specialites: data.specialites, commodites: data.commodites,
-        horaires: data.hours, updated_at: new Date().toISOString(),
-      };
       const { data: existing } = await supabase.from('ProfilPro').select('id').eq('user_email', user.email).maybeSingle();
+
+      const core = {
+        salon_name: data.salon_name || "",
+        phone: data.phone || "",
+        address: data.address || "",
+        city: data.city || "",
+        bio: data.bio || "",
+        avatar_url: data.avatar_url || "",
+        cover_url: data.cover_url || "",
+      };
+
       let saveError = null;
       if (existing?.id) {
-        const { error } = await supabase.from('ProfilPro').update(payload).eq('id', existing.id);
+        const { error } = await supabase.from('ProfilPro').update(core).eq('id', existing.id);
         saveError = error;
       } else {
-        const { error } = await supabase.from('ProfilPro').insert({ ...payload, user_email: user.email });
+        const { error } = await supabase.from('ProfilPro').insert({ ...core, user_email: user.email });
         saveError = error;
       }
       if (saveError) throw saveError;
-      try { localStorage.setItem('pro_profile_cache', JSON.stringify({ avatar_url: data.avatar_url, cover_url: data.cover_url, salon_name: data.salon_name, bio: data.bio, city: data.city, phone: data.phone, address: data.address })); } catch {}
+
+      const extra = {
+        seats_count: data.seats,
+        specialites: data.specialites,
+        commodites: data.commodites,
+        horaires: data.hours,
+        updated_at: new Date().toISOString(),
+      };
+      if (existing?.id) {
+        await supabase.from('ProfilPro').update(extra).eq('id', existing.id);
+      }
+
+      try { localStorage.setItem('pro_profile_cache', JSON.stringify(core)); } catch {}
       window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { avatar_url: data.avatar_url, cover_url: data.cover_url } }));
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
