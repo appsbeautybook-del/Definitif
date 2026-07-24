@@ -83,24 +83,33 @@ const getSelectColumns = (tableName) => {
 
 const createEntity = (tableName) => ({
   filter: async (filters = {}, orderBy = '-created_at', limit = 1000) => {
+    const applyFilters = (q) => {
+      if (filters && Object.keys(filters).length > 0) {
+        for (const [k, v] of Object.entries(filters)) {
+          q = q.eq(k, v);
+        }
+      }
+      return q;
+    };
+    const applyOrder = (q) => {
+      if (orderBy) {
+        const desc = orderBy.startsWith('-');
+        const raw = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
+        const colMap = { created_date: 'created_at', updated_date: 'updated_at', created_at: 'created_at', updated_at: 'updated_at' };
+        q = q.order(colMap[raw] || raw, { ascending: !desc });
+      }
+      return q;
+    };
     // Aller directement à Supabase si pas de backend
     if (!CRUD_API) {
       try {
         let query = supabase.from(tableName).select(getSelectColumns(tableName));
-        if (orderBy) {
-          const desc = orderBy.startsWith('-');
-          const raw = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
-          const colMap = { created_date: 'created_at', updated_date: 'updated_at', created_at: 'created_at', updated_at: 'updated_at' };
-          query = query.order(colMap[raw] || raw, { ascending: !desc });
-        }
+        query = applyFilters(query);
+        query = applyOrder(query);
         query = query.limit(limit);
         const { data, error } = await query;
         if (error) return [];
-        let result = data || [];
-        if (filters && Object.keys(filters).length > 0) {
-          result = result.filter(row => Object.entries(filters).every(([k, v]) => row[k] === v));
-        }
-        return result;
+        return data || [];
       } catch { return []; }
     }
     try {
@@ -119,20 +128,12 @@ const createEntity = (tableName) => ({
     } catch (e) {
       try {
         let query = supabase.from(tableName).select(getSelectColumns(tableName));
-        if (orderBy) {
-          const desc = orderBy.startsWith('-');
-          const raw = orderBy.startsWith('-') ? orderBy.slice(1) : orderBy;
-          const colMap = { created_date: 'created_at', updated_date: 'updated_at', created_at: 'created_at', updated_at: 'updated_at' };
-          query = query.order(colMap[raw] || raw, { ascending: !desc });
-        }
+        query = applyFilters(query);
+        query = applyOrder(query);
         query = query.limit(limit);
         const { data, error } = await query;
         if (error) return [];
-        let result = data || [];
-        if (filters && Object.keys(filters).length > 0) {
-          result = result.filter(row => Object.entries(filters).every(([k, v]) => row[k] === v));
-        }
-        return result;
+        return data || [];
       } catch { return []; }
     }
   },
