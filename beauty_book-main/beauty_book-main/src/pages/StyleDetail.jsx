@@ -305,7 +305,7 @@ function ConseilsSection({ category }) {
   const [conseils, setConseils] = useState([]);
 
   useEffect(() => {
-    entities.Reel.filter({ status: "publie", pub_type: "conseil" }, "-created_at", 10)
+    entities.Reel.filter({ status: "publie", category: "Conseils" }, "-created_at", 10)
       .then(items => {
         const filtered = category
           ? items.filter(r => !r.category || r.category === "Conseils" || r.category === category)

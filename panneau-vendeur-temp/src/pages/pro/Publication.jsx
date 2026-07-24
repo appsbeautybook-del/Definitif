@@ -2474,12 +2474,6 @@ export default function Publication() {
         author_name: user?.full_name || "Professionnel",
         author_avatar: user?.avatar_url || undefined,
         category: pubTypeToCategory[form.pubType] || "Réels",
-        pub_type: form.pubType,
-        product_id: form.product_id || undefined,
-        product_name: form.product_name || undefined,
-        product_img: form.product_img || undefined,
-        service_id: form.service_id || undefined,
-        service_name: form.service_name || undefined,
         status: "publie",
       };
 

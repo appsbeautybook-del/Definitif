@@ -136,7 +136,7 @@ export default function ServiceDetail() {
 
         const [pros, reels] = await Promise.all([
           svc.pro_email ? entities.ProfilPro.filter({ user_email: svc.pro_email }, "-created_at", 1).catch(() => []) : [],
-          entities.Reel.filter({ pub_type: "conseil", status: "publie" }, "-created_at", 4).catch(() => []),
+          entities.Reel.filter({ category: "Conseils", status: "publie" }, "-created_at", 4).catch(() => []),
         ]);
         if (pros[0]) setProData(pros[0]);
         setConseils(reels);
