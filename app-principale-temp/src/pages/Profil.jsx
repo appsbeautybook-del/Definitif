@@ -129,13 +129,15 @@ export default function Profil() {
 
   useEffect(() => {
     loadData();
-    const proFlag = localStorage.getItem("bb_is_pro");
-    setIsPro(!!proFlag);
   }, [user?.email]);
 
   const loadData = async () => {
     if (!user?.email) return;
     setLoading(true);
+    // Reset pro flag — loadData will re-determine from DB
+    localStorage.removeItem("bb_is_pro");
+    setIsPro(false);
+    setDemandeStatus(null);
     try {
     const today = new Date().toISOString().split("T")[0];
 
@@ -198,11 +200,11 @@ export default function Profil() {
       solde: soldeDisponible,
     });
 
-    if (user?.role === 'vendeur' || user?.role === 'admin' || (profil.length > 0 && profil[0].status === 'actif')) {
+    if (user?.role === 'vendeur' || user?.role === 'admin') {
       setIsPro(true);
       localStorage.setItem("bb_is_pro", "true");
     } else {
-      // Check DemandeProV2 status
+      // Check DemandeProV2 status + ProfilPro existence
       try {
         const { data } = await supabase.from('DemandeProV2')
           .select('statut')
@@ -213,15 +215,11 @@ export default function Profil() {
         const statut = data?.statut || null;
         setDemandeStatus(statut);
 
-        // Si la demande est approuvée mais le ProfilPro n'existe pas encore, le créer
-        if (statut === 'approuvee') {
+        if (statut === 'approuvee' && profil.length > 0 && profil[0].status === 'actif') {
           setIsPro(true);
           localStorage.setItem("bb_is_pro", "true");
-        } else {
-          localStorage.removeItem("bb_is_pro");
-          setIsPro(false);
         }
-      } catch { setDemandeStatus(null); localStorage.removeItem("bb_is_pro"); setIsPro(false); }
+      } catch { setDemandeStatus(null); }
     }
     } catch (e) { console.error('[Profil] loadData error:', e); }
     setLoading(false);

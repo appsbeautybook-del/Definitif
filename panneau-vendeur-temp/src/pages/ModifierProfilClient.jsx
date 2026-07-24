@@ -89,7 +89,7 @@ export default function ModifierProfilClient() {
         return;
       }
 
-      const profileData = { id: authUser.id, updated_at: new Date().toISOString() };
+      const profileData = { id: authUser.id, updated_at: new Date().toISOString(), role: 'user' };
       if (form.fullName !== undefined) profileData.full_name = form.fullName;
       if (form.username !== undefined) profileData.username = form.username;
       if (form.email !== undefined) profileData.email = form.email;
