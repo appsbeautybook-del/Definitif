@@ -303,9 +303,6 @@ function VisiteVirtuelle3D({ proEmail }) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (visite) {
-                  entities.VisiteVirtuelle.update(visite.id, { views: (visite.views || 0) + 1 }).catch(() => {});
-                }
                 setViewerActive(true);
               }}
               className="bg-primary hover:bg-primary/90 text-white text-[13px] font-black uppercase tracking-widest px-6 py-3 rounded-2xl shadow-xl shadow-primary/30 active:scale-95 transition-all">
@@ -313,12 +310,6 @@ function VisiteVirtuelle3D({ proEmail }) {
             </button>
             <div className="flex items-center gap-2">
               <span className="text-white/60 text-[10px] font-medium">{sceneCount} scène{sceneCount !== 1 ? "s" : ""}</span>
-              {visite?.views > 0 && (
-                <>
-                  <span className="w-1 h-1 rounded-full bg-white/30" />
-                  <span className="text-white/60 text-[10px] font-medium">{visite.views} vue{visite.views !== 1 ? "s" : ""}</span>
-                </>
-              )}
               <span className="w-1 h-1 rounded-full bg-white/30" />
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/40">
                 <path d="M3 12a9 9 0 1 1 18 0" />

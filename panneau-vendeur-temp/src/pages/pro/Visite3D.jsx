@@ -226,11 +226,9 @@ export default function Visite3D() {
     try {
       const salonName = proInfo?.salon_name || "Mon établissement";
       const payload = {
-        name: salonName,
-        description: `Visite virtuelle de ${salonName}`,
+        title: salonName,
         scenes: [],
         status: "actif",
-        views: 0,
         pro_email: user.email,
       };
       const v = await entities.VisiteVirtuelle.create(payload);
@@ -298,7 +296,7 @@ export default function Visite3D() {
           {[
             { label: "VISITES", value: visites.length },
             { label: "ACTIVES", value: visites.filter(v => v.status === "actif").length },
-            { label: "VUES TOTALES", value: visites.reduce((s, v) => s + (v.views || 0), 0) },
+            { label: "SCÈNES", value: visites.reduce((s, v) => s + (v.scenes?.length || 0), 0) },
           ].map(s => (
             <div key={s.label} className={`rounded-2xl p-4 text-center border ${isLight ? "bg-white border-gray-100 shadow-sm" : "bg-[#1a1a1a] border-gray-800"}`}>
               <p className={`text-[24px] font-black ${isLight ? "text-gray-900" : "text-white"}`}>{s.value}</p>
@@ -372,7 +370,7 @@ export default function Visite3D() {
                   {/* Couverture */}
                   <div className="relative h-44">
                     {coverUrl ? (
-                      <img src={coverUrl} alt={v.name} className="w-full h-full object-cover" />
+                      <img src={coverUrl} alt={v.title} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gray-900 flex items-center justify-center">
                         <Image className="w-10 h-10 text-gray-700" />
@@ -396,12 +394,12 @@ export default function Visite3D() {
 
                   <div className="p-4">
                     <h3 className={`text-[16px] font-black flex items-center gap-2 ${isLight ? "text-gray-900" : "text-white"}`}>
-                      {v.pro_name || v.name || "Visite sans nom"}
+                      {v.title || "Visite sans nom"}
                       <button onClick={() => setEditingVisite(v)} className={`w-6 h-6 rounded-lg flex items-center justify-center ${isLight ? "bg-gray-100" : "bg-gray-800"}`}>
                         <Pencil className={`w-3 h-3 ${isLight ? "text-gray-500" : "text-gray-400"}`} />
                       </button>
                     </h3>
-                    <p className={`text-[11px] font-medium mt-1 ${isLight ? "text-gray-500" : "text-gray-400"}`}>{sceneCount} scène{sceneCount !== 1 ? "s" : ""} · {v.views || 0} vues</p>
+                    <p className={`text-[11px] font-medium mt-1 ${isLight ? "text-gray-500" : "text-gray-400"}`}>{sceneCount} scène{sceneCount !== 1 ? "s" : ""}</p>
 
                     {/* Actions */}
                     <div className="grid grid-cols-3 gap-2 mt-4">

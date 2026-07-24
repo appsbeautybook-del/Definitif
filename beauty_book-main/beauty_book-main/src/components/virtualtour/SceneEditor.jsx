@@ -147,11 +147,8 @@ export default function SceneEditor({ visite, theme = "dark", onSave, onClose })
 
   const handleSave = async () => {
     setSaving(true);
-    // Remove temporary _id fields
     const cleanScenes = scenes.map(({ _id, _floorplan_url, ...rest }) => rest);
     const updateData = { scenes: cleanScenes };
-    const floorplanUrl = scenes[0]?._floorplan_url;
-    if (floorplanUrl) updateData.floorplan_url = floorplanUrl;
     const updated = await entities.VisiteVirtuelle.update(visite.id, updateData);
     onSave(updated);
     setSaving(false);
