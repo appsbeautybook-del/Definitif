@@ -52,12 +52,19 @@ export default function ProfilPro() {
 
   const loadProfil = () => {
     if (!user?.email) return;
-    setProInfo(null); // Reset immédiat pour éviter un flash de l'ancien profil
+    setProInfo(null);
     entities.ProfilPro.filter({ user_email: user.email }, "-created_at", 1)
       .then(res => {
         if (res.length > 0) {
-          setProInfo(res[0]);
-          setNightMode(res[0].travail_nuit || false);
+          let profile = res[0];
+          try {
+            const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
+            if (cached) {
+              profile = { ...profile, avatar_url: cached.avatar_url || profile.avatar_url, cover_url: cached.cover_url || profile.cover_url, salon_name: cached.salon_name || profile.salon_name, bio: cached.bio || profile.bio, city: cached.city || profile.city, phone: cached.phone || profile.phone, address: cached.address || profile.address };
+            }
+          } catch {}
+          setProInfo(profile);
+          setNightMode(profile.travail_nuit || false);
         }
       })
       .catch(() => {});

@@ -588,8 +588,15 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
         setPublications(reels);
         setServices(svcs);
         if (profils.length > 0) {
-          setProInfo(profils[0]);
-          setProInfoId(profils[0].id);
+          let profile = profils[0];
+          try {
+            const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
+            if (cached) {
+              profile = { ...profile, avatar_url: cached.avatar_url || profile.avatar_url, cover_url: cached.cover_url || profile.cover_url, salon_name: cached.salon_name || profile.salon_name, bio: cached.bio || profile.bio, city: cached.city || profile.city };
+            }
+          } catch {}
+          setProInfo(profile);
+          setProInfoId(profile.id);
           try {
             const key = `bb_subscribed_${targetEmail}`;
             setSubscribed(localStorage.getItem(key) === "1");
