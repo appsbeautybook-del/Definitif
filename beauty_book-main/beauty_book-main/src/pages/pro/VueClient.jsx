@@ -577,13 +577,14 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
 
   useEffect(() => {
     if (!targetEmail) return;
-    const fetchProfil = async () => {
-      const { data: profile } = await supabase.from('ProfilPro').select('id, user_email, salon_name, bio, specialites, avatar_url, cover_url, address, city, phone, seats_count, commodites, horaires, rating, reviews_count, followers, services_count, travail_nuit, se_deplace, status, created_at').eq('user_email', targetEmail).maybeSingle().catch(() => ({ data: null }));
-      return profile;
-    };
     const isOwnProfile = targetEmail === user?.email;
     const getCached = () => {
       try { return JSON.parse(localStorage.getItem('pro_profile_cache') || 'null'); } catch { return null; }
+    };
+    const fetchProfil = async () => {
+      const { data, error } = await supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url').eq('user_email', targetEmail).maybeSingle();
+      if (error || !data) return null;
+      return data;
     };
     const applyCache = (p) => {
       if (!isOwnProfile) return p;
