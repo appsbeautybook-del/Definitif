@@ -99,7 +99,14 @@ export default function ProfilPro() {
   }, [user, location.key]);
 
   useEffect(() => {
-    const onUpdated = () => { loadProfil(); loadStats(); };
+    const onUpdated = (e) => {
+      const d = e.detail || {};
+      if (d.avatar_url || d.cover_url) {
+        setProInfo(prev => prev ? { ...prev, avatar_url: d.avatar_url || prev.avatar_url, cover_url: d.cover_url || prev.cover_url } : prev);
+      }
+      loadProfil();
+      loadStats();
+    };
     window.addEventListener('pro-profile-updated', onUpdated);
     return () => window.removeEventListener('pro-profile-updated', onUpdated);
   }, [user]);

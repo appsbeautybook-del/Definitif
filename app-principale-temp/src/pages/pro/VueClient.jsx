@@ -601,7 +601,13 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       });
     };
     fetchData();
-    const onUpdated = () => fetchData();
+    const onUpdated = (e) => {
+      const d = e.detail || {};
+      if (d.avatar_url || d.cover_url) {
+        setProInfo(prev => prev ? { ...prev, avatar_url: d.avatar_url || prev.avatar_url, cover_url: d.cover_url || prev.cover_url } : prev);
+      }
+      fetchData();
+    };
     window.addEventListener('pro-profile-updated', onUpdated);
     return () => window.removeEventListener('pro-profile-updated', onUpdated);
   }, [targetEmail, user]);
