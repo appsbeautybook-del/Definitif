@@ -1,18 +1,33 @@
 import { supabase } from '@/api/supabaseClient';
 
 /**
- * Supprime toutes les données utilisateur de toutes les tables Supabase.
- * La suppression de l'utilisateur auth doit être faite séparément (via Edge Function ou dashboard).
+ * Supprime TOUTES les données utilisateur + le compte auth.
+ * Utilise la fonction SQL delete_user() qui bypass RLS (SECURITY DEFINER).
  *
  * @param {string} userEmail - Email de l'utilisateur
  * @param {string} userId - ID de l'utilisateur (UUID auth)
- * @returns {Promise<{success: boolean, deleted: string[], errors: string[]}>}
+ * @returns {Promise<{success: boolean, errors: string[]}>}
  */
 export async function deleteAccountData(userEmail, userId) {
-  const deleted = [];
   const errors = [];
 
-  // Helper: delete rows matching a filter
+  // ── Méthode 1 : Fonction SQL delete_user() (bypass RLS) ──
+  try {
+    const { error } = await supabase.rpc('delete_user');
+    if (!error) {
+      console.log('[deleteAccount] SQL delete_user() executed successfully');
+      return { success: true, errors: [] };
+    }
+    console.warn('[deleteAccount] SQL delete_user() failed:', error.message);
+    errors.push(`SQL delete_user: ${error.message}`);
+  } catch (e) {
+    console.warn('[deleteAccount] SQL delete_user() exception:', e.message);
+    errors.push(`SQL delete_user: ${e.message}`);
+  }
+
+  // ── Méthode 2 : Fallback — suppression client-side (nécessite RLS DELETE policies) ──
+  console.log('[deleteAccount] Falling back to client-side deletion...');
+
   async function safeDelete(table, filters, label) {
     try {
       let query = supabase.from(table).delete();
@@ -25,8 +40,6 @@ export async function deleteAccountData(userEmail, userId) {
       if (error) {
         console.warn(`[deleteAccount] ${table} delete error:`, error.message);
         errors.push(`${label}: ${error.message}`);
-      } else {
-        deleted.push(label);
       }
     } catch (e) {
       console.warn(`[deleteAccount] ${table} exception:`, e.message);
@@ -90,26 +103,5 @@ export async function deleteAccountData(userEmail, userId) {
     await safeDelete('profiles', { id: userId }, 'Profil');
   }
 
-  return { success: errors.length === 0, deleted, errors };
-}
-
-/**
- * Supprime le compte auth utilisateur (nécessite service_role ou Edge Function).
- * Côté client, on ne peut PAS supprimer l'utilisateur auth directement.
- * Solution: on appelle la fonction SQL `delete_user()` via RPC, ou on nettoie les données
- * et on déconnecte l'utilisateur (la suppression auth se fera côté admin/Edge Function).
- */
-export async function deleteAuthUser(userId) {
-  // Essayer d'appeler une fonction SQL qui supprime l'utilisateur
-  try {
-    const { error } = await supabase.rpc('delete_user');
-    if (error) {
-      console.warn('[deleteAccount] RPC delete_user failed:', error.message);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.warn('[deleteAccount] RPC delete_user exception:', e.message);
-    return false;
-  }
+  return { success: errors.length === 0, errors };
 }
