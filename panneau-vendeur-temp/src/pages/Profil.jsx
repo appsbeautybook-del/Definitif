@@ -162,18 +162,29 @@ export default function Profil() {
         const myEmail = (user.email || '').toLowerCase().trim();
         const myId = user.id || '';
         const myName = (user.full_name || user.name || '').toLowerCase().trim();
+
+        // Debug: log exact values
+        (reelsData || []).forEach((r, i) => {
+          console.log(`[Profil] Reel[${i}]: email="${r.author_email}" name="${r.author_name}" createdBy="${r.created_by_id}"`);
+        });
+        console.log('[Profil] Me: email=', myEmail, 'id=', myId, 'name=', myName);
+
         reels = (reelsData || []).filter(r => {
           const rEmail = (r.author_email || '').toLowerCase().trim();
           const rCreatedBy = r.created_by_id || '';
           const rName = (r.author_name || '').toLowerCase().trim();
-          return rEmail === myEmail || rCreatedBy === myId || (myName && rName === myName);
+          // Match par email, id, OU nom
+          if (rEmail && rEmail === myEmail) return true;
+          if (rCreatedBy && rCreatedBy === myId) return true;
+          if (myName && rName && rName === myName) return true;
+          // Fallback: si aucun champ n'est rempli dans le reel, l'inclure
+          if (!rEmail && !rCreatedBy) return true;
+          return false;
         });
-        console.log('[Profil] Reels:', reels.length, '/', (reelsData || []).length, '| myEmail:', myEmail, '| myName:', myName, '| myId:', myId);
-        if (reelsData && reelsData.length > 0) {
-          reelsData.forEach((r, i) => {
-            console.log(`[Profil] Reel[${i}]: author_email="${r.author_email}" author_name="${r.author_name}" created_by_id="${r.created_by_id}"`);
-          });
-        }
+      }
+    } catch (e) {
+      console.error('[Profil] Reels query exception:', e);
+    }
       }
     } catch (e) {
       console.error('[Profil] Reels query exception:', e);
