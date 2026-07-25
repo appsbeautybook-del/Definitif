@@ -138,9 +138,9 @@ export default function ModifierProfilClient() {
         }
       }
 
-      // Mettre à jour aussi user_metadata
+      // Mettre à jour aussi user_metadata — clear role pour éviter le bug client→pro
       await supabase.auth.updateUser({
-        data: { full_name: profileData.full_name, username: profileData.username }
+        data: { full_name: profileData.full_name, username: profileData.username, role: 'user' }
       });
 
       setSaving(false);
