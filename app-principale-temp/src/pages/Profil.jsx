@@ -147,16 +147,37 @@ export default function Profil() {
     const likedServiceIds = (dbLikes || []).filter(l => l.target_type === 'service').map(l => l.target_id);
     const likedStyleIds = (dbLikes || []).filter(l => l.target_type === 'style').map(l => l.target_id);
 
-    // Charger tous les reels publiés puis filtrer côté client par email
-    // (l'ancien reel peut avoir author_email != user.email ou created_by_id vide)
-    const allReels = await entities.Reel.filter({ status: "publie" }, "-created_at", 500).catch(() => []);
-    const reels = allReels.filter(r =>
-      r.author_email === user.email ||
-      r.created_by_id === user.id
-    );
+    // Requête Supabase directe pour les reels (bypass entities pour éviter les erreurs silencieuses)
+    let reels = [];
+    try {
+      const { data: reelsData, error: reelsErr } = await supabase
+        .from('Reel')
+        .select('*')
+        .eq('status', 'publie')
+        .or(`author_email.eq.${user.email},created_by_id.eq.${user.id}`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (reelsErr) {
+        console.error('[Profil] Reels query error:', reelsErr);
+      } else {
+        reels = reelsData || [];
+      }
+    } catch (e) {
+      console.error('[Profil] Reels query exception:', e);
+    }
 
-    const [repubs, profil, commandes, reservations, pointsFidelite] = await Promise.all([
-      entities.Repub.filter({ user_email: user.email }, "-created_at", 50).catch(() => []),
+    let repubs = [];
+    try {
+      const { data: repubsData, error: repubsErr } = await supabase
+        .from('Repub')
+        .select('*')
+        .eq('user_email', user.email)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (!repubsErr) repubs = repubsData || [];
+    } catch (e) {}
+
+    const [profil, commandes, reservations, pointsFidelite] = await Promise.all([
       entities.ProfilPro.filter({ user_email: user.email }, "-created_at", 1).catch(() => []),
       entities.Commande.filter({ client_email: user.email }, "-created_at", 100).catch(() => []),
       entities.Reservation.filter({ client_email: user.email }, "-created_at", 100).catch(() => []),
