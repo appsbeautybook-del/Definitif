@@ -9,7 +9,6 @@ import ScoreFiabilite from "@/components/avis/ScoreFiabilite";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 
-const BANNER_IMAGE = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=800";
 const PROFILE_IMAGE = "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=200";
 
 const quickLinks = [
@@ -237,7 +236,11 @@ export default function Profil() {
 
       {/* Banner — cliquable pour modifier */}
       <div className="relative h-48 cursor-pointer" onClick={() => navigate("/modifier-profil-client")}>
-        <img src={user?.cover_url || BANNER_IMAGE} alt="Bannière" className="w-full h-full object-cover" />
+        {user?.cover_url ? (
+          <img src={user.cover_url} alt="Bannière" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-b from-orange-100 to-orange-50" />
+        )}
         <div className="absolute inset-0" style={{ background: getBannerGradient(theme) }} />
 
         {/* Top Buttons */}
