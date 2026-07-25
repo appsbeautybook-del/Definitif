@@ -148,7 +148,7 @@ export default function Profil() {
     const likedStyleIds = (dbLikes || []).filter(l => l.target_type === 'style').map(l => l.target_id);
 
     const [reels, repubs, profil, commandes, reservations, pointsFidelite] = await Promise.all([
-      entities.Reel.filter({ author_email: user.email, status: "publie" }, "-created_at", 50).catch(() => []),
+      entities.Reel.filter({ created_by_id: user.id, status: "publie" }, "-created_at", 50).catch(() => []),
       entities.Repub.filter({ user_email: user.email }, "-created_at", 50).catch(() => []),
       entities.ProfilPro.filter({ user_email: user.email }, "-created_at", 1).catch(() => []),
       entities.Commande.filter({ client_email: user.email }, "-created_at", 100).catch(() => []),
