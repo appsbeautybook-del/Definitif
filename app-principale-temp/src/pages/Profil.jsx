@@ -147,7 +147,7 @@ export default function Profil() {
     const likedServiceIds = (dbLikes || []).filter(l => l.target_type === 'service').map(l => l.target_id);
     const likedStyleIds = (dbLikes || []).filter(l => l.target_type === 'style').map(l => l.target_id);
 
-    // Requête Supabase directe — charger tous les reels publiés puis filtrer côté client
+    // Requête Supabase directe — tous les reels publiés, filtrer côté client
     let reels = [];
     try {
       const { data: reelsData, error: reelsErr } = await supabase
@@ -161,12 +161,18 @@ export default function Profil() {
       } else {
         const myEmail = (user.email || '').toLowerCase().trim();
         const myId = user.id || '';
+        const myName = (user.full_name || user.name || '').toLowerCase().trim();
         reels = (reelsData || []).filter(r => {
           const rEmail = (r.author_email || '').toLowerCase().trim();
           const rCreatedBy = r.created_by_id || '';
-          return rEmail === myEmail || rCreatedBy === myId;
+          const rName = (r.author_name || '').toLowerCase().trim();
+          return rEmail === myEmail || rCreatedBy === myId || (myName && rName === myName);
         });
-        console.log('[Profil] Found', reels.length, 'reels for', myEmail, 'out of', (reelsData || []).length, 'total');
+        console.log('[Profil] Reels:', reels.length, '/', (reelsData || []).length, '| email:', myEmail, '| name:', myName);
+        // Debug: afficher les author_email des reels pour comprendre le mismatch
+        if (reelsData && reelsData.length > 0) {
+          console.log('[Profil] Sample author_emails:', reelsData.slice(0, 3).map(r => ({ email: r.author_email, name: r.author_name, id: r.created_by_id })));
+        }
       }
     } catch (e) {
       console.error('[Profil] Reels query exception:', e);
