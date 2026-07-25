@@ -168,10 +168,11 @@ export default function Profil() {
           const rName = (r.author_name || '').toLowerCase().trim();
           return rEmail === myEmail || rCreatedBy === myId || (myName && rName === myName);
         });
-        console.log('[Profil] Reels:', reels.length, '/', (reelsData || []).length, '| email:', myEmail, '| name:', myName);
-        // Debug: afficher les author_email des reels pour comprendre le mismatch
+        console.log('[Profil] Reels:', reels.length, '/', (reelsData || []).length, '| myEmail:', myEmail, '| myName:', myName, '| myId:', myId);
         if (reelsData && reelsData.length > 0) {
-          console.log('[Profil] Sample author_emails:', reelsData.slice(0, 3).map(r => ({ email: r.author_email, name: r.author_name, id: r.created_by_id })));
+          reelsData.forEach((r, i) => {
+            console.log(`[Profil] Reel[${i}]: author_email="${r.author_email}" author_name="${r.author_name}" created_by_id="${r.created_by_id}"`);
+          });
         }
       }
     } catch (e) {
