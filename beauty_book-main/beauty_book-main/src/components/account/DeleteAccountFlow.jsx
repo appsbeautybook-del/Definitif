@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Trash2, AlertTriangle, ChevronRight } from "lucide-react";
-import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
+import { useAuth } from "@/lib/AuthContext";
+import { deleteAccountData } from "@/lib/deleteAccount";
 
 const REASONS = [
   "Je n'utilise plus l'application",
@@ -19,6 +20,7 @@ const REASONS = [
  *   onClose: () => void
  */
 export default function DeleteAccountFlow({ onClose }) {
+  const { user } = useAuth();
   const [step, setStep] = useState(1); // 1 = raisons, 2 = confirmation
   const [selectedReason, setSelectedReason] = useState("");
   const [confirmText, setConfirmText] = useState("");
@@ -28,9 +30,10 @@ export default function DeleteAccountFlow({ onClose }) {
     if (confirmText !== "SUPPRIMER") return;
     setDeleting(true);
     try {
-      await /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("deleteAccount", {});
+      const result = await deleteAccountData(user?.email, user?.id);
+      console.log('[DeleteAccountFlow] Deletion result:', result);
     } catch (e) {
-      console.error(e);
+      console.error('[DeleteAccountFlow] Deletion error:', e);
     }
     localStorage.clear();
     supabase.auth.signOut().then(() => window.location.href = "/onboarding");

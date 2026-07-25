@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
-import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from "@/lib/AuthContext";
 import { apiClient } from "@/lib/apiClient";
+import { deleteAccountData } from "@/lib/deleteAccount";
 
 const RAISONS = [
   { id: "utilise_pas", emoji: "😴", label: "Je n'utilise plus l'application", desc: "Je ne trouve plus l'intérêt de l'utiliser" },
@@ -66,14 +66,18 @@ export default function SupprimerCompte() {
       });
     } catch (_) {}
 
-    // Supprimer toutes les données + le compte en base
+    // Supprimer toutes les données utilisateur de Supabase
     try {
-      await apiClient.callFunction("deleteAccount", {});
-    } catch (_) {}
+      const result = await deleteAccountData(user?.email, user?.id);
+      console.log('[SupprimerCompte] Deletion result:', result);
+    } catch (e) {
+      console.error('[SupprimerCompte] Deletion error:', e);
+    }
 
     // Nettoyage local et déconnexion
     localStorage.removeItem("bb_onboarded");
     localStorage.removeItem("bb_saved_accounts");
+    localStorage.removeItem("bb_is_pro");
     setDeleted(true);
     setDeleting(false);
     setTimeout(() => {
