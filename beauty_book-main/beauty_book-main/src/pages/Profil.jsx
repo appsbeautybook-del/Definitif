@@ -147,8 +147,15 @@ export default function Profil() {
     const likedServiceIds = (dbLikes || []).filter(l => l.target_type === 'service').map(l => l.target_id);
     const likedStyleIds = (dbLikes || []).filter(l => l.target_type === 'style').map(l => l.target_id);
 
-    const [reels, repubs, profil, commandes, reservations, pointsFidelite] = await Promise.all([
-      entities.Reel.filter({ created_by_id: user.id, status: "publie" }, "-created_at", 50).catch(() => []),
+    // Charger tous les reels publiés puis filtrer côté client par email
+    // (l'ancien reel peut avoir author_email != user.email ou created_by_id vide)
+    const allReels = await entities.Reel.filter({ status: "publie" }, "-created_at", 500).catch(() => []);
+    const reels = allReels.filter(r =>
+      r.author_email === user.email ||
+      r.created_by_id === user.id
+    );
+
+    const [repubs, profil, commandes, reservations, pointsFidelite] = await Promise.all([
       entities.Repub.filter({ user_email: user.email }, "-created_at", 50).catch(() => []),
       entities.ProfilPro.filter({ user_email: user.email }, "-created_at", 1).catch(() => []),
       entities.Commande.filter({ client_email: user.email }, "-created_at", 100).catch(() => []),
