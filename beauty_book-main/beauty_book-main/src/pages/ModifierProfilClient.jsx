@@ -152,7 +152,7 @@ export default function ModifierProfilClient() {
 
       // Mettre à jour aussi user_metadata
       await supabase.auth.updateUser({
-        data: { full_name: profileData.full_name, username: profileData.username, role: 'user' }
+        data: { full_name: profileData.full_name, username: profileData.username }
       });
 
       setSaving(false);
