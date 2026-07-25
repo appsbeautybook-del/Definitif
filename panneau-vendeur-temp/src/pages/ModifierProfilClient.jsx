@@ -11,10 +11,15 @@ const bioMax = 160;
 
 async function uploadToSupabase(file) {
   const safeName = file.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_');
-  const filePath = `avatars/${Date.now()}_${safeName}`;
+  const filePath = `profiles/${Date.now()}_${safeName}`;
+  console.log('[uploadToSupabase] Uploading to:', filePath);
   const { error } = await supabase.storage.from('uploads').upload(filePath, file, { contentType: file.type, upsert: true });
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error('[uploadToSupabase] Upload error:', error);
+    throw new Error(error.message);
+  }
   const { data } = supabase.storage.from('uploads').getPublicUrl(filePath);
+  console.log('[uploadToSupabase] Public URL:', data.publicUrl);
   return data.publicUrl;
 }
 
@@ -102,9 +107,12 @@ export default function ModifierProfilClient() {
       if (pendingAvatarRef.current) {
         try {
           const url = await uploadToSupabase(pendingAvatarRef.current);
-          if (url) profileData.avatar_url = url;
+          if (url) {
+            profileData.avatar_url = url;
+            console.log('[ModifierProfil] Avatar uploaded:', url);
+          }
         } catch (e) {
-          console.error('Avatar upload error:', e);
+          console.error('[ModifierProfil] Avatar upload error:', e);
           setError("Erreur upload avatar: " + e.message);
           setSaving(false);
           return;
@@ -116,9 +124,12 @@ export default function ModifierProfilClient() {
       if (pendingCoverRef.current) {
         try {
           const url = await uploadToSupabase(pendingCoverRef.current);
-          if (url) profileData.cover_url = url;
+          if (url) {
+            profileData.cover_url = url;
+            console.log('[ModifierProfil] Cover uploaded:', url);
+          }
         } catch (e) {
-          console.error('Cover upload error:', e);
+          console.error('[ModifierProfil] Cover upload error:', e);
           setError("Erreur upload bannière: " + e.message);
           setSaving(false);
           return;
@@ -126,19 +137,20 @@ export default function ModifierProfilClient() {
         pendingCoverRef.current = null;
       }
 
-      // Upsert direct dans Supabase (ignore les erreurs de colonnes manquantes)
-      const { error: upsertError } = await supabase.from('profiles').upsert(profileData, { onConflict: 'id' });
+      console.log('[ModifierProfil] Saving profile:', profileData);
+
+      // Upsert direct dans Supabase
+      const { data: upsertData, error: upsertError } = await supabase.from('profiles').upsert(profileData, { onConflict: 'id' }).select();
       if (upsertError) {
-        console.warn('Profile upsert warning:', upsertError.message);
-        // Continuer quand même si c'est juste un problème de colonne
-        if (!upsertError.message?.includes('column')) {
-          setError("Erreur sauvegarde: " + upsertError.message);
-          setSaving(false);
-          return;
-        }
+        console.error('[ModifierProfil] Profile upsert error:', upsertError);
+        setError("Erreur sauvegarde: " + upsertError.message);
+        setSaving(false);
+        return;
       }
 
-      // Mettre à jour aussi user_metadata — clear role pour éviter le bug client→pro
+      console.log('[ModifierProfil] Profile saved:', upsertData);
+
+      // Mettre à jour aussi user_metadata
       await supabase.auth.updateUser({
         data: { full_name: profileData.full_name, username: profileData.username, role: 'user' }
       });
@@ -150,7 +162,7 @@ export default function ModifierProfilClient() {
         window.location.replace('/profil?' + Date.now());
       }, 300);
     } catch (error) {
-      console.error("Error saving:", error);
+      console.error("[ModifierProfil] Error saving:", error);
       setError("Erreur: " + error.message);
       setSaving(false);
     }
