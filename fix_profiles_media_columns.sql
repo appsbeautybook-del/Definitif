@@ -1,4 +1,4 @@
--- Vérifier et ajouter les colonnes avatar_url et cover_url à la table profiles
+-- Vérifier et ajouter les colonnes manquantes à la table profiles
 -- Exécuter dans l'éditeur SQL Supabase
 
 -- 1. Ajouter avatar_url si elle n'existe pas
@@ -29,30 +29,73 @@ BEGIN
   END IF;
 END $$;
 
--- 3. Ajouter les autres colonnes manquantes
+-- 3. Ajouter phone
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'phone') THEN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'profiles' AND column_name = 'phone'
+  ) THEN
     ALTER TABLE profiles ADD COLUMN phone TEXT;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'instagram') THEN
+END $$;
+
+-- 4. Ajouter instagram
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'profiles' AND column_name = 'instagram'
+  ) THEN
     ALTER TABLE profiles ADD COLUMN instagram TEXT;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'facebook') THEN
+END $$;
+
+-- 5. Ajouter facebook
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'profiles' AND column_name = 'facebook'
+  ) THEN
     ALTER TABLE profiles ADD COLUMN facebook TEXT;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'website') THEN
+END $$;
+
+-- 6. Ajouter website
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'profiles' AND column_name = 'website'
+  ) THEN
     ALTER TABLE profiles ADD COLUMN website TEXT;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'bio') THEN
+END $$;
+
+-- 7. Ajouter bio
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'profiles' AND column_name = 'bio'
+  ) THEN
     ALTER TABLE profiles ADD COLUMN bio TEXT;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'profiles' AND column_name = 'username') THEN
+END $$;
+
+-- 8. Ajouter username
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'profiles' AND column_name = 'username'
+  ) THEN
     ALTER TABLE profiles ADD COLUMN username TEXT;
   END IF;
 END $$;
 
--- 4. Vérification : afficher la structure de la table profiles
+-- 9. Vérification : afficher la structure de la table profiles
 SELECT column_name, data_type, is_nullable
 FROM information_schema.columns
 WHERE table_name = 'profiles'
