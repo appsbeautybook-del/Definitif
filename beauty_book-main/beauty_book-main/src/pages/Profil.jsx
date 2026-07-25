@@ -147,20 +147,26 @@ export default function Profil() {
     const likedServiceIds = (dbLikes || []).filter(l => l.target_type === 'service').map(l => l.target_id);
     const likedStyleIds = (dbLikes || []).filter(l => l.target_type === 'style').map(l => l.target_id);
 
-    // Requête Supabase directe pour les reels (bypass entities pour éviter les erreurs silencieuses)
+    // Requête Supabase directe — charger tous les reels publiés puis filtrer côté client
     let reels = [];
     try {
       const { data: reelsData, error: reelsErr } = await supabase
         .from('Reel')
         .select('*')
         .eq('status', 'publie')
-        .or(`author_email.eq.${user.email},created_by_id.eq.${user.id}`)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(200);
       if (reelsErr) {
         console.error('[Profil] Reels query error:', reelsErr);
       } else {
-        reels = reelsData || [];
+        const myEmail = (user.email || '').toLowerCase().trim();
+        const myId = user.id || '';
+        reels = (reelsData || []).filter(r => {
+          const rEmail = (r.author_email || '').toLowerCase().trim();
+          const rCreatedBy = r.created_by_id || '';
+          return rEmail === myEmail || rCreatedBy === myId;
+        });
+        console.log('[Profil] Found', reels.length, 'reels for', myEmail, 'out of', (reelsData || []).length, 'total');
       }
     } catch (e) {
       console.error('[Profil] Reels query exception:', e);
