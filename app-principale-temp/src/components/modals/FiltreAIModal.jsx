@@ -174,11 +174,11 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
 
       const data = response.data;
 
-      if (data?.error) {
+      if (data?.error && !data?.fallback) {
         throw new Error(data.error);
       }
 
-      const isFallback = data?.fallback === true;
+      const isFallback = data?.fallback === true || !data?.generatedImageUrl;
       
       setResult({
         generatedImageUrl: data?.generatedImageUrl || null,
@@ -189,6 +189,10 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
         author: selectedStyle.author,
         fallback: isFallback,
         fallbackMessage: data?.message || null,
+        faceShape: data?.faceShape || null,
+        compatibilityScore: data?.compatibilityScore || null,
+        message: data?.message || null,
+        recommendations: data?.recommendations || [],
       });
       setStep(4);
 
@@ -550,25 +554,49 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
                   <p className="text-[11px] text-gray-500 mt-2">Rechargez votre solde sur <a href="https://fal.ai/dashboard/billing" target="_blank" className="text-primary underline">fal.ai/dashboard/billing</a> ou réessayez plus tard.</p>
                 </div>
               ) : result.fallback ? (
-                /* Image générée (fallback) — affichage simple */
-                <div>
-                  <p className="text-[12px] font-black text-gray-700 uppercase tracking-widest mb-2">Résultat</p>
-                  <div className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-gray-100">
-                    <img
-                      src={result.generatedImageUrl}
-                      alt={result.styleLabel}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute bottom-2 right-2 bg-purple-500/90 rounded-full px-2 py-0.5">
-                      <span className="text-white text-[9px] font-black uppercase">IA</span>
+                /* Mode fallback — analyse IA sans image générée */
+                <div className="space-y-4">
+                  {/* Comparaison côte à côte */}
+                  <div>
+                    <p className="text-[12px] font-black text-gray-700 uppercase tracking-widest mb-2">Analyse IA</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {result.userPhotoUrl && (
+                        <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-[3/4]">
+                          <img src={result.userPhotoUrl} alt="Vous" className="w-full h-full object-cover" />
+                          <div className="absolute bottom-2 left-2 bg-gray-900/80 rounded-full px-2 py-0.5">
+                            <span className="text-white text-[9px] font-black uppercase">VOUS</span>
+                          </div>
+                        </div>
+                      )}
+                      <div className="relative rounded-2xl overflow-hidden bg-gray-100 aspect-[3/4]">
+                        <img src={result.styleImg} alt={result.styleLabel} className="w-full h-full object-cover" />
+                        <div className="absolute bottom-2 right-2 bg-primary/90 rounded-full px-2 py-0.5">
+                          <span className="text-white text-[9px] font-black uppercase">STYLE</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  {result.userPhotoUrl && (
-                    <div className="mt-3">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Votre photo</p>
-                      <div className="w-24 h-24 rounded-xl overflow-hidden">
-                        <img src={result.userPhotoUrl} alt="Vous" className="w-full h-full object-cover" />
+                  {/* Score & analyse */}
+                  {result.compatibilityScore != null && (
+                    <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-100 rounded-2xl p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-[13px] font-black text-gray-900">Compatibilité</p>
+                        <span className="text-[22px] font-black text-primary">{result.compatibilityScore}%</span>
                       </div>
+                      <div className="h-2.5 bg-white/60 rounded-full overflow-hidden mb-2">
+                        <div className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full" style={{ width: `${result.compatibilityScore}%` }} />
+                      </div>
+                      {result.faceShape && <p className="text-[11px] text-gray-600 mb-1">Forme du visage : <strong>{result.faceShape}</strong></p>}
+                      {result.message && <p className="text-[12px] text-gray-700 leading-relaxed mt-2">{result.message}</p>}
+                    </div>
+                  )}
+                  {/* Recommandations */}
+                  {result.recommendations?.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3">
+                      <p className="text-[11px] font-black text-blue-700 mb-1.5">Recommandations IA</p>
+                      {result.recommendations.map((r, i) => (
+                        <p key={i} className="text-[11px] text-blue-600 leading-relaxed">• {r}</p>
+                      ))}
                     </div>
                   )}
                 </div>

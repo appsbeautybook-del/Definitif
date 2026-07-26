@@ -546,7 +546,6 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
     setAnalyzingPhoto(true);
     setPhotoAnalysis(null);
     try {
-      // Appeler le backend pour l'analyse IA
       const res = await apiClient.callFunction("analyzePhoto", {
         photoUrl,
         productName: productName || "vêtement",
@@ -598,23 +597,38 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
     const garmentName = mode === "article"
       ? selectedProduct.name
       : `tenue (${[topPhoto && "haut", bottomPhoto && "bas", shoesPhoto && "chaussures"].filter(Boolean).join(", ")})`;
-    const res = await apiClient.callFunction("shAiTryOn", {
-      user_photo: userPhoto,
-      garment_photo: garmentPhoto,
-      garment_name: garmentName,
-      preserve_face: true,
-      preserve_background: true,
-      mode: mode === "tenue" ? "outfit" : "article",
-      outfit_pieces: mode === "tenue" ? { top: topPhoto, bottom: bottomPhoto, shoes: shoesPhoto } : undefined,
-    });
-    setLoading(false);
-    if (res.data?.result_url) {
-      const resultUrl = res.data.result_url;
-      setResult(resultUrl);
-      // Sauvegarder dans l'historique
-      saveToHistory({ resultUrl, productName: garmentName, userPhoto, garmentPhoto });
-    } else {
-      setError(res.data?.error || "Erreur lors de la génération.");
+    try {
+      const res = await apiClient.callFunction("shAiTryOn", {
+        user_photo: userPhoto,
+        garment_photo: garmentPhoto,
+        garment_name: garmentName,
+        preserve_face: true,
+        preserve_background: true,
+        mode: mode === "tenue" ? "outfit" : "article",
+        outfit_pieces: mode === "tenue" ? { top: topPhoto, bottom: bottomPhoto, shoes: shoesPhoto } : undefined,
+      });
+      setLoading(false);
+      if (res.data?.result_url) {
+        const resultUrl = res.data.result_url;
+        setResult(resultUrl);
+        saveToHistory({ resultUrl, productName: garmentName, userPhoto, garmentPhoto });
+      } else if (res.data?.fallback) {
+        // Fallback: show analysis instead of generated image
+        setPhotoAnalysis({
+          has_person: true,
+          body_visible: true,
+          quality_ok: true,
+          compatibility_score: res.data.compatibility_score || 75,
+          issues: [],
+          body_type: res.data.body_type || "",
+          suggestion: res.data.message || "L'essayage virtuel sera bientôt disponible. Voici l'analyse de compatibilité.",
+        });
+      } else {
+        setError(res.data?.error || "Erreur lors de la génération.");
+      }
+    } catch (err) {
+      setLoading(false);
+      setError("L'essayage virtuel sera bientôt disponible. En attendant, consultez l'analyse de compatibilité de votre photo.");
     }
   };
 
