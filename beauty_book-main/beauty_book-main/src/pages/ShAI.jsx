@@ -24,8 +24,7 @@ const LOADING_STEPS = [
   { pct: 55, msg: "Application des textures…" },
   { pct: 70, msg: "Ajustement des proportions…" },
   { pct: 82, msg: "Préservation du visage & du décor…" },
-  { pct: 92, msg: "Finalisation du rendu IA…" },
-  { pct: 98, msg: "Presque prêt…" },
+  { pct: 90, msg: "Finalisation du rendu IA…" },
 ];
 
 // Overlay de chargement superposé sur la photo importée
@@ -41,7 +40,9 @@ function LoadingOverlay() {
         setStepIdx(idx);
         setProgress(LOADING_STEPS[idx].pct);
         idx++;
-        timerRef.current = setTimeout(advance, 2200 + Math.random() * 1500);
+        if (idx < LOADING_STEPS.length) {
+          timerRef.current = setTimeout(advance, 2200 + Math.random() * 1500);
+        }
       }
     };
     advance();
@@ -49,25 +50,23 @@ function LoadingOverlay() {
   }, []);
 
   const step = LOADING_STEPS[Math.min(stepIdx, LOADING_STEPS.length - 1)];
+  const isLastStep = stepIdx >= LOADING_STEPS.length - 1;
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-end bg-black/60 backdrop-blur-[2px]">
       <div className="w-full px-4 pb-6 space-y-3">
-        {/* Icône animée */}
         <div className="flex justify-center mb-2">
           <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm">
             <Wand2 className="w-6 h-6 text-white animate-pulse" />
           </div>
         </div>
-        {/* Message étape */}
         <div className="flex items-center justify-between">
           <p className="text-white text-[12px] font-black">{step.msg}</p>
-          <p className="text-primary text-[13px] font-black">{progress}%</p>
+          <p className="text-primary text-[13px] font-black animate-pulse">{progress}%</p>
         </div>
-        {/* Barre de progression */}
         <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-all duration-700 ease-out"
+            className={`h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-all duration-700 ease-out ${isLastStep ? 'animate-pulse' : ''}`}
             style={{ width: `${progress}%` }}
           />
         </div>

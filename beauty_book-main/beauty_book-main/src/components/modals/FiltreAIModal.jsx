@@ -21,7 +21,6 @@ const PROGRESS_STEPS = [
   { pct: 65, msg: "Application du style sur votre visage..." },
   { pct: 78, msg: "Ajustement des textures et couleurs..." },
   { pct: 88, msg: "Finalisation du rendu réaliste..." },
-  { pct: 95, msg: "Presque prêt..." },
 ];
 
 export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favoriteStyles = [] }) {
@@ -503,11 +502,11 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
                     <Sparkles className="w-4 h-4 text-primary animate-pulse" />
                     <p className="text-[13px] font-black text-gray-900">Nano Banana AI</p>
                   </div>
-                  <p className="text-[14px] font-black text-primary">{progress}%</p>
+                  <p className="text-[14px] font-black text-primary animate-pulse">{progress}%</p>
                 </div>
                 <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-all duration-700 ease-out"
+                    className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-all duration-700 ease-out animate-pulse"
                     style={{ width: `${progress}%` }}
                   />
                 </div>

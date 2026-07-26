@@ -179,55 +179,74 @@ export const apiClient = {
 
   // ── Route all AI functions through /api/ai/maria ──
   async _callMariaAI(functionName, payload) {
-    // Build a chat message that the existing /api/ai/maria handler can process
-    const chatBuilders = {
-      analyzePhoto: (p) => ({
-        messages: [{
-          role: 'user',
-          content: [
-            ...(p.photoUrl && !p.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
-            { type: 'text', text: `Tu es un expert en essayage virtuel. Analyse cette photo pour evaluer sa compatibilite avec un essayage virtuel de vetement.
-Vetement : ${p.productName || 'vetement non precise'}
-
-Retourne UNIQUEMENT ce JSON (sans markdown) :
-{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre 40-98,"issues":[],"body_type":"","suggestion":"Conseil pratique"}` }
-          ]
-        }],
-        model: 'google/gemini-2.5-flash',
-      }),
+    // Build task/payload mapping for backend routing
+    const taskMap = {
       simulateHairstyle: (p) => ({
+        task: 'simulate-hairstyle',
+        payload: {
+          userPhotoUrl: p.userPhotoUrl,
+          styleTitle: p.styleTitle,
+          referenceImages: p.referenceImages,
+        },
         messages: [{
           role: 'user',
           content: [
             ...(p.userPhotoUrl && !p.userPhotoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.userPhotoUrl } }] : []),
-            { type: 'text', text: `Tu es un expert en coiffure IA. Analyse cette photo et le style demande pour evaluer la compatibilite.
-Style demande : ${p.styleTitle || 'Non precise'}
-
-Retourne UNIQUEMENT ce JSON (sans markdown) :
-{"faceShape":"forme du visage","compatibilityScore":nombre 40-98,"message":"Analyse courte","recommendations":["Conseil 1","Conseil 2"],"generatedImageUrl":null}` }
+            { type: 'text', text: `Analyse la coiffure "${p.styleTitle || ''}" pour cette photo.` }
+          ]
+        }],
+        model: 'google/gemini-2.5-flash',
+      }),
+      analyzePhoto: (p) => ({
+        task: 'analyze-photo',
+        payload: {
+          photoUrl: p.photoUrl,
+          productName: p.productName,
+        },
+        messages: [{
+          role: 'user',
+          content: [
+            ...(p.photoUrl && !p.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
+            { type: 'text', text: `Analyse cette photo pour l'essayage virtuel. Vetement: ${p.productName || 'non precise'}` }
           ]
         }],
         model: 'google/gemini-2.5-flash',
       }),
       shAiTryOn: (p) => ({
+        task: 'essayage-virtuel',
+        payload: {
+          userPhoto: p.user_photo,
+          garmentPhoto: p.garment_photo,
+          garmentName: p.garment_name,
+          mode: p.mode,
+        },
         messages: [{
           role: 'user',
           content: [
             ...(p.user_photo && !p.user_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.user_photo } }] : []),
             ...(p.garment_photo && !p.garment_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.garment_photo } }] : []),
-            { type: 'text', text: `Tu es un expert en essayage virtuel de mode. Analyse ces images.
-Vetement : ${p.garment_name || 'Non precise'}
-Mode : ${p.mode || 'article'}
-
-Retourne UNIQUEMENT ce JSON (sans markdown) :
-{"result_url":null,"compatibility_score":nombre 40-98,"face_shape":"forme du visage","style_match":"description","recommendations":["Conseil 1"],"message":"Analyse courte"}` }
+            { type: 'text', text: `Analyse cet essayage virtuel. Vetement: ${p.garment_name || 'Non precise'}. Mode: ${p.mode || 'article'}` }
           ]
         }],
         model: 'google/gemini-2.5-flash',
       }),
+      shAiImageSearch: (p) => ({
+        messages: [{
+          role: 'user',
+          content: [
+            ...(p.photoUrl && !p.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
+            { type: 'text', text: `Recherche des vetements similaires a cette image.` }
+          ]
+        }],
+        model: 'google/gemini-2.5-flash',
+      }),
+      mariaAutoReply: (p) => ({
+        messages: p.messages || [{ role: 'user', content: p.text || 'Bonjour' }],
+        model: p.model || 'google/gemini-2.5-flash',
+      }),
     };
 
-    const builder = chatBuilders[functionName];
+    const builder = taskMap[functionName];
     if (!builder) {
       return { data: { fallback: true, message: `Function ${functionName} not configured` } };
     }
@@ -239,8 +258,10 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
         body: JSON.stringify({ ...body, temperature: 0.7, max_tokens: 2048 }),
       });
 
-      // Parse the JSON response from OpenRouter
       const content = result?.choices?.[0]?.message?.content || '';
+      if (result?.generatedImageUrl !== undefined || result?.result_url !== undefined || result?.has_person !== undefined) {
+        return { data: result };
+      }
       try {
         const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
         const parsed = JSON.parse(cleaned);
