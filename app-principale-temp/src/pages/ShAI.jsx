@@ -619,7 +619,7 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         mode: mode === "tenue" ? "outfit" : "article",
         outfit_pieces: mode === "tenue" ? { top: topPhoto, bottom: bottomPhoto, shoes: shoesPhoto } : undefined,
       });
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 45000));
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 90000));
       const res = await Promise.race([apiCall, timeout]);
       setLoading(false);
       if (res.data?.result_url) {
