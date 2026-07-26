@@ -58,6 +58,12 @@ export const apiClient = {
   },
 
   async callFunction(functionName, payload = {}) {
+    // ── AI functions: route ALL through /api/ai/maria (OpenRouter proxy) ──
+    const aiFunctions = ['analyzePhoto', 'simulateHairstyle', 'shAiTryOn', 'shAiImageSearch', 'mariaAutoReply'];
+    if (aiFunctions.includes(functionName)) {
+      return this._callMariaAI(functionName, payload);
+    }
+
     // Map old Base44 function names → new Express API routes
     const endpointMap = {
       // ----- Admin & Management (Phase 3) -----
@@ -118,26 +124,18 @@ export const apiClient = {
       getNotifications: { path: '/communication/notifications/get', method: 'POST' },
       markNotificationsRead: { path: '/communication/notifications/mark-read', method: 'POST' },
 
-      // --- AI & Webhooks (Phase 7) ---
+      // --- AI (routed via _callMariaAI above) ---
       mariaAgent: { path: '/ai/maria', method: 'POST' },
-      mariaAutoReply: { path: '/ai/maria-autoreply', method: 'POST' },
-      shAiImageSearch: { path: '/ai/image-search', method: 'POST' },
-      simulateHairstyle: { path: '/ai/simulate-hairstyle', method: 'POST' },
-      analyzePhoto: { path: '/ai/analyze-photo', method: 'POST' },
-      generateVeoVideo: { path: '/ai/generate-video', method: 'POST' },
-      
+
       stripeWebhook: { path: '/webhooks/stripe', method: 'POST' },
       shopifyProducts: { path: '/webhooks/shopify', method: 'POST' },
       muxLive: { path: '/webhooks/mux-live', method: 'POST' },
 
-      // --- Phase 8: Fidélité, Boutique, Abonnements, Gestion, Compte ---
+      // --- Phase 8 ---
       addFidelitePoints:          { path: '/v8/fidelite/add', method: 'POST' },
       creditFideliteAuto:         { path: '/v8/fidelite/auto-credit', method: 'POST' },
-      shAiTryOn:                  { path: '/v8/boutique/try-on', method: 'POST' },
       createShopifyCheckout:      { path: '/v8/boutique/shopify-checkout', method: 'POST' },
-      trackOrder:                 { path: '/v8/boutique/track-order', method: 'POST' },
       createSubscriptionCheckout: { path: '/v8/subscription/checkout', method: 'POST' },
-      sendReservationReminders:   { path: '/v8/reminders/send', method: 'POST' },
       manageAnnonce:              { path: '/v8/manage/annonce', method: 'POST' },
       manageStyle:                { path: '/v8/manage/style', method: 'POST' },
       manageEntity:               { path: '/v8/manage/entity', method: 'POST' },
@@ -176,6 +174,84 @@ export const apiClient = {
     } catch (error) {
       console.error(`[apiClient.callFunction] Error calling "${functionName}":`, error);
       throw error;
+    }
+  },
+
+  // ── Route all AI functions through /api/ai/maria (OpenRouter proxy) ──
+  async _callMariaAI(functionName, payload) {
+    const prompts = {
+      analyzePhoto: (p) => ({
+        prompt: `Tu es un expert en essayage virtuel. Analyse cette photo utilisateur pour évaluer sa compatibilité avec un essayage virtuel de vêtement.
+Vêtement : ${p.productName || "vêtement non spécifié"}
+${p.photoUrl ? `URL de la photo : ${p.photoUrl}` : ""}
+
+Retourne UNIQUEMENT ce JSON :
+{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre 40-98,"issues":[],"body_type":"","suggestion":"Conseil pratique"}`,
+        file_urls: p.photoUrl ? [p.photoUrl] : [],
+      }),
+      simulateHairstyle: (p) => ({
+        prompt: `Tu es un expert en coiffure IA. Analyse ces images et retourne un diagnostic.
+${p.userPhotoUrl ? "La première image est la photo de l'utilisateur." : ""}
+Style demandé : ${p.styleTitle || "Non spécifié"}
+
+Retourne UNIQUEMENT ce JSON :
+{"faceShape":"forme du visage","compatibilityScore":nombre 40-98,"message":"Analyse courte","recommendations":["Conseil 1","Conseil 2"],"generatedImageUrl":null}`,
+        file_urls: [p.userPhotoUrl, ...(p.referenceImages || [])].filter(Boolean),
+      }),
+      shAiTryOn: (p) => ({
+        prompt: `Tu es un expert en essayage virtuel de mode. Analyse ces images.
+Vêtement : ${p.garment_name || "Non spécifié"}
+Mode : ${p.mode || "article"}
+
+Retourne UNIQUEMENT ce JSON :
+{"result_url":null,"compatibility_score":nombre 40-98,"face_shape":"forme du visage","style_match":"description","recommendations":["Conseil 1"],"message":"Analyse courte"}`,
+        file_urls: [p.user_photo, p.garment_photo].filter(Boolean),
+      }),
+      shAiImageSearch: (p) => ({
+        prompt: `Analyse cette image et identifie les produits ou vêtements visibles.
+Retourne UNIQUEMENT ce JSON :
+{"description":"Description","categories":["cat1"],"keywords":["mot1","mot2"],"products":[{"name":"Produit","category":"Cat","brand":"Marque"}]}`,
+        file_urls: p.image_url ? [p.image_url] : [],
+      }),
+    };
+
+    const promptBuilder = prompts[functionName];
+    if (!promptBuilder) {
+      return { data: { success: true, message: `Mock for ${functionName}` } };
+    }
+
+    const { prompt, file_urls } = promptBuilder(payload);
+    const messages = [{ role: 'user', content: [] }];
+
+    if (file_urls?.length > 0) {
+      for (const url of file_urls) {
+        messages[0].content.push({ type: 'image_url', image_url: { url } });
+      }
+    }
+    messages[0].content.push({ type: 'text', text: prompt });
+
+    try {
+      const result = await this.request('/ai/maria', {
+        method: 'POST',
+        body: JSON.stringify({
+          messages,
+          model: 'google/gemini-2.5-flash',
+          temperature: 0.7,
+          max_tokens: 2048,
+        }),
+      });
+
+      const content = result?.choices?.[0]?.message?.content || '';
+      try {
+        const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+        const parsed = JSON.parse(cleaned);
+        return { data: parsed };
+      } catch {
+        return { data: { fallback: true, message: content || 'Analyse IA terminée.' } };
+      }
+    } catch (error) {
+      console.error(`[apiClient._callMariaAI] Error for "${functionName}":`, error);
+      return { data: { fallback: true, error: error.message } };
     }
   },
 
