@@ -153,23 +153,22 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
     }
   }
 
-  // ── Task: essayage-virtuel via fal.ai (kolors-virtual-try-on) ────────────
+  // ── Task: essayage-virtuel via fal.ai (kling kolors-virtual-try-on v1.5) ─
   if (task === 'essayage-virtuel' && payload) {
     try {
       const { userPhoto, garmentPhoto, garmentName, mode } = payload;
 
       console.log('[maria] Fal AI essayage-virtuel:', { userPhoto: userPhoto?.substring(0, 80), garmentPhoto: garmentPhoto?.substring(0, 80), garmentName });
 
-      const falRes = await fetch('https://fal.run/fal-ai/kolors-virtual-try-on', {
+      const falRes = await fetch('https://fal.run/fal-ai/kling/v1-5/kolors-virtual-try-on', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Key ${FAL_KEY}`,
         },
         body: JSON.stringify({
-          person_image_url: userPhoto,
+          human_image_url: userPhoto,
           garment_image_url: garmentPhoto,
-          garment_description: garmentName || 'vêtement',
         }),
       });
 
