@@ -177,32 +177,77 @@ export const apiClient = {
     }
   },
 
-  // ── Route all AI functions through /api/ai/maria (task-based) ──
+  // ── Route all AI functions through /api/ai/maria ──
   async _callMariaAI(functionName, payload) {
-    const taskMap = {
-      analyzePhoto: 'analyze-photo',
-      simulateHairstyle: 'simulate-hairstyle',
-      shAiTryOn: 'essayage-virtuel',
+    // Build a chat message that the existing /api/ai/maria handler can process
+    const chatBuilders = {
+      analyzePhoto: (p) => ({
+        messages: [{
+          role: 'user',
+          content: [
+            ...(p.photoUrl && !p.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
+            { type: 'text', text: `Tu es un expert en essayage virtuel. Analyse cette photo pour evaluer sa compatibilite avec un essayage virtuel de vetement.
+Vetement : ${p.productName || 'vetement non precise'}
+
+Retourne UNIQUEMENT ce JSON (sans markdown) :
+{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre 40-98,"issues":[],"body_type":"","suggestion":"Conseil pratique"}` }
+          ]
+        }],
+        model: 'google/gemini-2.5-flash',
+      }),
+      simulateHairstyle: (p) => ({
+        messages: [{
+          role: 'user',
+          content: [
+            ...(p.userPhotoUrl && !p.userPhotoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.userPhotoUrl } }] : []),
+            { type: 'text', text: `Tu es un expert en coiffure IA. Analyse cette photo et le style demande pour evaluer la compatibilite.
+Style demande : ${p.styleTitle || 'Non precise'}
+
+Retourne UNIQUEMENT ce JSON (sans markdown) :
+{"faceShape":"forme du visage","compatibilityScore":nombre 40-98,"message":"Analyse courte","recommendations":["Conseil 1","Conseil 2"],"generatedImageUrl":null}` }
+          ]
+        }],
+        model: 'google/gemini-2.5-flash',
+      }),
+      shAiTryOn: (p) => ({
+        messages: [{
+          role: 'user',
+          content: [
+            ...(p.user_photo && !p.user_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.user_photo } }] : []),
+            ...(p.garment_photo && !p.garment_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.garment_photo } }] : []),
+            { type: 'text', text: `Tu es un expert en essayage virtuel de mode. Analyse ces images.
+Vetement : ${p.garment_name || 'Non precise'}
+Mode : ${p.mode || 'article'}
+
+Retourne UNIQUEMENT ce JSON (sans markdown) :
+{"result_url":null,"compatibility_score":nombre 40-98,"face_shape":"forme du visage","style_match":"description","recommendations":["Conseil 1"],"message":"Analyse courte"}` }
+          ]
+        }],
+        model: 'google/gemini-2.5-flash',
+      }),
     };
 
-    const task = taskMap[functionName];
-    if (!task) {
+    const builder = chatBuilders[functionName];
+    if (!builder) {
       return { data: { fallback: true, message: `Function ${functionName} not configured` } };
     }
 
     try {
+      const body = builder(payload);
       const result = await this.request('/ai/maria', {
         method: 'POST',
-        body: JSON.stringify({
-          task,
-          payload,
-          model: 'google/gemini-2.5-flash',
-          temperature: 0.7,
-          max_tokens: 2048,
-        }),
+        body: JSON.stringify({ ...body, temperature: 0.7, max_tokens: 2048 }),
       });
 
-      return { data: result };
+      // Parse the JSON response from OpenRouter
+      const content = result?.choices?.[0]?.message?.content || '';
+      try {
+        const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+        const parsed = JSON.parse(cleaned);
+        return { data: parsed };
+      } catch {
+        return { data: { fallback: true, message: content || 'Analyse IA terminee.' } };
+      }
     } catch (error) {
       console.error(`[apiClient._callMariaAI] Error for "${functionName}":`, error);
       return { data: { fallback: true, error: error.message } };
