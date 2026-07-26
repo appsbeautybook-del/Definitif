@@ -18,6 +18,8 @@ export default async function handler(req, res) {
 
       const prompt = `Professional hairstyle photo edit: Transform this person's hair to a ${styleTitle || 'stylish'} hairstyle. Keep the face, skin tone, and background exactly the same. Only change the hair style and color to match: ${styleTitle || 'modern stylish haircut'}. Photorealistic, high quality salon result.`;
 
+      console.log('[maria] Calling fal.ai for simulate-hairstyle with image:', userPhotoUrl?.substring(0, 80));
+
       const falRes = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
         method: 'POST',
         headers: {
@@ -28,7 +30,8 @@ export default async function handler(req, res) {
           prompt,
           image_url: userPhotoUrl,
           strength: 0.65,
-          num_images: 1,
+          num_inference_steps: 28,
+          guidance_scale: 3.5,
           enable_safety_checker: true,
         }),
       });
@@ -47,6 +50,7 @@ export default async function handler(req, res) {
       }
 
       const falData = await falRes.json();
+      console.log('[maria] fal.ai response:', JSON.stringify(falData).substring(0, 200));
       const imageUrl = falData?.images?.[0]?.url || falData?.image?.url || null;
 
       if (imageUrl) {

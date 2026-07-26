@@ -125,7 +125,7 @@ export const apiClient = {
       markNotificationsRead: { path: '/communication/notifications/mark-read', method: 'POST' },
 
       // --- AI (routed via _callMariaAI above) ---
-      mariaAgent: { path: '/ai/maria', method: 'POST' },
+      mariaAgent: { path: '/api/ai/maria', method: 'POST' },
 
       stripeWebhook: { path: '/webhooks/stripe', method: 'POST' },
       shopifyProducts: { path: '/webhooks/shopify', method: 'POST' },
@@ -253,7 +253,7 @@ export const apiClient = {
 
     try {
       const body = builder(payload);
-      const result = await this.request('/ai/maria', {
+      const result = await this.request('/api/ai/maria', {
         method: 'POST',
         body: JSON.stringify({ ...body, temperature: 0.7, max_tokens: 2048 }),
       });
