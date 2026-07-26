@@ -177,78 +177,32 @@ export const apiClient = {
     }
   },
 
-  // ── Route all AI functions through /api/ai/maria (OpenRouter proxy) ──
+  // ── Route all AI functions through /api/ai/maria (task-based) ──
   async _callMariaAI(functionName, payload) {
-    const prompts = {
-      analyzePhoto: (p) => ({
-        prompt: `Tu es un expert en essayage virtuel. Analyse cette photo utilisateur pour évaluer sa compatibilité avec un essayage virtuel de vêtement.
-Vêtement : ${p.productName || "vêtement non spécifié"}
-${p.photoUrl ? `URL de la photo : ${p.photoUrl}` : ""}
-
-Retourne UNIQUEMENT ce JSON :
-{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre 40-98,"issues":[],"body_type":"","suggestion":"Conseil pratique"}`,
-        file_urls: p.photoUrl ? [p.photoUrl] : [],
-      }),
-      simulateHairstyle: (p) => ({
-        prompt: `Tu es un expert en coiffure IA. Analyse ces images et retourne un diagnostic.
-${p.userPhotoUrl ? "La première image est la photo de l'utilisateur." : ""}
-Style demandé : ${p.styleTitle || "Non spécifié"}
-
-Retourne UNIQUEMENT ce JSON :
-{"faceShape":"forme du visage","compatibilityScore":nombre 40-98,"message":"Analyse courte","recommendations":["Conseil 1","Conseil 2"],"generatedImageUrl":null}`,
-        file_urls: [p.userPhotoUrl, ...(p.referenceImages || [])].filter(Boolean),
-      }),
-      shAiTryOn: (p) => ({
-        prompt: `Tu es un expert en essayage virtuel de mode. Analyse ces images.
-Vêtement : ${p.garment_name || "Non spécifié"}
-Mode : ${p.mode || "article"}
-
-Retourne UNIQUEMENT ce JSON :
-{"result_url":null,"compatibility_score":nombre 40-98,"face_shape":"forme du visage","style_match":"description","recommendations":["Conseil 1"],"message":"Analyse courte"}`,
-        file_urls: [p.user_photo, p.garment_photo].filter(Boolean),
-      }),
-      shAiImageSearch: (p) => ({
-        prompt: `Analyse cette image et identifie les produits ou vêtements visibles.
-Retourne UNIQUEMENT ce JSON :
-{"description":"Description","categories":["cat1"],"keywords":["mot1","mot2"],"products":[{"name":"Produit","category":"Cat","brand":"Marque"}]}`,
-        file_urls: p.image_url ? [p.image_url] : [],
-      }),
+    const taskMap = {
+      analyzePhoto: 'analyze-photo',
+      simulateHairstyle: 'simulate-hairstyle',
+      shAiTryOn: 'essayage-virtuel',
     };
 
-    const promptBuilder = prompts[functionName];
-    if (!promptBuilder) {
-      return { data: { success: true, message: `Mock for ${functionName}` } };
+    const task = taskMap[functionName];
+    if (!task) {
+      return { data: { fallback: true, message: `Function ${functionName} not configured` } };
     }
-
-    const { prompt, file_urls } = promptBuilder(payload);
-    const messages = [{ role: 'user', content: [] }];
-
-    if (file_urls?.length > 0) {
-      for (const url of file_urls) {
-        messages[0].content.push({ type: 'image_url', image_url: { url } });
-      }
-    }
-    messages[0].content.push({ type: 'text', text: prompt });
 
     try {
       const result = await this.request('/ai/maria', {
         method: 'POST',
         body: JSON.stringify({
-          messages,
+          task,
+          payload,
           model: 'google/gemini-2.5-flash',
           temperature: 0.7,
           max_tokens: 2048,
         }),
       });
 
-      const content = result?.choices?.[0]?.message?.content || '';
-      try {
-        const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-        const parsed = JSON.parse(cleaned);
-        return { data: parsed };
-      } catch {
-        return { data: { fallback: true, message: content || 'Analyse IA terminée.' } };
-      }
+      return { data: result };
     } catch (error) {
       console.error(`[apiClient._callMariaAI] Error for "${functionName}":`, error);
       return { data: { fallback: true, error: error.message } };

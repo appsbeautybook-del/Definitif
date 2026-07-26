@@ -158,14 +158,16 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
         ? selectedStyle.allImages.filter(Boolean).slice(0, 3)
         : [selectedStyle.img].filter(Boolean);
 
-      setProgressMsg("Connexion à Nano Banana AI...");
+      setProgressMsg("Connexion à l'IA...");
 
-      // 3. Appeler la fonction backend
-      const response = await apiClient.callFunction("simulateHairstyle", {
+      // 3. Appeler la fonction backend avec timeout
+      const apiCall = apiClient.callFunction("simulateHairstyle", {
         userPhotoUrl: uploadedUrl,
         styleTitle: selectedStyle.label,
         referenceImages,
       });
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const response = await Promise.race([apiCall, timeout]);
 
       clearTimeout(progressRef.current);
       setProgress(100);
@@ -199,13 +201,14 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
     } catch (err) {
       clearTimeout(progressRef.current);
       console.error("Simulation error:", err.message);
-      setErrorMsg(err.message);
+      const isTimeout = err.message === 'timeout';
+      setErrorMsg(isTimeout ? "L'analyse prend trop de temps." : err.message);
       setProgress(100);
-      setProgressMsg("Une erreur est survenue");
+      setProgressMsg(isTimeout ? "Délai dépassé" : "Une erreur est survenue");
       await new Promise(r => setTimeout(r, 500));
       setResult({
         generatedImageUrl: null,
-        error: err.message,
+        error: isTimeout ? "L'analyse IA prend trop de temps. Réessayez plus tard." : err.message,
         styleLabel: selectedStyle?.label,
         styleImg: selectedStyle?.img,
         userPhotoUrl,

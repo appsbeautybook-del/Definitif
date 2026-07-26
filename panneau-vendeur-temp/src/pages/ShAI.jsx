@@ -546,8 +546,20 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
     setAnalyzingPhoto(true);
     setPhotoAnalysis(null);
     try {
+      // If photoUrl is a data: URI, try uploading first
+      let urlToSend = photoUrl;
+      if (photoUrl && photoUrl.startsWith('data:') && file) {
+        try {
+          const { file_url } = await uploadFile({ file });
+          urlToSend = file_url;
+        } catch {
+          // Keep base64 URL — maria.js will handle it as text-only analysis
+          urlToSend = null;
+        }
+      }
+
       const res = await apiClient.callFunction("analyzePhoto", {
-        photoUrl,
+        photoUrl: urlToSend,
         productName: productName || "vêtement",
       });
       setPhotoAnalysis(res.data || {
@@ -598,7 +610,8 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
       ? selectedProduct.name
       : `tenue (${[topPhoto && "haut", bottomPhoto && "bas", shoesPhoto && "chaussures"].filter(Boolean).join(", ")})`;
     try {
-      const res = await apiClient.callFunction("shAiTryOn", {
+      // Add timeout so loading doesn't get stuck
+      const apiCall = apiClient.callFunction("shAiTryOn", {
         user_photo: userPhoto,
         garment_photo: garmentPhoto,
         garment_name: garmentName,
@@ -607,13 +620,14 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         mode: mode === "tenue" ? "outfit" : "article",
         outfit_pieces: mode === "tenue" ? { top: topPhoto, bottom: bottomPhoto, shoes: shoesPhoto } : undefined,
       });
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 45000));
+      const res = await Promise.race([apiCall, timeout]);
       setLoading(false);
       if (res.data?.result_url) {
         const resultUrl = res.data.result_url;
         setResult(resultUrl);
         saveToHistory({ resultUrl, productName: garmentName, userPhoto, garmentPhoto });
       } else if (res.data?.fallback) {
-        // Fallback: show analysis instead of generated image
         setPhotoAnalysis({
           has_person: true,
           body_visible: true,
@@ -628,7 +642,11 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
       }
     } catch (err) {
       setLoading(false);
-      setError("L'essayage virtuel sera bientôt disponible. En attendant, consultez l'analyse de compatibilité de votre photo.");
+      if (err.message === 'timeout') {
+        setError("L'analyse prend trop de temps. Réessayez avec une photo plus petite.");
+      } else {
+        setError("L'essayage virtuel sera bientôt disponible. En attendant, consultez l'analyse de compatibilité de votre photo.");
+      }
     }
   };
 
