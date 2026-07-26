@@ -11,9 +11,9 @@ const execFileAsync = promisify(execFile);
 const PYTHON_PATH = 'C:\\Users\\G15\\.local\\bin\\python3.11.exe';
 const TTS_SCRIPT = join(__dirname, '../services/tts_generate.py');
 
-const GLM_API_URL = 'https://opencode.ai/zen/v1/chat/completions';
-const GLM_API_KEY = process.env.OPENCODE_API_KEY || 'sk-ziv83S32mc2ZSb6g5h4faZnuIhXAZGlRYZSAOkMOX4KeqvL5FOHpmGnMeA5Jnsfw';
-const GLM_MODEL = 'mimo-v2.5-free';
+const GLM_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const GLM_API_KEY = process.env.OPENROUTER_API_KEY;
+const GLM_MODEL = 'nousresearch/hermes-3-llama-3.1-405b';
 
 async function callGLM(messages, options = {}) {
   const { temperature = 0.7, max_tokens = 2048, response_format } = options;

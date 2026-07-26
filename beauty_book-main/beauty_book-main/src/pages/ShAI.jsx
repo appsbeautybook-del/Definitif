@@ -621,7 +621,6 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
       });
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 90000));
       const res = await Promise.race([apiCall, timeout]);
-      setLoading(false);
       if (res.data?.result_url) {
         const resultUrl = res.data.result_url;
         setResult(resultUrl);
@@ -640,12 +639,13 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         setError(res.data?.error || "Erreur lors de la génération.");
       }
     } catch (err) {
-      setLoading(false);
       if (err.message === 'timeout') {
         setError("L'analyse prend trop de temps. Réessayez avec une photo plus petite.");
       } else {
         setError("L'essayage virtuel sera bientôt disponible. En attendant, consultez l'analyse de compatibilité de votre photo.");
       }
+    } finally {
+      setLoading(false);
     }
   };
 

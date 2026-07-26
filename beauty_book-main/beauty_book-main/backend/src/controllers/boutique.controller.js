@@ -1,7 +1,13 @@
 import { supabaseAdmin } from '../config/supabase.js';
 import { submitFalModel } from '../services/fal.js';
 
-// Virtual Try-On (shAiTryOn) — uses fal.ai image generation
+/**
+ * POST /api/v8/boutique/try-on
+ * Essayage virtuel via fal.ai — cascade de modèles :
+ * 1. Kolors Virtual Try-On (meilleur résultat)
+ * 2. IDM-VTON (fallback)
+ * 3. Flux-pro (dernier recours)
+ */
 export const shAiTryOn = async (req, res) => {
   try {
     const user = req.user;
@@ -10,40 +16,69 @@ export const shAiTryOn = async (req, res) => {
     const { user_photo, garment_photo, garment_name, mode, outfit_pieces } = req.body;
 
     if (!user_photo || !garment_photo) {
-      return res.status(400).json({ error: 'user_photo and garment_photo are required' });
+      return res.status(400).json({ error: 'user_photo et garment_photo requis' });
     }
 
-    const garmentDesc = garment_name || 'clothing item';
-    console.log('Virtual try-on:', garmentDesc, '| mode:', mode || 'article');
+    const garmentDesc = garment_name || 'vêtement';
+    console.log('[ShAI] Virtual try-on:', garmentDesc, '| mode:', mode || 'article');
 
-    // Try fal.ai flux-pro for virtual try-on
+    // 1️⃣ Kolors Virtual Try-On (meilleur pour l'essayage)
     try {
-      const prompt = mode === 'outfit'
-        ? `A person wearing a complete outfit: top ${outfit_pieces?.top || ''}, bottom ${outfit_pieces?.bottom || ''}, shoes ${outfit_pieces?.shoes || ''}. Realistic fashion photo, well-lit, white background.`
-        : `A person wearing ${garmentDesc}. Realistic fashion try-on photo, well-lit, white background.`;
-
-      const result = await submitFalModel("fal-ai/flux-pro/v1.1", {
-        prompt,
-        image_url: user_photo,
-        strength: 0.8,
+      const result = await submitFalModel('fal-ai/kolors-virtual-try-on', {
+        person_image: user_photo,
+        garment_image: garment_photo,
       });
-
-      const resultUrl = result.image?.url || result.images?.[0]?.url || result.output?.[0] || result.image_url;
+      const resultUrl = result?.image?.url || result?.images?.[0]?.url || result?.output?.url;
       if (resultUrl) {
+        console.log('[ShAI] ✅ Kolors try-on success');
         return res.json({ result_url: resultUrl, demo_mode: false });
       }
     } catch (e) {
-      console.warn('fal.ai try-on failed:', e.message);
+      console.warn('[ShAI] ⚠️ Kolors failed:', e.message);
     }
 
-    // Fallback: return garment photo
+    // 2️⃣ IDM-VTON (fallback)
+    try {
+      const result = await submitFalModel('fal-ai/idm-vton', {
+        person_image: user_photo,
+        garment_image: garment_photo,
+      });
+      const resultUrl = result?.image?.url || result?.images?.[0]?.url || result?.output?.url;
+      if (resultUrl) {
+        console.log('[ShAI] ✅ IDM-VTON try-on success');
+        return res.json({ result_url: resultUrl, demo_mode: false });
+      }
+    } catch (e) {
+      console.warn('[ShAI] ⚠️ IDM-VTON failed:', e.message);
+    }
+
+    // 3️⃣ Flux-pro (dernier recours)
+    try {
+      const prompt = mode === 'outfit'
+        ? `A person wearing a complete outfit. Realistic fashion photo, well-lit, natural pose.`
+        : `A person wearing ${garmentDesc}. Realistic fashion try-on photo, well-lit, natural pose.`;
+      const result = await submitFalModel('fal-ai/flux-pro/v1.1', {
+        prompt,
+        image_url: user_photo,
+        strength: 0.75,
+      });
+      const resultUrl = result?.image?.url || result?.images?.[0]?.url;
+      if (resultUrl) {
+        console.log('[ShAI] ✅ Flux-pro fallback success');
+        return res.json({ result_url: resultUrl, demo_mode: true });
+      }
+    } catch (e) {
+      console.warn('[ShAI] ⚠️ Flux-pro also failed:', e.message);
+    }
+
+    // Fallback total : retourner la photo du vêtement
     return res.json({
       result_url: garment_photo,
       demo_mode: true,
-      message: 'Try-on en mode démonstration (génération IA indisponible)'
+      message: 'Essayage en mode démonstration (génération IA indisponible)',
     });
   } catch (error) {
-    console.error('shAiTryOn error:', error);
+    console.error('[ShAI] shAiTryOn error:', error);
     return res.status(500).json({ error: error.message });
   }
 };
