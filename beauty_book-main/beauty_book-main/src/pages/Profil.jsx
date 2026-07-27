@@ -130,6 +130,13 @@ export default function Profil() {
     loadData();
   }, [user?.email]);
 
+  // Auto-redirect to ProfilPro when demand is pending
+  useEffect(() => {
+    if (demandeStatus === 'en_attente') {
+      navigate("/profil-pro", { replace: true });
+    }
+  }, [demandeStatus]);
+
   const loadData = async () => {
     if (!user?.email) return;
     setLoading(true);
