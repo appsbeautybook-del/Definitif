@@ -53,7 +53,7 @@ export default function ProfilPro() {
   const loadProfil = () => {
     if (!user?.email) return;
     setProInfo(null);
-    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url').eq('user_email', user.email).maybeSingle()
+    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, status').eq('user_email', user.email).maybeSingle()
       .then(({ data: profile, error }) => {
         let p = profile;
         if (!p) {
