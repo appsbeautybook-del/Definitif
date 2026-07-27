@@ -172,8 +172,8 @@ export const apiClient = {
       const result = await this.request(path, options);
       return { data: result };
     } catch (error) {
-      console.error(`[apiClient.callFunction] Error calling "${functionName}":`, error);
-      throw error;
+      console.warn(`[apiClient.callFunction] "${functionName}" failed (${error.message}) — returning fallback`);
+      return { data: { success: false, fallback: true, message: error.message } };
     }
   },
 
