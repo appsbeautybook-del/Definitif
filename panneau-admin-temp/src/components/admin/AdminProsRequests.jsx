@@ -107,36 +107,55 @@ export default function AdminProsRequests() {
       await supabase.from('DemandeProV2').update({ statut, admin_notes: note, updated_at: new Date().toISOString() }).eq('id', id);
       setDemandes(prev => prev.map(d => d.id === id ? { ...d, statut, admin_notes: note } : d));
 
-      // Si approuvé, créer le profil pro avec la clé service_role
+      // Si approuvé, créer le profil pro ET upgrader le rôle
       if (statut === "approuvee") {
         const demande = demandes.find(d => d.id === id);
         if (demande) {
           try {
-            await fetch(`${SUPABASE_URL}/rest/v1/ProfilPro`, {
-              method: 'POST',
-              headers: {
-                'apikey': SERVICE_ROLE_KEY,
-                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=minimal',
+            // 1. Créer/mettre à jour ProfilPro
+            const { data: existing } = await supabase.from('ProfilPro').select('id').eq('user_email', demande.user_email).single();
+            const profilData = {
+              user_email: demande.user_email,
+              salon_name: demande.salon_name || "Mon Salon",
+              bio: demande.bio || "",
+              type_activite: demande.type_activite || "Salon",
+              specialites: demande.specialites || [],
+              address: demande.address || "",
+              city: demande.city || "",
+              phone: demande.phone || "",
+              email_pro: demande.email_pro || demande.user_email,
+              status: "actif",
+              abonnement: "free",
+              latitude: demande.latitude || null,
+              longitude: demande.longitude || null,
+              galerie_urls: demande.portfolio || [],
+              ouverture: {
+                days: demande.days || [],
+                time_slots: demande.time_slots || "",
+                commodites: demande.commodites || [],
               },
-              body: JSON.stringify({
-                user_email: demande.user_email,
-                salon_name: demande.salon_name || "Mon Salon",
-                bio: demande.bio || "",
-                type_activite: demande.type_activite || "Salon",
-                specialites: demande.specialites || [],
-                address: demande.address || "",
-                city: demande.city || "",
-                phone: demande.phone || "",
-                email_pro: demande.email_pro || demande.user_email,
-                status: "actif",
-                latitude: demande.latitude || null,
-                longitude: demande.longitude || null,
-              }),
+            };
+            if (existing) {
+              await supabase.from('ProfilPro').update(profilData).eq('id', existing.id);
+            } else {
+              await supabase.from('ProfilPro').insert(profilData);
+            }
+
+            // 2. Upgrader le rôle client → vendeur
+            await supabase.from('profiles').update({ role: 'vendeur', updated_at: new Date().toISOString() }).eq('email', demande.user_email);
+
+            // 3. Créer une notification
+            await supabase.from('Notification').insert({
+              user_email: demande.user_email,
+              type: 'pro_approved',
+              title: 'Demande Pro approuvée !',
+              message: `Félicitations ! Votre compte professionnel "${demande.salon_name}" est maintenant actif sur BeautyBook.`,
+              read: false,
             });
+
+            console.log('[Admin] ProfilPro created + role upgraded to vendeur for:', demande.user_email);
           } catch (e) {
-            console.error('[Admin] Create ProfilPro error:', e);
+            console.error('[Admin] Approval error:', e);
           }
         }
       }

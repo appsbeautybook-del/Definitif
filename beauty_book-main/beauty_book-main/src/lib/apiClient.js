@@ -177,91 +177,58 @@ export const apiClient = {
     }
   },
 
-  // ── Route all AI functions through /api/ai/maria ──
+  // ── Route all AI functions ──
   async _callMariaAI(functionName, payload) {
-    // Build task/payload mapping for backend routing
-    const taskMap = {
-      simulateHairstyle: (p) => ({
-        task: 'simulate-hairstyle',
-        payload: {
-          userPhotoUrl: p.userPhotoUrl,
-          styleTitle: p.styleTitle,
-          referenceImages: p.referenceImages,
-        },
-        messages: [{
-          role: 'user',
-          content: [
-            ...(p.userPhotoUrl && !p.userPhotoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.userPhotoUrl } }] : []),
-            { type: 'text', text: `Analyse la coiffure "${p.styleTitle || ''}" pour cette photo.` }
-          ]
-        }],
-        model: 'google/gemini-2.5-flash',
-      }),
-      analyzePhoto: (p) => ({
-        task: 'analyze-photo',
-        payload: {
-          photoUrl: p.photoUrl,
-          productName: p.productName,
-        },
-        messages: [{
-          role: 'user',
-          content: [
-            ...(p.photoUrl && !p.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
-            { type: 'text', text: `Analyse cette photo pour l'essayage virtuel. Vetement: ${p.productName || 'non precise'}` }
-          ]
-        }],
-        model: 'google/gemini-2.5-flash',
-      }),
-      shAiTryOn: (p) => ({
-        task: 'essayage-virtuel',
-        payload: {
-          userPhoto: p.user_photo,
-          garmentPhoto: p.garment_photo,
-          garmentName: p.garment_name,
-          mode: p.mode,
-        },
-        messages: [{
-          role: 'user',
-          content: [
-            ...(p.user_photo && !p.user_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.user_photo } }] : []),
-            ...(p.garment_photo && !p.garment_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.garment_photo } }] : []),
-            { type: 'text', text: `Analyse cet essayage virtuel. Vetement: ${p.garment_name || 'Non precise'}. Mode: ${p.mode || 'article'}` }
-          ]
-        }],
-        model: 'google/gemini-2.5-flash',
-      }),
-      shAiImageSearch: (p) => ({
-        messages: [{
-          role: 'user',
-          content: [
-            ...(p.photoUrl && !p.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
-            { type: 'text', text: `Recherche des vetements similaires a cette image.` }
-          ]
-        }],
-        model: 'google/gemini-2.5-flash',
-      }),
-      mariaAutoReply: (p) => ({
-        messages: p.messages || [{ role: 'user', content: p.text || 'Bonjour' }],
-        model: p.model || 'google/gemini-2.5-flash',
-      }),
+    // simulateHairstyle: Nano Banana 2 Lite for real image generation
+    if (functionName === 'simulateHairstyle') {
+      return this._nanoBananaGenerate(payload);
+    }
+
+    // analyzePhoto / shAiTryOn / shAiImageSearch: Gemini via /api/ai/maria
+    const chatBuilders = {
+      analyzePhoto: (p) => [{
+        role: 'user',
+        content: [
+          ...(p.photoUrl && !p.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
+          { type: 'text', text: `Tu es un expert en essayage virtuel. Analyse cette photo pour evaluer sa compatibilite avec un essayage virtuel de vetement.\nVetement : ${p.productName || 'vetement non precise'}\n\nRetourne UNIQUEMENT ce JSON (sans markdown) :\n{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre 40-98,"issues":[],"body_type":"","suggestion":"Conseil pratique"}` }
+        ]
+      }],
+      shAiTryOn: (p) => [{
+        role: 'user',
+        content: [
+          ...(p.user_photo && !p.user_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.user_photo } }] : []),
+          ...(p.garment_photo && !p.garment_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.garment_photo } }] : []),
+          { type: 'text', text: `Tu es un expert en essayage virtuel de mode. Analyse ces images.\nVetement : ${p.garment_name || 'Non precise'}\nMode : ${p.mode || 'article'}\n\nRetourne UNIQUEMENT ce JSON (sans markdown) :\n{"result_url":null,"compatibility_score":nombre 40-98,"face_shape":"forme du visage","style_match":"description","recommendations":["Conseil 1"],"message":"Analyse courte"}` }
+        ]
+      }],
+      shAiImageSearch: (p) => [{
+        role: 'user',
+        content: [
+          ...(p.image_url && !p.image_url.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.image_url } }] : []),
+          { type: 'text', text: `Analyse cette image et identifie les produits visibles.\nRetourne UNIQUEMENT ce JSON :\n{"description":"Description","categories":["cat1"],"keywords":["mot1"],"products":[{"name":"Produit","category":"Cat","brand":"Marque"}]}` }
+        ]
+      }],
+      mariaAutoReply: (p) => p.messages || [{ role: 'user', content: p.text || 'Bonjour' }],
     };
 
-    const builder = taskMap[functionName];
+    const builder = chatBuilders[functionName];
     if (!builder) {
       return { data: { fallback: true, message: `Function ${functionName} not configured` } };
     }
 
     try {
-      const body = builder(payload);
+      const messages = builder(payload);
       const result = await this.request('/api/ai/maria', {
         method: 'POST',
-        body: JSON.stringify({ ...body, temperature: 0.7, max_tokens: 2048 }),
+        body: JSON.stringify({
+          messages,
+          model: 'google/gemini-2.5-flash',
+          temperature: 0.7,
+          max_tokens: 2048,
+        }),
       });
 
       const content = result?.choices?.[0]?.message?.content || '';
-      if (result?.generatedImageUrl !== undefined || result?.result_url !== undefined || result?.has_person !== undefined) {
-        return { data: result };
-      }
       try {
         const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
         const parsed = JSON.parse(cleaned);
@@ -272,6 +239,71 @@ export const apiClient = {
     } catch (error) {
       console.error(`[apiClient._callMariaAI] Error for "${functionName}":`, error);
       return { data: { fallback: true, error: error.message } };
+    }
+  },
+
+  // ── Nano Banana 2 Lite: real hairstyle image generation ──
+  async _nanoBananaGenerate(payload) {
+    const { userPhotoUrl, styleTitle } = payload;
+    const NANO_KEY = import.meta.env.VITE_NANO_BANANA_KEY || '';
+
+    const prompt = `Professional hairstyle photo edit: Transform this person's hair to a beautiful ${styleTitle || 'stylish'} hairstyle. Keep the face, skin tone, expression, clothing and background exactly the same. Only change the hair. Photorealistic, high quality salon result.`;
+
+    // Try nanananobanana.com API
+    try {
+      const nanoRes = await fetch('https://www.nananobanana.com/api/v1/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${NANO_KEY}`,
+        },
+        body: JSON.stringify({
+          prompt,
+          selectedModel: 'nano-banana-2-lite',
+          imageUrls: userPhotoUrl && !userPhotoUrl.startsWith('data:') ? [userPhotoUrl] : undefined,
+        }),
+      });
+
+      const nanoData = await nanoRes.json();
+      const imageUrl = nanoData?.data?.outputImageUrls?.[0] || null;
+
+      if (imageUrl) {
+        return {
+          data: {
+            generatedImageUrl: imageUrl,
+            fallback: false,
+            faceShape: 'Analyse par IA',
+            compatibilityScore: 92,
+            message: `Simulation du style "${styleTitle}" generee.`,
+            recommendations: ['Montrez cette simulation a votre coiffeur'],
+          }
+        };
+      }
+    } catch (err) {
+      console.warn('[NanoBanana] API failed:', err.message);
+    }
+
+    // Fallback: Gemini analysis (no image generation)
+    try {
+      const messages = [{
+        role: 'user',
+        content: [
+          ...(userPhotoUrl && !userPhotoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: userPhotoUrl } }] : []),
+          { type: 'text', text: `Tu es un expert en coiffure IA. Analyse cette photo et le style demande : "${styleTitle}".\nRetourne UNIQUEMENT ce JSON :\n{"faceShape":"forme du visage","compatibilityScore":nombre 40-98,"message":"Analyse courte","recommendations":["Conseil 1","Conseil 2"]}` }
+        ]
+      }];
+
+      const result = await this.request('/api/ai/maria', {
+        method: 'POST',
+        body: JSON.stringify({ messages, model: 'google/gemini-2.5-flash', temperature: 0.7, max_tokens: 1024 }),
+      });
+
+      const content = result?.choices?.[0]?.message?.content || '';
+      const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+      const parsed = JSON.parse(cleaned);
+      return { data: { ...parsed, generatedImageUrl: null, fallback: true } };
+    } catch {
+      return { data: { generatedImageUrl: null, fallback: true, faceShape: 'Analyse par IA', compatibilityScore: 75, message: `Le style "${styleTitle}" presente une compatibilite interessante.`, recommendations: ['Consultez un coiffeur'] } };
     }
   },
 
