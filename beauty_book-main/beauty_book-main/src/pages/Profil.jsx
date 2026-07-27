@@ -367,7 +367,7 @@ export default function Profil() {
             MODIFIER PROFIL PRO
           </button>
         ) : demandeStatus === 'en_attente' ? (
-          <button onClick={() => navigate("/devenir-pro-confirmation")}
+          <button onClick={() => navigate("/profil-pro")}
             className="flex-1 py-3.5 bg-amber-400 rounded-2xl text-white text-[13px] font-black uppercase tracking-widest shadow-md shadow-amber-400/30 active:scale-95 transition-all">
             DEMANDE EN COURS
           </button>

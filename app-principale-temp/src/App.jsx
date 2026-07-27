@@ -105,7 +105,6 @@ import AdminDashboard from '@/pages/admin/AdminDashboard.jsx';
 import VendeurDashboard from '@/pages/VendeurDashboard';
 import VendeurLogin from '@/pages/VendeurLogin';
 import VendeurSignup from '@/pages/VendeurSignup';
-import DevenirProConfirmation from '@/pages/DevenirProConfirmation';
 import OrderTracking from '@/pages/OrderTracking';
 import Checkout from '@/pages/Checkout';
 import SupprimerCompte from '@/pages/SupprimerCompte';
@@ -180,7 +179,6 @@ const AuthenticatedApp = () => {
         <Route path="/maria" element={<Maria />} />
         <Route path="/profil-pro" element={<ProfilPro />} />
         <Route path="/devenir-pro" element={<DevenirPro />} />
-        <Route path="/devenir-pro-confirmation" element={<DevenirProConfirmation />} />
         <Route path="/pro/beauty-pay" element={<BeautyPay />} />
         <Route path="/pro/catalogue-services" element={<CatalogueServices />} />
         <Route path="/pro/ajouter-service" element={<AjouterService />} />

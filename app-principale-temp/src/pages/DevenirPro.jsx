@@ -1298,7 +1298,8 @@ export default function DevenirPro() {
         // Nettoyer le brouillon après soumission réussie
         localStorage.removeItem(DRAFT_KEY);
         localStorage.removeItem(DRAFT_KEY + "_step");
-        navigate("/devenir-pro-confirmation");
+        localStorage.setItem("bb_is_pro", "true");
+        navigate("/profil-pro");
       } catch (err) {
         alert("Erreur lors de la soumission : " + err.message);
       }
