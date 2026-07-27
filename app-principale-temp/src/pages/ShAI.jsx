@@ -15,42 +15,38 @@ import { useCartSync } from "@/hooks/useCartSync";
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LOADING STEPS
+// LOADING OVERLAY — smooth progress that never appears stuck
 // ─────────────────────────────────────────────────────────────────────────────
-const LOADING_STEPS = [
-  { pct: 10, msg: "Analyse de votre silhouette…" },
-  { pct: 25, msg: "Détection du vêtement…" },
-  { pct: 40, msg: "Alignement sur votre corps…" },
-  { pct: 55, msg: "Application des textures…" },
-  { pct: 70, msg: "Ajustement des proportions…" },
-  { pct: 82, msg: "Préservation du visage & du décor…" },
-  { pct: 90, msg: "Finalisation du rendu IA…" },
+const LOADING_MSGS = [
+  "Analyse de votre silhouette…",
+  "Détection du vêtement…",
+  "Alignement sur votre corps…",
+  "Application des textures…",
+  "Ajustement des proportions…",
+  "Préservation du visage & du décor…",
+  "Finalisation du rendu IA…",
 ];
 
-// Overlay de chargement superposé sur la photo importée
 function LoadingOverlay() {
-  const [stepIdx, setStepIdx] = useState(0);
   const [progress, setProgress] = useState(0);
-  const timerRef = useRef(null);
+  const [msg, setMsg] = useState(LOADING_MSGS[0]);
+  const rafRef = useRef(null);
+  const startRef = useRef(Date.now());
 
   useEffect(() => {
-    let idx = 0;
-    const advance = () => {
-      if (idx < LOADING_STEPS.length) {
-        setStepIdx(idx);
-        setProgress(LOADING_STEPS[idx].pct);
-        idx++;
-        if (idx < LOADING_STEPS.length) {
-          timerRef.current = setTimeout(advance, 2200 + Math.random() * 1500);
-        }
-      }
+    startRef.current = Date.now();
+    const tick = () => {
+      const elapsed = (Date.now() - startRef.current) / 1000;
+      // Fast start, asymptotic approach to 99% — never reaches 100%
+      const p = Math.min(99, 100 - 100 * Math.exp(-elapsed / 18));
+      setProgress(Math.round(p));
+      const idx = Math.min(LOADING_MSGS.length - 1, Math.floor(p / (100 / LOADING_MSGS.length)));
+      setMsg(LOADING_MSGS[idx]);
+      rafRef.current = requestAnimationFrame(tick);
     };
-    advance();
-    return () => clearTimeout(timerRef.current);
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
   }, []);
-
-  const step = LOADING_STEPS[Math.min(stepIdx, LOADING_STEPS.length - 1)];
-  const isLastStep = stepIdx >= LOADING_STEPS.length - 1;
 
   return (
     <div className="absolute inset-0 z-10 flex flex-col items-center justify-end bg-black/60 backdrop-blur-[2px]">
@@ -61,12 +57,12 @@ function LoadingOverlay() {
           </div>
         </div>
         <div className="flex items-center justify-between">
-          <p className="text-white text-[12px] font-black">{step.msg}</p>
+          <p className="text-white text-[12px] font-black">{msg}</p>
           <p className="text-primary text-[13px] font-black animate-pulse">{progress}%</p>
         </div>
         <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
           <div
-            className={`h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-all duration-700 ease-out ${isLastStep ? 'animate-pulse' : ''}`}
+            className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-[width] duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>

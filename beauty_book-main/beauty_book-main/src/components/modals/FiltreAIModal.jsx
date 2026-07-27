@@ -13,14 +13,14 @@ const GUIDE_TIPS = [
   { icon: "☀️", title: "Bonne luminosité", desc: "Évitez les ombres fortes sur le visage" },
 ];
 
-const PROGRESS_STEPS = [
-  { pct: 8, msg: "Téléchargement de votre photo..." },
-  { pct: 20, msg: "Préparation des images de référence..." },
-  { pct: 35, msg: "Connexion à Nano Banana AI..." },
-  { pct: 50, msg: "Génération de la coiffure en cours..." },
-  { pct: 65, msg: "Application du style sur votre visage..." },
-  { pct: 78, msg: "Ajustement des textures et couleurs..." },
-  { pct: 88, msg: "Finalisation du rendu réaliste..." },
+const PROGRESS_MSGS = [
+  "Téléchargement de votre photo...",
+  "Préparation des images de référence...",
+  "Connexion à Nano Banana AI...",
+  "Génération de la coiffure en cours...",
+  "Application du style sur votre visage...",
+  "Ajustement des textures et couleurs...",
+  "Finalisation du rendu réaliste...",
 ];
 
 export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favoriteStyles = [] }) {
@@ -42,7 +42,6 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
   const [errorMsg, setErrorMsg] = useState(null);
   const compareRef = useRef(null);
   const fileInputRef = useRef(null);
-  const progressRef = useRef(null);
 
   // Charger les styles depuis l'entité Style (BDD réelle) + Reels
   useEffect(() => {
@@ -128,19 +127,18 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
     setProgress(0);
     setErrorMsg(null);
 
-    // Animer la progress bar
-    let stepIdx = 0;
+    // Smooth progress animation — approaches 99%, never stuck
+    let rafId;
+    const startTime = Date.now();
     const animateProgress = () => {
-      if (stepIdx < PROGRESS_STEPS.length) {
-        const s = PROGRESS_STEPS[stepIdx];
-        setProgress(s.pct);
-        setProgressMsg(s.msg);
-        stepIdx++;
-        const delay = stepIdx <= 3 ? 800 : 3000 + Math.random() * 2000;
-        progressRef.current = setTimeout(animateProgress, delay);
-      }
+      const elapsed = (Date.now() - startTime) / 1000;
+      const p = Math.min(99, 100 - 100 * Math.exp(-elapsed / 18));
+      setProgress(Math.round(p));
+      const idx = Math.min(PROGRESS_MSGS.length - 1, Math.floor(p / (100 / PROGRESS_MSGS.length)));
+      setProgressMsg(PROGRESS_MSGS[idx]);
+      rafId = requestAnimationFrame(animateProgress);
     };
-    animateProgress();
+    rafId = requestAnimationFrame(animateProgress);
 
     try {
       // 1. Uploader la photo de l'utilisateur si pas encore fait
@@ -168,7 +166,7 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
       const response = await Promise.race([apiCall, timeout]);
 
-      clearTimeout(progressRef.current);
+      cancelAnimationFrame(rafId);
       setProgress(100);
       setProgressMsg("Simulation terminée ✨");
       await new Promise(r => setTimeout(r, 600));
@@ -198,7 +196,7 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
       setStep(4);
 
     } catch (err) {
-      clearTimeout(progressRef.current);
+      cancelAnimationFrame(rafId);
       console.error("Simulation error:", err.message);
       const isTimeout = err.message === 'timeout';
       setErrorMsg(isTimeout ? "L'analyse prend trop de temps." : err.message);
