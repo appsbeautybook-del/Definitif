@@ -59,16 +59,29 @@ export default function ProfilPro() {
     if (!user?.email) return;
     setProInfo(null);
 
-    // 1) Fetch ProfilPro (primary record)
+    const applyCache = (p) => {
+      if (!p) return null;
+      try {
+        const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
+        if (cached) {
+          return { ...p, avatar_url: cached.avatar_url || p.avatar_url, cover_url: cached.cover_url || p.cover_url, salon_name: cached.salon_name || p.salon_name, bio: cached.bio || p.bio, city: cached.city || p.city, phone: cached.phone || p.phone, address: cached.address || p.address };
+        }
+      } catch {}
+      return p;
+    };
+
+    // 1) Fetch ProfilPro — prefer active record, then latest with data
     supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, status, type_activite, travail_nuit').eq('user_email', user.email).order('created_at', { ascending: false })
       .then(({ data: profiles, error }) => {
-        if (error) { console.warn('[ProfilPro] query error:', error.message); return; }
-        const allProfiles = profiles || [];
-        // Find the active one if any, otherwise take the latest
-        const activeProfile = allProfiles.find(p => p.status === 'actif');
-        const latestProfile = allProfiles[0];
-        let p = activeProfile || latestProfile;
-
+        const all = profiles || [];
+        if (all.length === 0) return null;
+        // Priority: 1) actif with images, 2) actif, 3) any with images, 4) latest
+        const activeWithImages = all.find(p => p.status === 'actif' && (p.avatar_url || p.cover_url));
+        const active = all.find(p => p.status === 'actif');
+        const withImages = all.find(p => p.avatar_url || p.cover_url);
+        return activeWithImages || active || withImages || all[0];
+      })
+      .then((p) => {
         if (!p) {
           try {
             const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
@@ -86,10 +99,7 @@ export default function ProfilPro() {
           setProInfo(p);
           setNightMode(p.travail_nuit || false);
         }
-
-        // Check if ANY ProfilPro for this email has status 'actif'
-        const anyActive = allProfiles.some(p => p.status === 'actif');
-        if (anyActive) setDemandeStatus('approuvee');
+        if (p?.status === 'actif') setDemandeStatus('approuvee');
       })
       .catch(() => {});
 
@@ -98,7 +108,7 @@ export default function ProfilPro() {
       .then(({ data }) => { if (data) setClientProfile(data); })
       .catch(() => {});
 
-    // 3) Fetch DemandeProV2 status for banner visibility (fallback check)
+    // 3) Fetch DemandeProV2 status for banner visibility
     entities.DemandeProV2.filter({ user_email: user.email }, '-created_at', 1)
       .then((rows) => {
         if (rows && rows.length > 0 && rows[0].statut === 'approuvee') {

@@ -573,9 +573,13 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       try { return JSON.parse(localStorage.getItem('pro_profile_cache') || 'null'); } catch { return null; }
     };
     const fetchProfil = async () => {
-      const { data, error } = await supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url').eq('user_email', targetEmail).maybeSingle();
-      if (error || !data) return null;
-      return data;
+      const { data: profiles, error } = await supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url').eq('user_email', targetEmail).order('created_at', { ascending: false });
+      if (error || !profiles || profiles.length === 0) return null;
+      // Priority: 1) actif with images, 2) actif, 3) any with images, 4) latest
+      const activeWithImages = profiles.find(p => p.status === 'actif' && (p.avatar_url || p.cover_url));
+      const active = profiles.find(p => p.status === 'actif');
+      const withImages = profiles.find(p => p.avatar_url || p.cover_url);
+      return activeWithImages || active || withImages || profiles[0];
     };
     const applyCache = (p) => {
       if (!isOwnProfile) return p;
