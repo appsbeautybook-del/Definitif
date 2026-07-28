@@ -1062,18 +1062,20 @@ export default function Reels() {
   // ── Navigate to author profile (pro → VueClient, client → own Profil) ──
   const handleAuthorClick = async (reel) => {
     const email = reel.author_email;
+    console.log('[Reels] handleAuthorClick email:', email);
     if (!email) return;
     try {
-      const { data: proProfile } = await supabase.from('ProfilPro').select('user_email').eq('user_email', email).single();
+      const { data: proProfile } = await supabase.from('ProfilPro').select('user_email').eq('user_email', email).maybeSingle();
+      console.log('[Reels] proProfile:', proProfile);
       if (proProfile) {
         navigate("/pro/vue-client", { state: { proEmail: email } });
       } else {
-        // Client profile — only navigate if it's the current user
         if (user?.email === email) {
           navigate("/profil");
         }
       }
-    } catch {
+    } catch (e) {
+      console.warn('[Reels] handleAuthorClick error:', e);
       if (user?.email === email) navigate("/profil");
     }
   };
