@@ -1110,7 +1110,7 @@ function PublicationWizard({ onClose, onPublish, onDraft, editData }) {
         )}
 
         {/* ── Text overlay on preview — draggable ── */}
-        {(videoEditorResult?.textOverlay || form.script) && captureMode !== "texte" && (
+        {(videoEditorResult?.textOverlay?.text || form.script) && captureMode !== "texte" && (
           <div
             className="absolute z-20 touch-none select-none"
             style={{ left: textPos.x, top: textPos.y, cursor: "grab" }}
@@ -1176,7 +1176,7 @@ function PublicationWizard({ onClose, onPublish, onDraft, editData }) {
             }}
           >
             <div className="bg-black/50 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10 max-w-[200px]">
-              <p className="text-white text-[14px] font-black leading-snug drop-shadow-lg whitespace-pre-wrap">{videoEditorResult?.textOverlay || form.script}</p>
+              <p className="text-white text-[14px] font-black leading-snug drop-shadow-lg whitespace-pre-wrap">{videoEditorResult?.textOverlay?.text || form.script}</p>
             </div>
           </div>
         )}
