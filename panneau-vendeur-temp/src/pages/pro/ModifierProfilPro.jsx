@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Camera, Plus, Trash2, ChevronDown, ChevronUp, X,
+  ArrowLeft, Camera, Plus, Trash2, ChevronDown, ChevronUp,
   Scissors, Clock, Star, Zap, Check, Store, Phone, MapPin,
   Building2, FileText, Image, Palette, Wifi, Car, Snowflake,
   Baby, Coffee, CreditCard, Accessibility, Shirt, Sofa, ShowerHead,
@@ -308,7 +308,7 @@ export default function ModifierProfilPro() {
                     <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden group">
                       <img src={url} alt={`Salon ${i + 1}`} className="w-full h-full object-cover" />
                       <button onClick={() => removeGalerieImage(i)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <X className="w-3 h-3 text-white" />
+                        <Trash2 className="w-3 h-3 text-white" />
                       </button>
                     </div>
                   ))}
