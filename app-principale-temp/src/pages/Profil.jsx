@@ -130,13 +130,6 @@ export default function Profil() {
     loadData();
   }, [user?.email]);
 
-  // Auto-redirect to ProfilPro when demand is pending
-  useEffect(() => {
-    if (demandeStatus === 'en_attente') {
-      navigate("/profil-pro", { replace: true });
-    }
-  }, [demandeStatus]);
-
   const loadData = async () => {
     if (!user?.email) return;
     setLoading(true);
@@ -285,10 +278,14 @@ export default function Profil() {
 
   const postsCount = publications.length;
   const repubsCount = repubsList.length;
-  // Somme des likes reçus sur toutes les publications postées par l'utilisateur
   const totalLikes = publications.reduce((sum, p) => sum + (p.likes || 0), 0);
-  // Nombre total de likes donnés par l'utilisateur (favoris)
   const totalFavoris = favorisList.length;
+
+  // Redirect immediately — never render client profile when demand is pending
+  if (demandeStatus === 'en_attente') {
+    navigate("/profil-pro", { replace: true });
+    return null;
+  }
 
   return (
     <div className="font-display pb-4 min-h-full" style={{ background: getPageBg(theme) }}>
@@ -372,11 +369,6 @@ export default function Profil() {
             className="flex-1 py-3.5 bg-primary rounded-2xl text-white text-[13px] font-black uppercase tracking-widest shadow-md shadow-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2">
             <BadgeCheck className="w-4 h-4" />
             MODIFIER PROFIL PRO
-          </button>
-        ) : demandeStatus === 'en_attente' ? (
-          <button onClick={() => navigate("/profil-pro")}
-            className="flex-1 py-3.5 bg-amber-400 rounded-2xl text-white text-[13px] font-black uppercase tracking-widest shadow-md shadow-amber-400/30 active:scale-95 transition-all">
-            DEMANDE EN COURS
           </button>
         ) : (
           <button onClick={() => navigate("/devenir-pro")}
