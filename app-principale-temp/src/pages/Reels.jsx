@@ -550,7 +550,7 @@ function SpeedSelector({ speed, onChange, onClose }) {
 }
 
 // ── Single Reel Card (plein écran, scroll vertical) ───────────────────────────
-function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, onRepub, followed, onFollow, onComment, onShare, onBuyProduits, onBuyServices, onSpeedChange, speed, currentUser }) {
+function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, onRepub, followed, onFollow, onComment, onShare, onBuyProduits, onBuyServices, onSpeedChange, speed, currentUser, onAuthorClick }) {
   const videoRef = useRef(null);
   const audioRef = useRef(null); // piste musicale externe
   const progressRef = useRef(null);
@@ -729,14 +729,11 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
           <span className="text-white text-[9px] font-black">x{speed}</span>
         </button>
         {/* Author */}
-        <div className="relative">
+        <button onClick={() => onAuthorClick?.(reel)} className="flex flex-col items-center gap-1 active:scale-95">
           <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-lg">
             <img src={reel.author_avatar || "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=100"} alt={reel.author_name} className="w-full h-full object-cover" />
           </div>
-          <button onClick={onFollow} className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full flex items-center justify-center shadow-lg transition-all ${followed ? "bg-white" : "bg-primary"}`}>
-            <span className="text-[11px] font-black leading-none" style={{ color: followed ? '#f97316' : 'white' }}>{followed ? "✓" : "+"}</span>
-          </button>
-        </div>
+        </button>
         {/* Like */}
         <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); onLike(); }} onTouchStart={(e) => { e.stopPropagation(); }}
           className="flex flex-col items-center gap-0.5 active:scale-95" style={{ zIndex: 30, position: 'relative' }}>
@@ -803,7 +800,7 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
       <div className="absolute left-4 right-20 z-20 space-y-2" style={{ bottom: "calc(80px + env(safe-area-inset-bottom, 16px))" }}>
         {(reel.author_name || reel.author_handle) && (
           <div className="flex items-center gap-2">
-            <p className="text-white text-[14px] font-bold truncate flex-1">{reel.author_name || reel.author_handle}</p>
+            <button onClick={() => onAuthorClick?.(reel)} className="text-white text-[14px] font-bold truncate flex-1 text-left">{reel.author_name || reel.author_handle}</button>
             {reel.author_email && reel.author_email !== currentUser?.email && (
               <button onClick={onFollow} className={`shrink-0 border rounded-full px-3 py-1 text-[11px] font-black transition-all ${followed ? "border-white/40 text-white/60" : "border-white text-white"}`}>
                 {followed ? "Abonné" : "SUIVRE"}
@@ -1062,6 +1059,25 @@ export default function Reels() {
     }
   };
 
+  // ── Navigate to author profile (pro → VueClient, client → own Profil) ──
+  const handleAuthorClick = async (reel) => {
+    const email = reel.author_email;
+    if (!email) return;
+    try {
+      const { data: proProfile } = await supabase.from('ProfilPro').select('user_email').eq('user_email', email).single();
+      if (proProfile) {
+        navigate("/pro/vue-client", { state: { proEmail: email } });
+      } else {
+        // Client profile — only navigate if it's the current user
+        if (user?.email === email) {
+          navigate("/profil");
+        }
+      }
+    } catch {
+      if (user?.email === email) navigate("/profil");
+    }
+  };
+
   // ── Callback quand un commentaire est ajouté ──
   const handleCommentCountChange = (reelId, newCount) => {
     const id = String(reelId);
@@ -1162,6 +1178,7 @@ export default function Reels() {
                 onSpeedChange={setSpeed}
                 speed={speed}
                 currentUser={user}
+                onAuthorClick={handleAuthorClick}
               />
             </div>
           );
