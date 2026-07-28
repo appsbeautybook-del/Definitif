@@ -1033,21 +1033,40 @@ function EchangeTenues() {
     e.target.value = "";
   };
 
+  const abortRef = useRef(null);
+
   const exchange = async () => {
     if (!userPhoto || !referencePhoto) return;
     setLoading(true); setError(null);
-    const res = await apiClient.callFunction("shAiTryOn", {
-      user_photo: userPhoto, garment_photo: referencePhoto, garment_name: "tenue de référence",
-      preserve_face: true, preserve_background: true, mode: "exchange",
-    });
-    setLoading(false);
-    if (res.data?.result_url) {
-      const resultUrl = res.data.result_url;
-      setResult(resultUrl);
-      saveToHistory({ resultUrl, productName: "Échange de tenue", userPhoto, garmentPhoto: referencePhoto });
-    } else {
-      setError(res.data?.error || "Erreur lors de la génération.");
+    const controller = new AbortController();
+    abortRef.current = controller;
+    try {
+      const res = await apiClient.callFunction("shAiTryOn", {
+        user_photo: userPhoto, garment_photo: referencePhoto, garment_name: "tenue de référence",
+        preserve_face: true, preserve_background: true, mode: "exchange",
+      });
+      setLoading(false);
+      if (res.data?.result_url) {
+        const resultUrl = res.data.result_url;
+        setResult(resultUrl);
+        saveToHistory({ resultUrl, productName: "Échange de tenue", userPhoto, garmentPhoto: referencePhoto });
+      } else {
+        setError("L'échange de tenue n'a pas pu être généré. Réessayez.");
+      }
+    } catch (err) {
+      setLoading(false);
+      if (err.name === 'AbortError') {
+        setError("Échange annulé.");
+      } else {
+        setError("L'échange de tenue n'est pas encore disponible. Réessayez plus tard.");
+      }
     }
+  };
+
+  const cancelExchange = () => {
+    if (abortRef.current) abortRef.current.abort();
+    setLoading(false);
+    setError("Échange annulé.");
   };
 
   const reset = () => {
@@ -1094,7 +1113,7 @@ function EchangeTenues() {
             {userPhoto ? (
               <>
                 <img src={userPhoto} alt="" className="w-full h-full object-cover" />
-                {loading && <LoadingOverlay onCancel={cancelTryOn} />}
+                {loading && <LoadingOverlay onCancel={cancelExchange} />}
                 {!loading && (
                   <button onClick={() => setUserPhoto(null)} className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center z-10">
                     <X className="w-3.5 h-3.5 text-white" />
