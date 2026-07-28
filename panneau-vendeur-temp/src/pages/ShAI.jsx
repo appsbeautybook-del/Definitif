@@ -27,21 +27,20 @@ const LOADING_MSGS = [
   "Finalisation du rendu IA…",
 ];
 
-function LoadingOverlay() {
-  const [progress, setProgress] = useState(0);
-  const [msg, setMsg] = useState(LOADING_MSGS[0]);
+function LoadingOverlay({ onCancel }) {
+  const [step, setStep] = useState(0);
   const rafRef = useRef(null);
   const startRef = useRef(Date.now());
 
   useEffect(() => {
     startRef.current = Date.now();
+    let lastSwitch = 0;
     const tick = () => {
       const elapsed = (Date.now() - startRef.current) / 1000;
-      // Fast start, asymptotic approach to 99% — never reaches 100%
-      const p = Math.min(99, 100 - 100 * Math.exp(-elapsed / 18));
-      setProgress(Math.round(p));
-      const idx = Math.min(LOADING_MSGS.length - 1, Math.floor(p / (100 / LOADING_MSGS.length)));
-      setMsg(LOADING_MSGS[idx]);
+      if (elapsed - lastSwitch > 4) {
+        lastSwitch = elapsed;
+        setStep(s => (s + 1) % LOADING_MSGS.length);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -49,26 +48,16 @@ function LoadingOverlay() {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-end bg-black/60 backdrop-blur-[2px]">
-      <div className="w-full px-4 pb-6 space-y-3">
-        <div className="flex justify-center mb-2">
-          <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm">
-            <Wand2 className="w-6 h-6 text-white animate-pulse" />
-          </div>
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px]">
+      <div className="flex flex-col items-center gap-4 px-6">
+        <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm">
+          <Wand2 className="w-7 h-7 text-white animate-spin" />
         </div>
-        <div className="flex items-center justify-between">
-          <p className="text-white text-[12px] font-black">{msg}</p>
-          <p className="text-primary text-[13px] font-black animate-pulse">{progress}%</p>
+        <div className="text-center space-y-1">
+          <p className="text-white text-[13px] font-black">{LOADING_MSGS[step]}</p>
+          <p className="text-white/50 text-[11px] font-medium">Cela peut prendre 30-60 secondes</p>
         </div>
-        <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-[width] duration-300 ease-out"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <p className="text-white/60 text-[10px] font-medium text-center">
-          Fond & visage préservés — seul le vêtement change ✨
-        </p>
+        <button onClick={onCancel} className="text-white/40 text-[11px] underline">Annuler</button>
       </div>
     </div>
   );
@@ -632,17 +621,20 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
     setter(url); setResult(null); e.target.value = "";
   };
 
+  const abortRef = useRef(null);
+
   const tryOn = async () => {
     if (!userPhoto) return;
     if (mode === "article" && !selectedProduct) return;
     if (mode === "tenue" && !topPhoto && !bottomPhoto) return;
     setLoading(true); setError(null);
+    const controller = new AbortController();
+    abortRef.current = controller;
     const garmentPhoto = mode === "article" ? selectedProduct.img : (topPhoto || bottomPhoto);
     const garmentName = mode === "article"
       ? selectedProduct.name
       : `tenue (${[topPhoto && "haut", bottomPhoto && "bas", shoesPhoto && "chaussures"].filter(Boolean).join(", ")})`;
     try {
-      // Add timeout so loading doesn't get stuck
       const apiCall = apiClient.callFunction("shAiTryOn", {
         user_photo: userPhoto,
         garment_photo: garmentPhoto,
@@ -651,8 +643,8 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         preserve_background: true,
         mode: mode === "tenue" ? "outfit" : "article",
         outfit_pieces: mode === "tenue" ? { top: topPhoto, bottom: bottomPhoto, shoes: shoesPhoto } : undefined,
-      });
-      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 90000));
+      }, { signal: controller.signal });
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
       const res = await Promise.race([apiCall, timeout]);
       setLoading(false);
       if (res.data?.result_url) {
@@ -676,10 +668,18 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
       setLoading(false);
       if (err.message === 'timeout') {
         setError("L'analyse prend trop de temps. Réessayez avec une photo plus petite.");
+      } else if (err.name === 'AbortError') {
+        setError("Essayage annulé.");
       } else {
         setError("L'essayage virtuel sera bientôt disponible. En attendant, consultez l'analyse de compatibilité de votre photo.");
       }
     }
+  };
+
+  const cancelTryOn = () => {
+    if (abortRef.current) abortRef.current.abort();
+    setLoading(false);
+    setError("Essayage annulé.");
   };
 
   const reset = () => {
@@ -1096,7 +1096,7 @@ function EchangeTenues() {
             {userPhoto ? (
               <>
                 <img src={userPhoto} alt="" className="w-full h-full object-cover" />
-                {loading && <LoadingOverlay />}
+                {loading && <LoadingOverlay onCancel={cancelTryOn} />}
                 {!loading && (
                   <button onClick={() => setUserPhoto(null)} className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center z-10">
                     <X className="w-3.5 h-3.5 text-white" />

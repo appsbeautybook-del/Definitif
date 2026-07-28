@@ -160,8 +160,12 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
 
       console.log('[maria] Fal AI essayage-virtuel:', { userPhoto: userPhoto?.substring(0, 80), garmentPhoto: garmentPhoto?.substring(0, 80), garmentName });
 
+      const controller = new AbortController();
+      const falTimeout = setTimeout(() => controller.abort(), 45000);
+
       const falRes = await fetch('https://fal.run/fal-ai/kling/v1-5/kolors-virtual-try-on', {
         method: 'POST',
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Key ${FAL_KEY}`,
@@ -171,6 +175,7 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
           garment_image_url: garmentPhoto,
         }),
       });
+      clearTimeout(falTimeout);
 
       if (!falRes.ok) {
         const errText = await falRes.text().catch(() => 'fal.ai error');
@@ -202,7 +207,8 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
       console.error('[maria] essayage-virtuel error:', err.message);
       return res.status(200).json({
         result_url: null, compatibility_score: 70,
-        message: 'Analyse temporairement indisponible.', fallback: true,
+        message: err.name === 'AbortError' ? 'Essayage virtuel timeout — réessayez.' : 'Analyse temporairement indisponible.',
+        fallback: true,
       });
     }
   }
