@@ -11,6 +11,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 
 function getBannerGradient(theme) {
+  if (theme === "night") return "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 60%, #000000 100%)";
+  if (theme === "dark")  return "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(26,26,46,0.75) 60%, #1a1a2e 100%)";
+  return "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(255,255,255,0.25) 60%, #ffffff 100%)";
+}
+
+function getBannerFallback(theme) {
   if (theme === "night") return "linear-gradient(135deg, #1a1a2e 0%, #000000 50%, #16213e 100%)";
   if (theme === "dark")  return "linear-gradient(135deg, #1a1a2e 0%, #0f3460 50%, #1a1a2e 100%)";
   return "linear-gradient(135deg, #E8732A 0%, #f59540 40%, #f8b978 100%)";
@@ -241,11 +247,13 @@ export default function ProfilPro() {
       {/* Banner + Profile Photo */}
       <div className="relative h-52">
         {proInfoCurrent?.cover_url || clientProfile?.cover_url ? (
-          <img src={proInfoCurrent?.cover_url || clientProfile?.cover_url} alt="Bannière" className="w-full h-full object-cover" />
+          <>
+            <img src={proInfoCurrent?.cover_url || clientProfile?.cover_url} alt="Bannière" className="w-full h-full object-cover" />
+            <div className="absolute inset-0" style={{ background: getBannerGradient(theme) }} />
+          </>
         ) : (
-          <div className="w-full h-full" style={{ background: getBannerGradient(theme) }} />
+          <div className="w-full h-full" style={{ background: getBannerFallback(theme) }} />
         )}
-        <div className="absolute inset-0" style={{ background: proInfoCurrent?.cover_url || clientProfile?.cover_url ? getBannerGradient(theme) : 'transparent' }} />
 
         {/* Top Buttons */}
         {(() => {
