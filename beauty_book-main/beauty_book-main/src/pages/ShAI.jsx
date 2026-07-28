@@ -726,29 +726,6 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
 
   return (
     <div className="px-4 pt-4 pb-10 space-y-5">
-      {/* Full-page loading overlay — always visible when loading */}
-      {loading && (
-        <div className="fixed inset-0 z-[999] flex flex-col items-center justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}>
-          <div className="w-full max-w-lg mx-auto px-5 pb-6 space-y-3">
-            <div className="flex justify-center mb-2">
-              <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm">
-                <Wand2 className="w-5 h-5 text-white animate-spin" />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <p className="text-white text-[12px] font-black">Presque prêt...</p>
-              <p className="text-primary text-[13px] font-black">98%</p>
-            </div>
-            <div className="h-2 bg-white/20 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full" style={{ width: '98%' }} />
-            </div>
-            <p className="text-white/50 text-[10px] font-medium text-center">
-              Fond & visage préservés — seul le vêtement change ✨
-            </p>
-            <button onClick={cancelTryOn} className="w-full text-white/40 text-[10px] underline text-center mt-1">Annuler</button>
-          </div>
-        </div>
-      )}
       {/* Historique rapide */}
       <button onClick={() => setShowHistory(true)}
         className="w-full flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-2xl px-4 py-3 active:scale-98 transition-all">
@@ -797,6 +774,7 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
           {userPhoto ? (
             <>
               <img src={userPhoto} alt="" className="w-full h-full object-cover" />
+              {loading && <LoadingOverlay onCancel={cancelTryOn} />}
               {!loading && (
                 <button onClick={() => { setUserPhoto(null); setResult(null); }}
                   className="absolute top-2 right-2 w-8 h-8 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center active:scale-90 z-10">
