@@ -1,5 +1,5 @@
 import { fetchShopifyProducts } from "@/api/shopifyClient";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, Component } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft, Wand2, Camera, Download,
@@ -717,7 +717,7 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
           </div>
         )}
         <RetouchePanel imageUrl={result} onRestart={reset} />
-      </div>
+    </div>
     );
   }
 
@@ -1169,6 +1169,30 @@ function EchangeTenues() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ERROR BOUNDARY — prevents white screen crashes
+// ─────────────────────────────────────────────────────────────────────────────
+class ShAIErrorBoundary extends Component {
+  state = { error: null };
+  static getDerivedStateFromError(error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
+          <p className="text-[40px] mb-4">😅</p>
+          <p className="text-[14px] font-black text-gray-800 mb-2">Une erreur est survenue</p>
+          <p className="text-[12px] text-gray-500 mb-6">{this.state.error.message || "Erreur inconnue"}</p>
+          <button onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+            className="bg-primary text-white text-[13px] font-black px-6 py-3 rounded-2xl active:scale-95 transition-all">
+            Réessayer
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ShAI() {
@@ -1202,6 +1226,7 @@ export default function ShAI() {
   ];
 
   return (
+    <ShAIErrorBoundary>
     <div className="font-display bg-white min-h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-4 bg-white border-b border-gray-100 sticky top-0 z-30">
@@ -1250,5 +1275,6 @@ export default function ShAI() {
           : <EchangeTenues />}
       </div>
     </div>
+    </ShAIErrorBoundary>
   );
 }
