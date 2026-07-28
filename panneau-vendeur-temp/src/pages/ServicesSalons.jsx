@@ -1366,7 +1366,7 @@ function SalonsTab({ activeCategory }) {
   useEffect(() => {
     entities.ProfilPro.filter({ status: "actif" }, "-created_at", 50)
       .then(async (all) => {
-        const salons = all.filter(p => !p.type_activite || p.type_activite === "Salon");
+        const salons = all.filter(p => p.salon_name && p.salon_name.trim() !== "");
         setProfils(salons);
         const emails = salons.map(p => p.user_email).filter(Boolean);
         const servicesArr = await Promise.all(
@@ -1427,7 +1427,6 @@ function SalonsTab({ activeCategory }) {
         <div ref={listRef}>
           {filtered.map((item) => {
             const media = [];
-            if (item.cover_url) media.push(item.cover_url);
             if (item.galerie_urls?.length > 0) item.galerie_urls.forEach(u => { if (u && !media.includes(u)) media.push(u); });
             if (media.length === 0 && item.avatar_url) media.push(item.avatar_url);
             const open = isOpenNow(item.ouverture);
@@ -1468,7 +1467,7 @@ function ParticuliersTab({ activeCategory }) {
   useEffect(() => {
     entities.ProfilPro.filter({ status: "actif" }, "-created_at", 50)
       .then(async (all) => {
-        const particuliers = all.filter(p => p.type_activite === "Particulier");
+        const particuliers = all.filter(p => !p.salon_name || p.salon_name.trim() === "");
         setProfils(particuliers);
         const emails = particuliers.map(p => p.user_email).filter(Boolean);
         const servicesArr = await Promise.all(
@@ -1527,7 +1526,6 @@ function ParticuliersTab({ activeCategory }) {
         <div ref={listRef}>
           {filtered.map((item) => {
             const media = [];
-            if (item.cover_url) media.push(item.cover_url);
             if (item.galerie_urls?.length > 0) item.galerie_urls.forEach(u => { if (u && !media.includes(u)) media.push(u); });
             if (media.length === 0 && item.avatar_url) media.push(item.avatar_url);
             const open = isOpenNow(item.ouverture);
