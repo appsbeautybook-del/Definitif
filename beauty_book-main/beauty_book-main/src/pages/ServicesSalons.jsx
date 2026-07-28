@@ -492,6 +492,7 @@ function StyleCard({ style, liked, likeCount, onLike, onComment, onShare, onDeta
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [descExpanded, setDescExpanded] = useState(false);
   const videoRef = useRef(null);
   const touchStartX = useRef(null);
   const allMedia = style.video_url ? [...style.images, style.video_url] : style.images;
@@ -615,18 +616,20 @@ function StyleCard({ style, liked, likeCount, onLike, onComment, onShare, onDeta
         </button>
       </div>
 
-      <div className="absolute left-4 right-20 z-10 cursor-pointer" style={{ bottom: "calc(50px + env(safe-area-inset-bottom, 0px))" }} onClick={onDetail}>
+      <div className="absolute left-4 right-20 z-10 cursor-pointer" style={{ bottom: "calc(50px + env(safe-area-inset-bottom, 0px))" }}>
+        <h3 className="text-white text-[20px] font-black leading-tight mb-1" onClick={onDetail}>{style.title}</h3>
         {style.description && (
-          <p className="text-white/80 text-[11px] font-medium mb-1.5 line-clamp-2 leading-relaxed">
+          <p className={`text-white/80 text-[11px] font-medium leading-relaxed ${!descExpanded ? 'line-clamp-2' : ''}`}>
             {style.description}
             {style.description.length > 60 && (
-              <span className="text-primary font-bold ml-1">Voir plus</span>
+              <span className="text-primary font-bold ml-1" onClick={(e) => { e.stopPropagation(); setDescExpanded(!descExpanded); }}>
+                {descExpanded ? 'Voir moins' : 'Voir plus'}
+              </span>
             )}
           </p>
         )}
-        <h3 className="text-white text-[20px] font-black leading-tight">{style.title}</h3>
         {style.category && (
-          <span className="inline-block mt-1.5 bg-primary/80 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">{style.category}</span>
+          <span className="inline-block mt-1.5 bg-primary/80 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest" onClick={onDetail}>{style.category}</span>
         )}
       </div>
     </div>
