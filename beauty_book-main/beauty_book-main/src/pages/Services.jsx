@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Bell, SlidersHorizontal, Star, Heart, MapPin } from "lucide-react";
 import MapWithPricePins from "@/components/map/MapWithPricePins";
@@ -70,7 +70,8 @@ export default function Services() {
   }, [refreshKey]);
 
   // Map items = profils pro avec leur adresse réelle + prix depuis les services
-  const mapItems = pros
+  const mapItems = useMemo(() => pros
+    .filter(p => p.latitude && p.longitude)
     .slice(0, 15)
     .map(p => {
       const proServices = services.filter(s => s.pro_email === p.user_email);
@@ -81,12 +82,12 @@ export default function Services() {
         id: p.id,
         price: minPrice,
         title: p.salon_name,
-        lat: p.lat || (48.866 + (Math.random() - 0.5) * 0.08),
-        lng: p.lng || (2.333 + (Math.random() - 0.5) * 0.12),
+        lat: parseFloat(p.latitude),
+        lng: parseFloat(p.longitude),
         address: p.address || "",
         city: p.city || "",
       };
-    });
+    }), [pros, services]);
 
   // Filtrer salons/particuliers statiques par catégorie
   const filteredSalons = activeCategory
