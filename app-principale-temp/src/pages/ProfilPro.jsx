@@ -71,7 +71,7 @@ export default function ProfilPro() {
     };
 
     // 1) Fetch ProfilPro — prefer active record, then latest with data
-    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, status, type_activite, travail_nuit').eq('user_email', user.email).order('created_at', { ascending: false })
+    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, status, type_activite, travail_nuit, galerie_urls').eq('user_email', user.email).order('created_at', { ascending: false })
       .then(({ data: profiles, error }) => {
         const all = profiles || [];
         if (all.length === 0) return null;

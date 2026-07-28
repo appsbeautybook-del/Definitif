@@ -47,6 +47,7 @@ export default function ModifierProfilPro() {
     seats: 1, bio: "", avatar_url: "", cover_url: "",
     specialites: [], commodites: [], hours: {},
     menu_items: [], additional_services: [],
+    galerie_urls: [],
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -55,12 +56,14 @@ export default function ModifierProfilPro() {
   const [success, setSuccess] = useState(false);
   const avatarRef = useRef(null);
   const bannerRef = useRef(null);
+  const galerieRef = useRef(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingGalerie, setUploadingGalerie] = useState(false);
 
   useEffect(() => {
     if (!user?.email) return;
-    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url').eq('user_email', user.email).maybeSingle()
+    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, galerie_urls').eq('user_email', user.email).maybeSingle()
       .then(({ data: p }) => {
         let profile = p;
         if (!profile) {
@@ -90,6 +93,7 @@ export default function ModifierProfilPro() {
             bio: profile.bio || "", avatar_url: profile.avatar_url || "", cover_url: profile.cover_url || "",
             specialites: profile.specialites || [], commodites: profile.commodites || [],
             hours: h, menu_items: profile.menu_restaurant || [], additional_services: profile.additional_services || [],
+            galerie_urls: Array.isArray(profile.galerie_urls) ? profile.galerie_urls : [],
           });
         }
         setLoading(false);
@@ -135,6 +139,28 @@ export default function ModifierProfilPro() {
     else setUploadingBanner(false);
   };
 
+  const handleGalerieUpload = async (e) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploadingGalerie(true);
+    try {
+      const newUrls = [];
+      for (const file of files) {
+        const { file_url } = await uploadFile({ file });
+        newUrls.push(file_url);
+      }
+      setData(d => ({ ...d, galerie_urls: [...(d.galerie_urls || []), ...newUrls] }));
+    } catch (e) {
+      console.error('Galerie upload error:', e);
+    }
+    setUploadingGalerie(false);
+    if (galerieRef.current) galerieRef.current.value = '';
+  };
+
+  const removeGalerieImage = (index) => {
+    setData(d => ({ ...d, galerie_urls: d.galerie_urls.filter((_, i) => i !== index) }));
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError("");
@@ -166,6 +192,7 @@ export default function ModifierProfilPro() {
         specialites: data.specialites,
         commodites: data.commodites,
         horaires: data.hours,
+        galerie_urls: data.galerie_urls || [],
         updated_at: new Date().toISOString(),
       };
       if (existing?.id) {
@@ -274,11 +301,28 @@ export default function ModifierProfilPro() {
           </button>
           {expanded.images && (
             <div className="px-4 pb-4">
-              <p className="text-[11px] text-gray-400 mb-3">0 photos · Appuyez sur + pour en ajouter</p>
-              <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-[#E8732A]/40 transition-colors">
-                <Plus className="w-5 h-5 text-gray-300" />
+              <p className="text-[11px] text-gray-400 mb-3">{(data.galerie_urls || []).length} photo{(data.galerie_urls || []).length !== 1 ? 's' : ''} · Appuyez sur + pour en ajouter</p>
+              {(data.galerie_urls || []).length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {data.galerie_urls.map((url, i) => (
+                    <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden group">
+                      <img src={url} alt={`Salon ${i + 1}`} className="w-full h-full object-cover" />
+                      <button onClick={() => removeGalerieImage(i)} className="absolute top-1 right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <X className="w-3 h-3 text-white" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div onClick={() => galerieRef.current?.click()} className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-[#E8732A]/40 transition-colors active:scale-95">
+                {uploadingGalerie ? (
+                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Plus className="w-5 h-5 text-gray-300" />
+                )}
                 <span className="text-[10px] text-gray-400 mt-0.5">Ajouter</span>
               </div>
+              <input ref={galerieRef} type="file" accept="image/*" multiple className="hidden" onChange={handleGalerieUpload} />
             </div>
           )}
         </div>
