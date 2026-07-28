@@ -1428,7 +1428,7 @@ function SalonsTab({ activeCategory }) {
           {filtered.map((item) => {
             const media = [];
             if (item.cover_url) media.push(item.cover_url);
-            if (item.gallery?.length > 0) item.gallery.forEach(u => { if (u && !media.includes(u)) media.push(u); });
+            if (item.galerie_urls?.length > 0) item.galerie_urls.forEach(u => { if (u && !media.includes(u)) media.push(u); });
             if (media.length === 0 && item.avatar_url) media.push(item.avatar_url);
             const open = isOpenNow(item.ouverture);
             return (
@@ -1528,7 +1528,7 @@ function ParticuliersTab({ activeCategory }) {
           {filtered.map((item) => {
             const media = [];
             if (item.cover_url) media.push(item.cover_url);
-            if (item.gallery?.length > 0) item.gallery.forEach(u => { if (u && !media.includes(u)) media.push(u); });
+            if (item.galerie_urls?.length > 0) item.galerie_urls.forEach(u => { if (u && !media.includes(u)) media.push(u); });
             if (media.length === 0 && item.avatar_url) media.push(item.avatar_url);
             const open = isOpenNow(item.ouverture);
             return (
