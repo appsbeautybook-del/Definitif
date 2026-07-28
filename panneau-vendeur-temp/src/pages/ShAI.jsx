@@ -776,7 +776,7 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
               <img src={userPhoto} alt="" className="w-full h-full object-cover" />
               {/* Overlay chargement superposé sur la photo */}
               {loading && (
-                <LoadingOverlay />
+                <LoadingOverlay onCancel={cancelTryOn} />
               )}
               {!loading && (
                 <button onClick={() => { setUserPhoto(null); setResult(null); }}
