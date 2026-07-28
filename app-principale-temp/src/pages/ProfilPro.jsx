@@ -52,9 +52,17 @@ export default function ProfilPro() {
   const loadProfil = () => {
     if (!user?.email) return;
     setProInfo(null);
-    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, status').eq('user_email', user.email).maybeSingle()
-      .then(({ data: profile, error }) => {
-        let p = profile;
+
+    // 1) Fetch ProfilPro (primary record)
+    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, status, type_activite, travail_nuit').eq('user_email', user.email).order('created_at', { ascending: false })
+      .then(({ data: profiles, error }) => {
+        if (error) { console.warn('[ProfilPro] query error:', error.message); return; }
+        const allProfiles = profiles || [];
+        // Find the active one if any, otherwise take the latest
+        const activeProfile = allProfiles.find(p => p.status === 'actif');
+        const latestProfile = allProfiles[0];
+        let p = activeProfile || latestProfile;
+
         if (!p) {
           try {
             const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
@@ -72,17 +80,25 @@ export default function ProfilPro() {
           setProInfo(p);
           setNightMode(p.travail_nuit || false);
         }
+
+        // Check if ANY ProfilPro for this email has status 'actif'
+        const anyActive = allProfiles.some(p => p.status === 'actif');
+        if (anyActive) setDemandeStatus('approuvee');
       })
       .catch(() => {});
 
-    // Fetch client profile for avatar/banner fallback
+    // 2) Fetch client profile for avatar/banner fallback
     supabase.from('profiles').select('avatar_url, cover_url').eq('email', user.email).maybeSingle()
       .then(({ data }) => { if (data) setClientProfile(data); })
       .catch(() => {});
 
-    // Fetch DemandeProV2 status for banner visibility
-    supabase.from('DemandeProV2').select('statut').eq('user_email', user.email).order('created_at', { ascending: false }).limit(1).maybeSingle()
-      .then(({ data }) => { if (data) setDemandeStatus(data.statut); })
+    // 3) Fetch DemandeProV2 status for banner visibility (fallback check)
+    entities.DemandeProV2.filter({ user_email: user.email }, '-created_at', 1)
+      .then((rows) => {
+        if (rows && rows.length > 0 && rows[0].statut === 'approuvee') {
+          setDemandeStatus('approuvee');
+        }
+      })
       .catch(() => {});
   };
 
