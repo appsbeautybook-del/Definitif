@@ -662,10 +662,8 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         const resultUrl = res.data.result_url;
         setResult(resultUrl);
         saveToHistory({ resultUrl, productName: garmentName, userPhoto, garmentPhoto });
-      } else if (res.data?.fallback) {
-        setError(res.data?.message || "L'essayage virtuel n'a pas pu être généré. Réessayez avec une autre photo.");
       } else {
-        setError(res.data?.error || "Erreur lors de la génération de l'essayage.");
+        setError("L'essayage virtuel n'a pas pu être généré. Réessayez avec une autre photo.");
       }
     } catch (err) {
       setLoading(false);
