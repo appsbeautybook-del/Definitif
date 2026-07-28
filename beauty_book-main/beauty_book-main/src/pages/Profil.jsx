@@ -185,10 +185,6 @@ export default function Profil() {
     } catch (e) {
       console.error('[Profil] Reels query exception:', e);
     }
-      }
-    } catch (e) {
-      console.error('[Profil] Reels query exception:', e);
-    }
 
     let repubs = [];
     try {

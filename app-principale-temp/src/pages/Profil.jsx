@@ -182,9 +182,6 @@ export default function Profil() {
           return false;
         });
       }
-      } catch (e) {
-        console.error('[Profil] Reels query exception:', e);
-      }
     } catch (e) {
       console.error('[Profil] Reels query exception:', e);
     }
