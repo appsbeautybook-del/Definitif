@@ -37,7 +37,7 @@ function LoadingOverlay({ onCancel }) {
     startRef.current = Date.now();
     const tick = () => {
       const elapsed = (Date.now() - startRef.current) / 1000;
-      const p = Math.min(95, 100 - 100 * Math.exp(-elapsed / 20));
+      const p = Math.min(98, 100 - 100 * Math.exp(-elapsed / 15));
       setProgress(Math.round(p));
       const idx = Math.min(LOADING_MSGS.length - 1, Math.floor(elapsed / 5));
       setMsg(LOADING_MSGS[idx]);
@@ -48,27 +48,27 @@ function LoadingOverlay({ onCancel }) {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-end bg-black/60 backdrop-blur-[2px]">
-      <div className="w-full px-4 pb-6 space-y-3">
-        <div className="flex justify-center mb-2">
-          <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm">
-            <Wand2 className="w-6 h-6 text-white animate-spin" />
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-end bg-black/50">
+      <div className="w-full px-4 pb-5 space-y-2">
+        <div className="flex justify-center mb-1">
+          <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
+            <Wand2 className="w-5 h-5 text-white animate-spin" />
           </div>
         </div>
         <div className="flex items-center justify-between">
           <p className="text-white text-[12px] font-black">{msg}</p>
-          <p className="text-primary text-[13px] font-black animate-pulse">{progress}%</p>
+          <p className="text-primary text-[13px] font-black">{progress}%</p>
         </div>
-        <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
+        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-[width] duration-300 ease-out"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <p className="text-white/60 text-[10px] font-medium text-center">
+        <p className="text-white/50 text-[10px] font-medium text-center">
           Fond & visage préservés — seul le vêtement change ✨
         </p>
-        <button onClick={onCancel} className="w-full text-white/40 text-[11px] underline text-center mt-1">Annuler</button>
+        <button onClick={onCancel} className="w-full text-white/40 text-[10px] underline text-center">Annuler</button>
       </div>
     </div>
   );

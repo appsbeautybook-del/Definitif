@@ -197,6 +197,11 @@ export const apiClient = {
       return this._nanoBananaGenerate(payload);
     }
 
+    // shAiTryOn: Nano Banana 2 Lite for virtual try-on
+    if (functionName === 'shAiTryOn') {
+      return this._nanoBananaTryOn(payload);
+    }
+
     // analyzePhoto: use dedicated server task (Gemini vision)
     if (functionName === 'analyzePhoto') {
       try {
@@ -215,33 +220,6 @@ export const apiClient = {
             has_person: true, body_visible: true, quality_ok: true,
             compatibility_score: 80, issues: [], body_type: '',
             suggestion: 'Analyse IA indisponible.', fallback: true,
-          },
-        };
-      }
-    }
-
-    // shAiTryOn: use dedicated server task (fal.ai kling kolors virtual try-on)
-    if (functionName === 'shAiTryOn') {
-      try {
-        const result = await this.request('/api/ai/maria', {
-          method: 'POST',
-          body: JSON.stringify({
-            task: 'essayage-virtuel',
-            payload: {
-              userPhoto: payload.user_photo,
-              garmentPhoto: payload.garment_photo,
-              garmentName: payload.garment_name,
-              mode: payload.mode,
-            },
-          }),
-        });
-        return { data: result };
-      } catch (error) {
-        console.error(`[apiClient._callMariaAI] shAiTryOn error:`, error);
-        return {
-          data: {
-            result_url: null, compatibility_score: 70, fallback: true,
-            message: 'Essayage virtuel temporairement indisponible.',
           },
         };
       }
@@ -364,6 +342,74 @@ export const apiClient = {
       return { data: { ...parsed, generatedImageUrl: null, fallback: true } };
     } catch {
       return { data: { generatedImageUrl: null, fallback: true, faceShape: 'Analyse par IA', compatibilityScore: 75, message: `Le style "${styleTitle}" presente une compatibilite interessante.`, recommendations: ['Consultez un coiffeur'] } };
+    }
+  },
+
+  // ── Nano Banana 2 Lite: virtual try-on (clothing) ──
+  async _nanoBananaTryOn(payload) {
+    const { user_photo, garment_photo, garment_name, mode } = payload;
+    const NANO_KEY = import.meta.env.VITE_NANO_BANANA_KEY || '';
+
+    const prompt = `Professional virtual try-on photo edit: Apply the clothing/garment from the second image onto the person in the first image. Keep the face, skin tone, body, pose, background and lighting exactly the same. Only change the clothing to match the garment. The result should look like the person is wearing that exact garment. Photorealistic, high quality fashion result.`;
+
+    // Try nanananobanana.com API with both images
+    try {
+      const imageUrls = [];
+      if (user_photo && !user_photo.startsWith('data:')) imageUrls.push(user_photo);
+      if (garment_photo && !garment_photo.startsWith('data:')) imageUrls.push(garment_photo);
+
+      const nanoRes = await fetch('https://www.nananobanana.com/api/v1/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${NANO_KEY}`,
+        },
+        body: JSON.stringify({
+          prompt,
+          selectedModel: 'nano-banana-2-lite',
+          imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+        }),
+      });
+
+      const nanoData = await nanoRes.json();
+      const imageUrl = nanoData?.data?.outputImageUrls?.[0] || null;
+
+      if (imageUrl) {
+        return {
+          data: {
+            result_url: imageUrl,
+            fallback: false,
+            compatibility_score: 92,
+            message: `Essayage virtuel de "${garment_name}" généré avec succès.`,
+          }
+        };
+      }
+    } catch (err) {
+      console.warn('[NanoBanana TryOn] API failed:', err.message);
+    }
+
+    // Fallback: Gemini analysis (no image generation)
+    try {
+      const messages = [{
+        role: 'user',
+        content: [
+          ...(user_photo && !user_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: user_photo } }] : []),
+          ...(garment_photo && !garment_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: garment_photo } }] : []),
+          { type: 'text', text: `Tu es un expert en essayage virtuel. Analyse ces images pour evaluer la compatibilite entre la personne et le vetement "${garment_name}".\nRetourne UNIQUEMENT ce JSON :\n{"compatibility_score":nombre 40-98,"message":"Analyse courte","recommendations":["Conseil 1"]}` }
+        ]
+      }];
+
+      const result = await this.request('/api/ai/maria', {
+        method: 'POST',
+        body: JSON.stringify({ messages, model: 'google/gemini-2.5-flash', temperature: 0.7, max_tokens: 1024 }),
+      });
+
+      const content = result?.choices?.[0]?.message?.content || '';
+      const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+      const parsed = JSON.parse(cleaned);
+      return { data: { ...parsed, result_url: null, fallback: true } };
+    } catch {
+      return { data: { result_url: null, fallback: true, compatibility_score: 75, message: `L'essayage virtuel de "${garment_name}" sera bientôt disponible.`, recommendations: [] } };
     }
   },
 
