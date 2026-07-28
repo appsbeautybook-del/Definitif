@@ -1387,12 +1387,14 @@ function SalonsTab({ activeCategory }) {
   const { profils, minPricesMap } = data;
   const filtered = activeCategory === "Tous" ? profils : profils.filter(p => p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase())));
 
-  const mapItems = useMemo(() => filtered.map((p) => ({
+  const mapItems = useMemo(() => filtered
+    .filter(p => (p.latitude || p._lat) && (p.longitude || p._lng))
+    .map((p) => ({
     id: p.id,
     price: minPricesMap[p.user_email] || 0,
     title: p.salon_name,
-    lat: p.latitude || p._lat || null,
-    lng: p.longitude || p._lng || null,
+    lat: parseFloat(p.latitude || p._lat),
+    lng: parseFloat(p.longitude || p._lng),
     address: p.address || null,
     city: p.city || null,
   })), [filtered, minPricesMap]);
@@ -1400,7 +1402,6 @@ function SalonsTab({ activeCategory }) {
   const handleMapSelect = (item) => {
     setHighlightedId(item.id);
     setSelectedProfil(item);
-    // Faire défiler vers la carte correspondante
     setTimeout(() => {
       const el = document.getElementById(`salon-card-${item.id}`);
       if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1490,12 +1491,14 @@ function ParticuliersTab({ activeCategory }) {
   const { profils, minPricesMap } = data;
   const filtered = activeCategory === "Tous" ? profils : profils.filter(p => p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase())));
 
-  const mapItems = useMemo(() => filtered.map((p) => ({
+  const mapItems = useMemo(() => filtered
+    .filter(p => (p.latitude || p._lat) && (p.longitude || p._lng))
+    .map((p) => ({
     id: p.id,
     price: minPricesMap[p.user_email] || 0,
     title: p.salon_name,
-    lat: p.latitude || p._lat || null,
-    lng: p.longitude || p._lng || null,
+    lat: parseFloat(p.latitude || p._lat),
+    lng: parseFloat(p.longitude || p._lng),
     address: p.address || null,
     city: p.city || null,
   })), [filtered, minPricesMap]);

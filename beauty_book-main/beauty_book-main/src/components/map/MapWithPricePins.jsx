@@ -1,25 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
 
-const geocodeCache = {};
-
-async function geocodeAddress(address) {
-  if (!address) return null;
-  const key = address.trim().toLowerCase();
-  if (geocodeCache[key]) return geocodeCache[key];
-  try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&addressdetails=1&countrycodes=fr,be,ch`;
-    const res = await fetch(url, { headers: { "Accept-Language": "fr" } });
-    const data = await res.json();
-    if (data.length > 0) {
-      const pos = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-      geocodeCache[key] = pos;
-      return pos;
-    }
-  } catch {}
-  return null;
-}
-
 const GOOGLE_MAPS_API_KEY = "AIzaSyCYUS4e9iOQzEEzCpGYYv9zM42PaCSz2uU";
 
 function PriceMarker({ item, isSelected, onClick }) {
@@ -50,37 +31,18 @@ function PriceMarker({ item, isSelected, onClick }) {
 
 export default function MapWithPricePins({ items = [], onSelectItem, height = "h-52" }) {
   const [selected, setSelected] = useState(null);
-  const [resolvedItems, setResolvedItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const itemsRef = useRef(null);
 
-  useEffect(() => {
-    const itemsKey = JSON.stringify(items.map(i => [i.id, i.lat, i.lng, i.address, i.city, i.price]));
-    if (itemsRef.current === itemsKey) return;
-    itemsRef.current = itemsKey;
-    if (!items.length) { setResolvedItems([]); setLoading(false); return; }
-    let cancelled = false;
-    setLoading(true);
-    async function resolve() {
-      const resolved = await Promise.all(
-        items.map(async (item) => {
-          if (item.lat && item.lng) return { ...item, _lat: parseFloat(item.lat), _lng: parseFloat(item.lng) };
-          const addr = [item.address, item.city].filter(Boolean).join(", ");
-          if (addr) {
-            const pos = await geocodeAddress(addr);
-            if (pos) return { ...item, _lat: pos.lat, _lng: pos.lng };
-          }
-          return null;
-        })
-      );
-      if (!cancelled) { setResolvedItems(resolved.filter(Boolean)); setLoading(false); }
-    }
-    resolve();
-    return () => { cancelled = true; };
+  const resolvedItems = useMemo(() => {
+    return items
+      .filter(item => item.lat && item.lng && !isNaN(item.lat) && !isNaN(item.lng))
+      .map(item => ({ ...item, _lat: parseFloat(item.lat), _lng: parseFloat(item.lng) }));
   }, [items]);
 
   const center = useMemo(() => {
-    if (resolvedItems.length > 0) {
+    if (resolvedItems.length === 1) {
+      return { lat: resolvedItems[0]._lat, lng: resolvedItems[0]._lng };
+    }
+    if (resolvedItems.length > 1) {
       return {
         lat: resolvedItems.reduce((s, it) => s + it._lat, 0) / resolvedItems.length,
         lng: resolvedItems.reduce((s, it) => s + it._lng, 0) / resolvedItems.length,
@@ -93,12 +55,6 @@ export default function MapWithPricePins({ items = [], onSelectItem, height = "h
 
   return (
     <div className={`relative ${height} rounded-3xl overflow-hidden border border-gray-200 shadow-md bg-gray-100`}>
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-[1000]">
-          <div className="w-6 h-6 border-2 border-[#E8732A] border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-
       <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
         <Map
           defaultCenter={center}
@@ -107,22 +63,18 @@ export default function MapWithPricePins({ items = [], onSelectItem, height = "h
           gestureHandling="greedy"
           disableDefaultUI={true}
           style={{ width: "100%", height: "100%" }}
-          onTilesLoaded={() => { if (loading) setLoading(false); }}
         >
-          {resolvedItems.map((item) => {
-            if (!item._lat || !item._lng) return null;
-            return (
-              <PriceMarker
-                key={item.id}
-                item={item}
-                isSelected={selected === item.id}
-                onClick={() => {
-                  setSelected(prev => prev === item.id ? null : item.id);
-                  onSelectItem?.(item);
-                }}
-              />
-            );
-          })}
+          {resolvedItems.map((item) => (
+            <PriceMarker
+              key={item.id}
+              item={item}
+              isSelected={selected === item.id}
+              onClick={() => {
+                setSelected(prev => prev === item.id ? null : item.id);
+                onSelectItem?.(item);
+              }}
+            />
+          ))}
         </Map>
       </APIProvider>
 

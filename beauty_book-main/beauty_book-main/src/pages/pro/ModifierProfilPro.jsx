@@ -161,11 +161,24 @@ export default function ModifierProfilPro() {
     setData(d => ({ ...d, galerie_urls: d.galerie_urls.filter((_, i) => i !== index) }));
   };
 
+  const geocodeAndSave = async (address, city) => {
+    const addr = [address, city].filter(Boolean).join(", ");
+    if (!addr) return { latitude: null, longitude: null };
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(addr)}&format=json&limit=1&countrycodes=fr,be,ch`, { headers: { "Accept-Language": "fr" } });
+      const data = await res.json();
+      if (data.length > 0) return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
+    } catch {}
+    return { latitude: null, longitude: null };
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError("");
     try {
       const { data: existing } = await supabase.from('ProfilPro').select('id').eq('user_email', user.email).maybeSingle();
+
+      const coords = await geocodeAndSave(data.address, data.city);
 
       const core = {
         salon_name: data.salon_name || "",
@@ -175,6 +188,7 @@ export default function ModifierProfilPro() {
         bio: data.bio || "",
         avatar_url: data.avatar_url || "",
         cover_url: data.cover_url || "",
+        ...coords,
       };
 
       let saveError = null;
