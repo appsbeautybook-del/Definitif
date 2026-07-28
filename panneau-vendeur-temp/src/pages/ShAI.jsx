@@ -28,19 +28,19 @@ const LOADING_MSGS = [
 ];
 
 function LoadingOverlay({ onCancel }) {
-  const [step, setStep] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const [msg, setMsg] = useState(LOADING_MSGS[0]);
   const rafRef = useRef(null);
   const startRef = useRef(Date.now());
 
   useEffect(() => {
     startRef.current = Date.now();
-    let lastSwitch = 0;
     const tick = () => {
       const elapsed = (Date.now() - startRef.current) / 1000;
-      if (elapsed - lastSwitch > 4) {
-        lastSwitch = elapsed;
-        setStep(s => (s + 1) % LOADING_MSGS.length);
-      }
+      const p = Math.min(95, 100 - 100 * Math.exp(-elapsed / 20));
+      setProgress(Math.round(p));
+      const idx = Math.min(LOADING_MSGS.length - 1, Math.floor(elapsed / 5));
+      setMsg(LOADING_MSGS[idx]);
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -48,16 +48,27 @@ function LoadingOverlay({ onCancel }) {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-[2px]">
-      <div className="flex flex-col items-center gap-4 px-6">
-        <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm">
-          <Wand2 className="w-7 h-7 text-white animate-spin" />
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-end bg-black/60 backdrop-blur-[2px]">
+      <div className="w-full px-4 pb-6 space-y-3">
+        <div className="flex justify-center mb-2">
+          <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-sm">
+            <Wand2 className="w-6 h-6 text-white animate-spin" />
+          </div>
         </div>
-        <div className="text-center space-y-1">
-          <p className="text-white text-[13px] font-black">{LOADING_MSGS[step]}</p>
-          <p className="text-white/50 text-[11px] font-medium">Cela peut prendre 30-60 secondes</p>
+        <div className="flex items-center justify-between">
+          <p className="text-white text-[12px] font-black">{msg}</p>
+          <p className="text-primary text-[13px] font-black animate-pulse">{progress}%</p>
         </div>
-        <button onClick={onCancel} className="text-white/40 text-[11px] underline">Annuler</button>
+        <div className="h-2.5 bg-white/20 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-[width] duration-300 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <p className="text-white/60 text-[10px] font-medium text-center">
+          Fond & visage préservés — seul le vêtement change ✨
+        </p>
+        <button onClick={onCancel} className="w-full text-white/40 text-[11px] underline text-center mt-1">Annuler</button>
       </div>
     </div>
   );
@@ -651,18 +662,10 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         const resultUrl = res.data.result_url;
         setResult(resultUrl);
         saveToHistory({ resultUrl, productName: garmentName, userPhoto, garmentPhoto });
+      } else if (res.data?.fallback) {
+        setError(res.data?.message || "L'essayage virtuel n'a pas pu être généré. Réessayez avec une autre photo.");
       } else {
-        const d = res.data || {};
-        setPhotoAnalysis({
-          has_person: d.has_person !== undefined ? d.has_person : true,
-          body_visible: d.body_visible !== undefined ? d.body_visible : true,
-          quality_ok: d.quality_ok !== undefined ? d.quality_ok : true,
-          compatibility_score: d.compatibility_score || 75,
-          issues: d.issues || [],
-          body_type: d.body_type || "",
-          suggestion: d.message || d.suggestion || "L'essayage virtuel sera bientôt disponible. Voici l'analyse de compatibilité.",
-          ...d,
-        });
+        setError(res.data?.error || "Erreur lors de la génération de l'essayage.");
       }
     } catch (err) {
       setLoading(false);
