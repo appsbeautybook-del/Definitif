@@ -452,26 +452,62 @@ function ProductCard({ product, selected, onSelect }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // CABINE D'ESSAYAGE
 // ─────────────────────────────────────────────────────────────────────────────
+const SHAI_DRAFT_KEY = 'shai_cabine_draft';
+
 function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
-  const [mode, setMode] = useState("article");
+  // ── Restore draft from localStorage ──
+  const loadDraft = () => {
+    try {
+      const raw = localStorage.getItem(SHAI_DRAFT_KEY);
+      if (!raw) return null;
+      const d = JSON.parse(raw);
+      // Only restore if draft is recent (24h)
+      if (!d._savedAt || Date.now() - d._savedAt > 86400000) {
+        localStorage.removeItem(SHAI_DRAFT_KEY);
+        return null;
+      }
+      return d;
+    } catch { return null; }
+  };
+  const draft = useRef(loadDraft()).current;
+
+  const [mode, setMode] = useState(draft?.mode || "article");
   const [showFavoris, setShowFavoris] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [userPhoto, setUserPhoto] = useState(null);
-  const [photoAnalysis, setPhotoAnalysis] = useState(null); // { ok, score, issues, bodyType, skinTone }
+  const [userPhoto, setUserPhoto] = useState(draft?.userPhoto || null);
+  const [photoAnalysis, setPhotoAnalysis] = useState(draft?.photoAnalysis || null);
   const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(preSelectedProduct || null);
-  const [productVariants, setProductVariants] = useState(null); // { options, variants }
+  const [selectedProduct, setSelectedProduct] = useState(draft?.selectedProduct || preSelectedProduct || null);
+  const [productVariants, setProductVariants] = useState(null);
   const [selectedOptions, setSelectedOptions] = useState({});
   const [loadingVariants, setLoadingVariants] = useState(false);
-  const [topPhoto, setTopPhoto] = useState(null);
-  const [bottomPhoto, setBottomPhoto] = useState(null);
-  const [shoesPhoto, setShoesPhoto] = useState(null);
-  const [result, setResult] = useState(null);
+  const [topPhoto, setTopPhoto] = useState(draft?.topPhoto || null);
+  const [bottomPhoto, setBottomPhoto] = useState(draft?.bottomPhoto || null);
+  const [shoesPhoto, setShoesPhoto] = useState(draft?.shoesPhoto || null);
+  const [result, setResult] = useState(draft?.result || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const { addToCart } = useCartSync();
   const [justAdded, setJustAdded] = useState(false);
+
+  // ── Save draft to localStorage (debounced) ──
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const toSave = {
+          mode, userPhoto, photoAnalysis, topPhoto, bottomPhoto, shoesPhoto, result,
+          selectedProduct: selectedProduct ? {
+            id: selectedProduct.id, name: selectedProduct.name, img: selectedProduct.img,
+            price: selectedProduct.price, brand: selectedProduct.brand,
+          } : null,
+          _savedAt: Date.now(),
+        };
+        localStorage.setItem(SHAI_DRAFT_KEY, JSON.stringify(toSave));
+      } catch {}
+    }, 500);
+    return () => clearTimeout(t);
+  }, [mode, userPhoto, photoAnalysis, selectedProduct, topPhoto, bottomPhoto, shoesPhoto, result]);
 
   // Pré-sélectionner le produit depuis ProduitDetail
   useEffect(() => {
@@ -556,14 +592,16 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         photoUrl: urlToSend,
         productName: productName || "vêtement",
       });
-      setPhotoAnalysis(res.data || {
-        has_person: true,
-        body_visible: true,
-        quality_ok: true,
-        compatibility_score: 85,
-        issues: [],
-        body_type: "",
-        suggestion: "Photo prête pour l'essayage virtuel."
+      const d = res.data || {};
+      setPhotoAnalysis({
+        has_person: d.has_person !== undefined ? d.has_person : true,
+        body_visible: d.body_visible !== undefined ? d.body_visible : true,
+        quality_ok: d.quality_ok !== undefined ? d.quality_ok : true,
+        compatibility_score: d.compatibility_score || 85,
+        issues: d.issues || [],
+        body_type: d.body_type || "",
+        suggestion: d.suggestion || "Photo prête pour l'essayage virtuel.",
+        ...d,
       });
     } catch (err) {
       console.warn('[ShAI] Analysis failed, using default:', err);
@@ -621,18 +659,18 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         const resultUrl = res.data.result_url;
         setResult(resultUrl);
         saveToHistory({ resultUrl, productName: garmentName, userPhoto, garmentPhoto });
-      } else if (res.data?.fallback) {
-        setPhotoAnalysis({
-          has_person: true,
-          body_visible: true,
-          quality_ok: true,
-          compatibility_score: res.data.compatibility_score || 75,
-          issues: [],
-          body_type: res.data.body_type || "",
-          suggestion: res.data.message || "L'essayage virtuel sera bientôt disponible. Voici l'analyse de compatibilité.",
-        });
       } else {
-        setError(res.data?.error || "Erreur lors de la génération.");
+        const d = res.data || {};
+        setPhotoAnalysis({
+          has_person: d.has_person !== undefined ? d.has_person : true,
+          body_visible: d.body_visible !== undefined ? d.body_visible : true,
+          quality_ok: d.quality_ok !== undefined ? d.quality_ok : true,
+          compatibility_score: d.compatibility_score || 75,
+          issues: d.issues || [],
+          body_type: d.body_type || "",
+          suggestion: d.message || d.suggestion || "L'essayage virtuel sera bientôt disponible. Voici l'analyse de compatibilité.",
+          ...d,
+        });
       }
     } catch (err) {
       setLoading(false);
@@ -647,6 +685,8 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
   const reset = () => {
     setResult(null); setSelectedProduct(preSelectedProduct || null);
     setTopPhoto(null); setBottomPhoto(null); setShoesPhoto(null); setError(null);
+    setPhotoAnalysis(null); setUserPhoto(null);
+    localStorage.removeItem(SHAI_DRAFT_KEY);
   };
 
   const baseList = showFavoris && likedProducts.length > 0 ? likedProducts : products;
@@ -930,15 +970,42 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // ÉCHANGE DE TENUES
 // ─────────────────────────────────────────────────────────────────────────────
+const SHAI_TENUES_DRAFT_KEY = 'shai_echange_draft';
+
 function EchangeTenues() {
-  const [userPhoto, setUserPhoto] = useState(null);
-  const [referencePhoto, setReferencePhoto] = useState(null);
-  const [result, setResult] = useState(null);
+  const loadDraft = () => {
+    try {
+      const raw = localStorage.getItem(SHAI_TENUES_DRAFT_KEY);
+      if (!raw) return null;
+      const d = JSON.parse(raw);
+      if (!d._savedAt || Date.now() - d._savedAt > 86400000) {
+        localStorage.removeItem(SHAI_TENUES_DRAFT_KEY);
+        return null;
+      }
+      return d;
+    } catch { return null; }
+  };
+  const draft = useRef(loadDraft()).current;
+
+  const [userPhoto, setUserPhoto] = useState(draft?.userPhoto || null);
+  const [referencePhoto, setReferencePhoto] = useState(draft?.referencePhoto || null);
+  const [result, setResult] = useState(draft?.result || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState([]);
-  const [detectedItems, setDetectedItems] = useState([]);
+  const [searchResults, setSearchResults] = useState(draft?.searchResults || []);
+  const [detectedItems, setDetectedItems] = useState(draft?.detectedItems || []);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(SHAI_TENUES_DRAFT_KEY, JSON.stringify({
+          userPhoto, referencePhoto, result, searchResults, detectedItems, _savedAt: Date.now(),
+        }));
+      } catch {}
+    }, 500);
+    return () => clearTimeout(t);
+  }, [userPhoto, referencePhoto, result, searchResults, detectedItems]);
 
   const doUploadFile = async (file) => {
     try {
@@ -985,7 +1052,11 @@ function EchangeTenues() {
     }
   };
 
-  const reset = () => { setResult(null); setError(null); setSearchResults([]); setDetectedItems([]); };
+  const reset = () => {
+    setResult(null); setError(null); setSearchResults([]); setDetectedItems([]);
+    setUserPhoto(null); setReferencePhoto(null);
+    localStorage.removeItem(SHAI_TENUES_DRAFT_KEY);
+  };
 
   if (result) return (
     <div className="px-4 pt-4 pb-10 space-y-4">

@@ -173,7 +173,20 @@ export const apiClient = {
       return { data: result };
     } catch (error) {
       console.warn(`[apiClient.callFunction] "${functionName}" failed (${error.message}) — returning fallback`);
-      return { data: { success: false, fallback: true, message: error.message } };
+      return {
+        data: {
+          success: false,
+          fallback: true,
+          message: error.message,
+          has_person: true,
+          body_visible: true,
+          quality_ok: true,
+          compatibility_score: 80,
+          issues: [],
+          body_type: '',
+          suggestion: 'Analyse IA indisponible.',
+        },
+      };
     }
   },
 
@@ -184,23 +197,58 @@ export const apiClient = {
       return this._nanoBananaGenerate(payload);
     }
 
-    // analyzePhoto / shAiTryOn / shAiImageSearch: Gemini via /api/ai/maria
+    // analyzePhoto: use dedicated server task (Gemini vision)
+    if (functionName === 'analyzePhoto') {
+      try {
+        const result = await this.request('/api/ai/maria', {
+          method: 'POST',
+          body: JSON.stringify({
+            task: 'analyze-photo',
+            payload: { photoUrl: payload.photoUrl, productName: payload.productName },
+          }),
+        });
+        return { data: result };
+      } catch (error) {
+        console.error(`[apiClient._callMariaAI] analyzePhoto error:`, error);
+        return {
+          data: {
+            has_person: true, body_visible: true, quality_ok: true,
+            compatibility_score: 80, issues: [], body_type: '',
+            suggestion: 'Analyse IA indisponible.', fallback: true,
+          },
+        };
+      }
+    }
+
+    // shAiTryOn: use dedicated server task (fal.ai kling kolors virtual try-on)
+    if (functionName === 'shAiTryOn') {
+      try {
+        const result = await this.request('/api/ai/maria', {
+          method: 'POST',
+          body: JSON.stringify({
+            task: 'essayage-virtuel',
+            payload: {
+              userPhoto: payload.user_photo,
+              garmentPhoto: payload.garment_photo,
+              garmentName: payload.garment_name,
+              mode: payload.mode,
+            },
+          }),
+        });
+        return { data: result };
+      } catch (error) {
+        console.error(`[apiClient._callMariaAI] shAiTryOn error:`, error);
+        return {
+          data: {
+            result_url: null, compatibility_score: 70, fallback: true,
+            message: 'Essayage virtuel temporairement indisponible.',
+          },
+        };
+      }
+    }
+
+    // shAiImageSearch / mariaAutoReply: Gemini via chat completions
     const chatBuilders = {
-      analyzePhoto: (p) => [{
-        role: 'user',
-        content: [
-          ...(p.photoUrl ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
-          { type: 'text', text: `Tu es un expert en essayage virtuel et en photo pour coiffure IA. Analyse cette photo pour evaluer sa compatibilite avec un essayage virtuel de vetement OU un changement de coiffure.\nVetement/Sujet : ${p.productName || 'non precise'}\n\nCritères d'evaluation :\n1. Y a-t-il une personne visible ? (visage + corps)\n2. La photo est-elle de bonne qualité ? (lumière, netteté, résolution)\n3. Le corps/visage est-il bien visible ? (pas trop de vêtements encombrants, pas de coupure)\n4. Le fond est-il assez neutre pour un essayage ?\n5. La morphologie est-elle identifiable ?\n\nRetourne UNIQUEMENT ce JSON (sans markdown, sans backticks) :\n{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre_entre_40_et_98,"issues":["probleme1 si applicable"],"body_type":"morphologie detectee","suggestion":"Conseil pratique pour améliorer la photo si score < 70"}` }
-        ]
-      }],
-      shAiTryOn: (p) => [{
-        role: 'user',
-        content: [
-          ...(p.user_photo && !p.user_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.user_photo } }] : []),
-          ...(p.garment_photo && !p.garment_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.garment_photo } }] : []),
-          { type: 'text', text: `Tu es un expert en essayage virtuel de mode. Analyse ces images.\nVetement : ${p.garment_name || 'Non precise'}\nMode : ${p.mode || 'article'}\n\nRetourne UNIQUEMENT ce JSON (sans markdown) :\n{"result_url":null,"compatibility_score":nombre 40-98,"face_shape":"forme du visage","style_match":"description","recommendations":["Conseil 1"],"message":"Analyse courte"}` }
-        ]
-      }],
       shAiImageSearch: (p) => [{
         role: 'user',
         content: [
@@ -234,7 +282,19 @@ export const apiClient = {
         const parsed = JSON.parse(cleaned);
         return { data: parsed };
       } catch {
-        return { data: { fallback: true, message: content || 'Analyse IA terminee.' } };
+        return {
+          data: {
+            fallback: true,
+            message: content || 'Analyse IA terminee.',
+            has_person: true,
+            body_visible: true,
+            quality_ok: true,
+            compatibility_score: 80,
+            issues: [],
+            body_type: '',
+            suggestion: content || 'Analyse IA terminee.',
+          },
+        };
       }
     } catch (error) {
       console.error(`[apiClient._callMariaAI] Error for "${functionName}":`, error);
