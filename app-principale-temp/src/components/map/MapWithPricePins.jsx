@@ -52,10 +52,15 @@ export default function MapWithPricePins({ items = [], onSelectItem, height = "h
   const [selected, setSelected] = useState(null);
   const [resolvedItems, setResolvedItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const itemsRef = useRef(null);
 
   useEffect(() => {
-    if (!items.length) { setLoading(false); return; }
+    const itemsKey = JSON.stringify(items.map(i => [i.id, i.lat, i.lng, i.address, i.city, i.price]));
+    if (itemsRef.current === itemsKey) return;
+    itemsRef.current = itemsKey;
+    if (!items.length) { setResolvedItems([]); setLoading(false); return; }
     let cancelled = false;
+    setLoading(true);
     async function resolve() {
       const resolved = await Promise.all(
         items.map(async (item) => {
@@ -84,7 +89,7 @@ export default function MapWithPricePins({ items = [], onSelectItem, height = "h
     return { lat: 48.8566, lng: 2.3522 };
   }, [resolvedItems]);
 
-  const mapId = useMemo(() => "beautybook-map-" + Date.now(), []);
+  const mapId = useMemo(() => "beautybook-map-static", []);
 
   return (
     <div className={`relative ${height} rounded-3xl overflow-hidden border border-gray-200 shadow-md bg-gray-100`}>

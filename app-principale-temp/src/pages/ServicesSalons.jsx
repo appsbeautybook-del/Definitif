@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useThemeBg } from "@/hooks/useTheme";
@@ -1358,16 +1358,16 @@ function SalonsTab({ activeCategory }) {
   const [liked, setLiked] = useState([]);
   const [selectedProfil, setSelectedProfil] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
-  const [profils, setProfils] = useState([]);
-  const [minPricesMap, setMinPricesMap] = useState({});
+  const [data, setData] = useState({ profils: [], minPricesMap: {} });
   const [loading, setLoading] = useState(true);
   const listRef = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
     entities.ProfilPro.filter({ status: "actif" }, "-created_at", 50)
       .then(async (all) => {
+        if (cancelled) return;
         const salons = all.filter(p => p.salon_name && p.salon_name.trim() !== "");
-        setProfils(salons);
         const emails = salons.map(p => p.user_email).filter(Boolean);
         const servicesArr = await Promise.all(
           emails.map(e => entities.Service.filter({ pro_email: e, status: "actif" }, "price", 10).catch(() => []))
@@ -1377,15 +1377,17 @@ function SalonsTab({ activeCategory }) {
           const prices = servicesArr[i].map(s => s.price).filter(p => p > 0);
           if (prices.length > 0) map[e] = Math.min(...prices);
         });
-        setMinPricesMap(map);
+        if (!cancelled) setData({ profils: salons, minPricesMap: map });
       })
-      .catch(() => setProfils([]))
-      .finally(() => setLoading(false));
+      .catch(() => { if (!cancelled) setData({ profils: [], minPricesMap: {} }); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
+  const { profils, minPricesMap } = data;
   const filtered = activeCategory === "Tous" ? profils : profils.filter(p => p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase())));
 
-  const mapItems = filtered.map((p) => ({
+  const mapItems = useMemo(() => filtered.map((p) => ({
     id: p.id,
     price: minPricesMap[p.user_email] || 0,
     title: p.salon_name,
@@ -1393,7 +1395,7 @@ function SalonsTab({ activeCategory }) {
     lng: p.longitude || p._lng || null,
     address: p.address || null,
     city: p.city || null,
-  }));
+  })), [filtered, minPricesMap]);
 
   const handleMapSelect = (item) => {
     setHighlightedId(item.id);
@@ -1459,16 +1461,16 @@ function ParticuliersTab({ activeCategory }) {
   const [liked, setLiked] = useState([]);
   const [selectedProfil, setSelectedProfil] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
-  const [profils, setProfils] = useState([]);
-  const [minPricesMap, setMinPricesMap] = useState({});
+  const [data, setData] = useState({ profils: [], minPricesMap: {} });
   const [loading, setLoading] = useState(true);
   const listRef = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
     entities.ProfilPro.filter({ status: "actif" }, "-created_at", 50)
       .then(async (all) => {
+        if (cancelled) return;
         const particuliers = all.filter(p => !p.salon_name || p.salon_name.trim() === "");
-        setProfils(particuliers);
         const emails = particuliers.map(p => p.user_email).filter(Boolean);
         const servicesArr = await Promise.all(
           emails.map(e => entities.Service.filter({ pro_email: e, status: "actif" }, "price", 10).catch(() => []))
@@ -1478,15 +1480,17 @@ function ParticuliersTab({ activeCategory }) {
           const prices = servicesArr[i].map(s => s.price).filter(p => p > 0);
           if (prices.length > 0) map[e] = Math.min(...prices);
         });
-        setMinPricesMap(map);
+        if (!cancelled) setData({ profils: particuliers, minPricesMap: map });
       })
-      .catch(() => setProfils([]))
-      .finally(() => setLoading(false));
+      .catch(() => { if (!cancelled) setData({ profils: [], minPricesMap: {} }); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, []);
 
+  const { profils, minPricesMap } = data;
   const filtered = activeCategory === "Tous" ? profils : profils.filter(p => p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase())));
 
-  const mapItems = filtered.map((p) => ({
+  const mapItems = useMemo(() => filtered.map((p) => ({
     id: p.id,
     price: minPricesMap[p.user_email] || 0,
     title: p.salon_name,
@@ -1494,7 +1498,7 @@ function ParticuliersTab({ activeCategory }) {
     lng: p.longitude || p._lng || null,
     address: p.address || null,
     city: p.city || null,
-  }));
+  })), [filtered, minPricesMap]);
 
   const handleMapSelect = (item) => {
     setHighlightedId(item.id);
