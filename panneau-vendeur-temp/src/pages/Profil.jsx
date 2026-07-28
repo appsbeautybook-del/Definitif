@@ -370,6 +370,11 @@ export default function Profil() {
             <BadgeCheck className="w-4 h-4" />
             MODIFIER PROFIL PRO
           </button>
+        ) : demandeStatus === 'en_attente' ? (
+          <button onClick={() => navigate("/profil-pro")}
+            className="flex-1 py-3.5 bg-amber-400 rounded-2xl text-white text-[13px] font-black uppercase tracking-widest shadow-md shadow-amber-400/30 active:scale-95 transition-all">
+            MON PROFIL PRO
+          </button>
         ) : (
           <button onClick={() => navigate("/devenir-pro")}
             className="flex-1 py-3.5 bg-primary rounded-2xl text-white text-[13px] font-black uppercase tracking-widest shadow-md shadow-primary/30 active:scale-95 transition-all">
