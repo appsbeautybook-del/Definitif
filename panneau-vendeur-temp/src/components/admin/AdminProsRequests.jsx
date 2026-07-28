@@ -107,36 +107,54 @@ export default function AdminProsRequests() {
       await supabase.from('DemandeProV2').update({ statut, admin_notes: note, updated_at: new Date().toISOString() }).eq('id', id);
       setDemandes(prev => prev.map(d => d.id === id ? { ...d, statut, admin_notes: note } : d));
 
-      // Si approuvé, créer le profil pro avec la clé service_role
+      // Si approuvé, créer ou mettre à jour le profil pro avec la clé service_role
       if (statut === "approuvee") {
         const demande = demandes.find(d => d.id === id);
         if (demande) {
           try {
-            await fetch(`${SUPABASE_URL}/rest/v1/ProfilPro`, {
-              method: 'POST',
-              headers: {
-                'apikey': SERVICE_ROLE_KEY,
-                'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=minimal',
-              },
-              body: JSON.stringify({
-                user_email: demande.user_email,
-                salon_name: demande.salon_name || "Mon Salon",
-                bio: demande.bio || "",
-                type_activite: demande.type_activite || "Salon",
-                specialites: demande.specialites || [],
-                address: demande.address || "",
-                city: demande.city || "",
-                phone: demande.phone || "",
-                email_pro: demande.email_pro || demande.user_email,
-                status: "actif",
-                latitude: demande.latitude || null,
-                longitude: demande.longitude || null,
-              }),
-            });
+            const payload = {
+              user_email: demande.user_email,
+              salon_name: demande.salon_name || "Mon Salon",
+              bio: demande.bio || "",
+              type_activite: demande.type_activite || "Salon",
+              specialites: demande.specialites || [],
+              address: demande.address || "",
+              city: demande.city || "",
+              phone: demande.phone || "",
+              email_pro: demande.email_pro || demande.user_email,
+              status: "actif",
+              latitude: demande.latitude || null,
+              longitude: demande.longitude || null,
+            };
+            // Check if ProfilPro already exists for this email
+            const { data: existing } = await supabase.from('ProfilPro').select('id').eq('user_email', demande.user_email).maybeSingle();
+            if (existing?.id) {
+              // Update existing record
+              await fetch(`${SUPABASE_URL}/rest/v1/ProfilPro?id=eq.${existing.id}`, {
+                method: 'PATCH',
+                headers: {
+                  'apikey': SERVICE_ROLE_KEY,
+                  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=minimal',
+                },
+                body: JSON.stringify(payload),
+              });
+            } else {
+              // Insert new record
+              await fetch(`${SUPABASE_URL}/rest/v1/ProfilPro`, {
+                method: 'POST',
+                headers: {
+                  'apikey': SERVICE_ROLE_KEY,
+                  'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+                  'Content-Type': 'application/json',
+                  'Prefer': 'return=minimal',
+                },
+                body: JSON.stringify(payload),
+              });
+            }
           } catch (e) {
-            console.error('[Admin] Create ProfilPro error:', e);
+            console.error('[Admin] Upsert ProfilPro error:', e);
           }
         }
       }

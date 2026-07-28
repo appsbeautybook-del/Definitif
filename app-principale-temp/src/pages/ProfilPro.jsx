@@ -11,9 +11,9 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 
 function getBannerGradient(theme) {
-  if (theme === "night") return "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 60%, #000000 100%)";
-  if (theme === "dark")  return "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(26,26,46,0.75) 60%, #1a1a2e 100%)";
-  return "linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(255,255,255,0.25) 60%, #ffffff 100%)";
+  if (theme === "night") return "linear-gradient(135deg, #1a1a2e 0%, #000000 50%, #16213e 100%)";
+  if (theme === "dark")  return "linear-gradient(135deg, #1a1a2e 0%, #0f3460 50%, #1a1a2e 100%)";
+  return "linear-gradient(135deg, #E8732A 0%, #f59540 40%, #f8b978 100%)";
 }
 
 function getPageBg(theme) {
@@ -23,9 +23,6 @@ function getPageBg(theme) {
 }
 import VueClient from "@/pages/pro/VueClient";
 import ShareSheet from "@/components/ui/ShareSheet";
-
-const BANNER_IMAGE = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=800";
-const PROFILE_IMAGE = "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?q=80&w=200";
 
 const quickActions = [
   { id: "beauty_pay", label: "BEAUTY PAY", Icon: CreditCard, bg: "bg-orange-100", color: "text-orange-400", route: "/pro/beauty-pay" },
@@ -49,6 +46,8 @@ export default function ProfilPro() {
   const [shareOpen, setShareOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [stats, setStats] = useState({ rdvSemaine: 0, nouveauxClients: 0, caMonth: 0, caLastMonth: 0 });
+  const [clientProfile, setClientProfile] = useState(null);
+  const [demandeStatus, setDemandeStatus] = useState(null);
 
   const loadProfil = () => {
     if (!user?.email) return;
@@ -74,6 +73,16 @@ export default function ProfilPro() {
           setNightMode(p.travail_nuit || false);
         }
       })
+      .catch(() => {});
+
+    // Fetch client profile for avatar/banner fallback
+    supabase.from('profiles').select('avatar_url, cover_url').eq('email', user.email).maybeSingle()
+      .then(({ data }) => { if (data) setClientProfile(data); })
+      .catch(() => {});
+
+    // Fetch DemandeProV2 status for banner visibility
+    supabase.from('DemandeProV2').select('statut').eq('user_email', user.email).order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => { if (data) setDemandeStatus(data.statut); })
       .catch(() => {});
   };
 
@@ -167,7 +176,11 @@ export default function ProfilPro() {
             <div className="bg-[#1a2035] px-5 pt-12 pb-6">
               <div className="flex items-center gap-3 mb-1">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-600 border-2 border-white/30">
-                  <img src={proInfoCurrent?.avatar_url || PROFILE_IMAGE} alt="profil" className="w-full h-full object-cover" />
+                  {proInfoCurrent?.avatar_url || clientProfile?.avatar_url ? (
+                    <img src={proInfoCurrent?.avatar_url || clientProfile?.avatar_url} alt="profil" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white font-black text-lg">{nomCommerce?.[0]?.toUpperCase() || "P"}</div>
+                  )}
                 </div>
                 <div>
                   <p className="text-white text-[16px] font-black leading-tight">{nomCommerce}</p>
@@ -211,8 +224,12 @@ export default function ProfilPro() {
 
       {/* Banner + Profile Photo */}
       <div className="relative h-52">
-        <img src={proInfoCurrent?.cover_url || BANNER_IMAGE} alt="Bannière" className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: getBannerGradient(theme) }} />
+        {proInfoCurrent?.cover_url || clientProfile?.cover_url ? (
+          <img src={proInfoCurrent?.cover_url || clientProfile?.cover_url} alt="Bannière" className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full" style={{ background: getBannerGradient(theme) }} />
+        )}
+        <div className="absolute inset-0" style={{ background: proInfoCurrent?.cover_url || clientProfile?.cover_url ? getBannerGradient(theme) : 'transparent' }} />
 
         {/* Top Buttons */}
         {(() => {
@@ -250,7 +267,11 @@ export default function ProfilPro() {
         <div className="absolute -bottom-12 left-5">
           <div className="relative">
             <div className="w-[100px] h-[100px] rounded-full border-4 border-white shadow-xl overflow-hidden bg-gray-100">
-              <img src={proInfoCurrent?.avatar_url || PROFILE_IMAGE} alt="Profil" className="w-full h-full object-cover" />
+              {proInfoCurrent?.avatar_url || clientProfile?.avatar_url ? (
+                <img src={proInfoCurrent?.avatar_url || clientProfile?.avatar_url} alt="Profil" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-gray-500 font-black text-3xl">{nomCommerce?.[0]?.toUpperCase() || "P"}</div>
+              )}
             </div>
             <div className={`absolute bottom-1 right-1 w-7 h-7 rounded-full border-2 border-white flex items-center justify-center shadow ${proInfoCurrent?.status === 'actif' ? "bg-green-500" : "bg-orange-400"}`}>
               <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -288,8 +309,8 @@ export default function ProfilPro() {
           <span className="mt-1 bg-gray-100 text-gray-500 text-[11px] font-black px-3 py-1 rounded-lg uppercase tracking-wider">PRO</span>
         </div>
 
-        {/* Pending Alert — masqué si profil actif */}
-        {proInfoCurrent?.status !== 'actif' && (
+        {/* Pending Alert — masqué si profil actif OU demande approuvée */}
+        {proInfoCurrent?.status !== 'actif' && demandeStatus !== 'approuvee' && (
           <div className="flex gap-3 bg-orange-50 p-4 rounded-2xl border border-orange-100">
             <div className="w-8 h-8 shrink-0 bg-orange-100 rounded-xl flex items-center justify-center mt-0.5">
               <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
