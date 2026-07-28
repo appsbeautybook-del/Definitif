@@ -883,9 +883,28 @@ export default function Reels() {
 
     entities.Reel.filter(filters, '-created_at', 50)
       .then(async (reels) => {
-        setReelsData(reels);
+        // Enrichir les reels avec nom + avatar depuis les profils
+        const emails = [...new Set(reels.map(r => r.author_email).filter(Boolean))];
+        const profileMap = {};
+        if (emails.length > 0) {
+          const [proRes, clientRes] = await Promise.all([
+            supabase.from('ProfilPro').select('user_email, salon_name, avatar_url').in('user_email', emails),
+            supabase.from('profiles').select('email, full_name, avatar_url').in('email', emails),
+          ]);
+          (proRes.data || []).forEach(p => { if (p.salon_name) profileMap[p.user_email] = { name: p.salon_name, avatar: p.avatar_url }; });
+          (clientRes.data || []).forEach(p => { if (!profileMap[p.email]) profileMap[p.email] = { name: p.full_name, avatar: p.avatar_url }; });
+        }
+        const enriched = reels.map(r => {
+          const prof = profileMap[r.author_email];
+          return {
+            ...r,
+            author_name: r.author_name || prof?.name || "",
+            author_avatar: r.author_avatar || prof?.avatar || null,
+          };
+        });
+        setReelsData(enriched);
         const ckm = {};
-        reels.forEach(r => { ckm[r.id] = r.comments_count ?? 0; });
+        enriched.forEach(r => { ckm[r.id] = r.comments_count ?? 0; });
         setReelCommentCounts(ckm);
 
         try {
