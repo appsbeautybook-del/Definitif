@@ -329,7 +329,30 @@ function StylesTab({ activeCategory }) {
   const [showComments, setShowComments] = useState(null);
   const [showShare, setShowShare] = useState(null);
   const [showBook, setShowBook] = useState(null);
+  const [followed, setFollowed] = useState([]);
   const scrollRef = useRef(null);
+
+  // ── Charger les follows ──
+  useEffect(() => {
+    if (!user?.email) return;
+    supabase.from('user_follow').select('followed_email')
+      .eq('follower_email', user.email)
+      .then(({ data }) => { if (data) setFollowed(data.map(f => f.followed_email).filter(Boolean)); })
+      .catch(() => {});
+  }, [user?.email]);
+
+  const handleFollow = async (e, authorEmail) => {
+    e.stopPropagation();
+    if (!user?.email || !authorEmail) return;
+    const isFollowed = followed.includes(authorEmail);
+    if (isFollowed) {
+      await supabase.from('user_follow').delete().eq('follower_email', user.email).eq('followed_email', authorEmail);
+      setFollowed(prev => prev.filter(x => x !== authorEmail));
+    } else {
+      await supabase.from('user_follow').insert({ follower_email: user.email, followed_email: authorEmail });
+      setFollowed(prev => [...prev, authorEmail]);
+    }
+  };
 
   // ── Charger les styles likés depuis la BDD ──
   useEffect(() => {
@@ -469,6 +492,8 @@ function StylesTab({ activeCategory }) {
             )}
             <StyleCard
               style={style} liked={liked.includes(style.id)} likeCount={likeCounts[style.id] || 0}
+              followed={followed.includes(style.author_email)}
+              onFollow={(e) => handleFollow(e, style.author_email)}
               onLike={(e) => handleLike(e, style.id)}
               onComment={(e) => { e.stopPropagation(); setShowComments(style); }}
               onShare={(e) => { e.stopPropagation(); setShowShare(style); }}
@@ -487,7 +512,7 @@ function StylesTab({ activeCategory }) {
   );
 }
 
-function StyleCard({ style, liked, likeCount, onLike, onComment, onShare, onDetail, onBook, isVideo }) {
+function StyleCard({ style, liked, likeCount, followed, onFollow, onLike, onComment, onShare, onDetail, onBook, isVideo }) {
   const [imgIdx, setImgIdx] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(true);
@@ -616,20 +641,30 @@ function StyleCard({ style, liked, likeCount, onLike, onComment, onShare, onDeta
         </button>
       </div>
 
-      <div className="absolute left-4 right-20 z-10 cursor-pointer" style={{ bottom: "calc(50px + env(safe-area-inset-bottom, 0px))" }}>
-        <h3 className="text-white text-[20px] font-black leading-tight mb-1" onClick={onDetail}>{style.title}</h3>
+      <div className="absolute left-4 right-20 z-10" style={{ bottom: "calc(50px + env(safe-area-inset-bottom, 0px))" }}>
+        {style.author_name && (
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-white text-[13px] font-bold truncate" onClick={onDetail}>{style.author_name}</span>
+            {style.author_email && style.author_email !== user?.email && (
+              <button onClick={onFollow} className={`shrink-0 border rounded-full px-2.5 py-0.5 text-[10px] font-black transition-all ${followed ? "border-white/40 text-white/60" : "border-white text-white"}`}>
+                {followed ? "Abonné" : "Suivre"}
+              </button>
+            )}
+          </div>
+        )}
+        <h3 className="text-white text-[20px] font-black leading-tight mb-1 cursor-pointer" onClick={onDetail}>{style.title}</h3>
         {style.description && (
           <p className={`text-white/80 text-[11px] font-medium leading-relaxed ${!descExpanded ? 'line-clamp-2' : ''}`}>
             {style.description}
             {style.description.length > 60 && (
-              <span className="text-primary font-bold ml-1" onClick={(e) => { e.stopPropagation(); setDescExpanded(!descExpanded); }}>
+              <span className="text-primary font-bold ml-1 cursor-pointer" onClick={(e) => { e.stopPropagation(); setDescExpanded(!descExpanded); }}>
                 {descExpanded ? 'Voir moins' : 'Voir plus'}
               </span>
             )}
           </p>
         )}
         {style.category && (
-          <span className="inline-block mt-1.5 bg-primary/80 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest" onClick={onDetail}>{style.category}</span>
+          <span className="inline-block mt-1.5 bg-primary/80 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest cursor-pointer" onClick={onDetail}>{style.category}</span>
         )}
       </div>
     </div>
