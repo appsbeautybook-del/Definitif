@@ -107,13 +107,21 @@ export default function AdminProsRequests() {
       await supabase.from('DemandeProV2').update({ statut, admin_notes: note, updated_at: new Date().toISOString() }).eq('id', id);
       setDemandes(prev => prev.map(d => d.id === id ? { ...d, statut, admin_notes: note } : d));
 
-      // Si approuvé, créer le profil pro ET upgrader le rôle
+      // Si approuvé, créer le profil pro ET upgrader le rôle (via service_role pour bypasser RLS)
       if (statut === "approuvee") {
         const demande = demandes.find(d => d.id === id);
         if (demande) {
+          const headers = {
+            'apikey': SERVICE_ROLE_KEY,
+            'Authorization': `Bearer ${SERVICE_ROLE_KEY}`,
+            'Content-Type': 'application/json',
+          };
           try {
-            // 1. Créer/mettre à jour ProfilPro
-            const { data: existing } = await supabase.from('ProfilPro').select('id').eq('user_email', demande.user_email).single();
+            // 1. Vérifier si ProfilPro existe déjà
+            const checkRes = await fetch(`${SUPABASE_URL}/rest/v1/ProfilPro?user_email=eq.${encodeURIComponent(demande.user_email)}&select=id`, {
+              headers: { ...headers, 'Prefer': 'return=representation' },
+            });
+            const existing = await checkRes.json();
             const profilData = {
               user_email: demande.user_email,
               salon_name: demande.salon_name || "Mon Salon",
@@ -129,28 +137,42 @@ export default function AdminProsRequests() {
               latitude: demande.latitude || null,
               longitude: demande.longitude || null,
               galerie_urls: demande.portfolio || [],
-              ouverture: {
+              ouverture: JSON.stringify({
                 days: demande.days || [],
                 time_slots: demande.time_slots || "",
                 commodites: demande.commodites || [],
-              },
+              }),
             };
-            if (existing) {
-              await supabase.from('ProfilPro').update(profilData).eq('id', existing.id);
+            if (existing.length > 0) {
+              await fetch(`${SUPABASE_URL}/rest/v1/ProfilPro?id=eq.${existing[0].id}`, {
+                method: 'PATCH', headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify(profilData),
+              });
             } else {
-              await supabase.from('ProfilPro').insert(profilData);
+              await fetch(`${SUPABASE_URL}/rest/v1/ProfilPro`, {
+                method: 'POST', headers: { ...headers, 'Prefer': 'return=minimal' },
+                body: JSON.stringify(profilData),
+              });
             }
 
             // 2. Upgrader le rôle client → vendeur
-            await supabase.from('profiles').update({ role: 'vendeur', updated_at: new Date().toISOString() }).eq('email', demande.user_email);
+            await fetch(`${SUPABASE_URL}/rest/v1/profiles?email=eq.${encodeURIComponent(demande.user_email)}`, {
+              method: 'PATCH',
+              headers: { ...headers, 'Prefer': 'return=minimal' },
+              body: JSON.stringify({ role: 'vendeur', updated_at: new Date().toISOString() }),
+            });
 
             // 3. Créer une notification
-            await supabase.from('Notification').insert({
-              user_email: demande.user_email,
-              type: 'pro_approved',
-              title: 'Demande Pro approuvée !',
-              message: `Félicitations ! Votre compte professionnel "${demande.salon_name}" est maintenant actif sur BeautyBook.`,
-              read: false,
+            await fetch(`${SUPABASE_URL}/rest/v1/Notification`, {
+              method: 'POST',
+              headers: { ...headers, 'Prefer': 'return=minimal' },
+              body: JSON.stringify({
+                user_email: demande.user_email,
+                type: 'pro_approved',
+                title: 'Demande Pro approuvée !',
+                message: `Félicitations ! Votre compte professionnel "${demande.salon_name}" est maintenant actif sur BeautyBook.`,
+                read: false,
+              }),
             });
 
             console.log('[Admin] ProfilPro created + role upgraded to vendeur for:', demande.user_email);
