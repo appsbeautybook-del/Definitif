@@ -550,7 +550,7 @@ function SpeedSelector({ speed, onChange, onClose }) {
 }
 
 // ── Single Reel Card (plein écran, scroll vertical) ───────────────────────────
-function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, onRepub, followed, onFollow, onComment, onShare, onBuyProduits, onBuyServices, onSpeedChange, speed }) {
+function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, onRepub, followed, onFollow, onComment, onShare, onBuyProduits, onBuyServices, onSpeedChange, speed, currentUser }) {
   const videoRef = useRef(null);
   const audioRef = useRef(null); // piste musicale externe
   const progressRef = useRef(null);
@@ -801,11 +801,18 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
 
       {/* ── Bottom info ── */}
       <div className="absolute left-4 right-20 z-20 space-y-2" style={{ bottom: "calc(80px + env(safe-area-inset-bottom, 16px))" }}>
+        {(reel.author_name || reel.author_handle) && (
+          <div className="flex items-center gap-2">
+            <p className="text-white text-[14px] font-bold truncate flex-1">{reel.author_name || reel.author_handle}</p>
+            {reel.author_email && reel.author_email !== currentUser?.email && (
+              <button onClick={onFollow} className={`shrink-0 border rounded-full px-3 py-1 text-[11px] font-black transition-all ${followed ? "border-white/40 text-white/60" : "border-white text-white"}`}>
+                {followed ? "Abonné" : "SUIVRE"}
+              </button>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-2">
-          <p className="text-white text-[16px] font-black leading-tight flex-1">{reel.title}</p>
-          <button onClick={onFollow} className={`shrink-0 border rounded-full px-3 py-1 text-[11px] font-black transition-all ${followed ? "border-white/40 text-white/60" : "border-white text-white"}`}>
-            {followed ? "Abonné" : "SUIVRE"}
-          </button>
+          <p className="text-white text-[16px] font-black leading-tight flex-1 line-clamp-2">{reel.title}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
@@ -1135,6 +1142,7 @@ export default function Reels() {
                 onBuyServices={() => navigate("/services-salons")}
                 onSpeedChange={setSpeed}
                 speed={speed}
+                currentUser={user}
               />
             </div>
           );
