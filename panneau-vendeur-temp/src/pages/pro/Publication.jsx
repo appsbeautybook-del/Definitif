@@ -2728,7 +2728,6 @@ export default function Publication() {
       <PageHeader
         title="Studio Pro"
         dark={isDark}
-        backTo="/profil-pro"
         right={mainTab === "publier" ? (
           <button onClick={() => setShowWizard(true)} className="w-9 h-9 bg-primary rounded-full flex items-center justify-center active:scale-95 transition-all shadow-md shadow-primary/30">
             <Plus className="w-5 h-5 text-white" />

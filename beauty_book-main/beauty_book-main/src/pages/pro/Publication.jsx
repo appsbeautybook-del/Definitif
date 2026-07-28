@@ -2472,9 +2472,10 @@ export default function Publication() {
         images: form.images.length > 0 ? form.images : (thumbnail ? [thumbnail] : []),
         video_url: form.video_url || undefined,
         thumbnail_url: thumbnail,
-        author_email: user?.email || "pro@beautybook.fr",
-        author_name: user?.full_name || "Professionnel",
+        author_email: user?.email || "",
+        author_name: user?.full_name || "",
         author_avatar: user?.avatar_url || undefined,
+        created_by_id: user?.id || undefined,
         category: pubTypeToCategory[form.pubType] || "Réels",
         status: "publie",
       };
@@ -2512,8 +2513,9 @@ export default function Publication() {
         images: form.images,
         video_url: form.video_url || undefined,
         thumbnail_url: form.images[0] || "",
-        author_email: "pro@beautybook.fr",
-        author_name: "Professionnel",
+        author_email: user?.email || "",
+        author_name: user?.full_name || "",
+        created_by_id: user?.id || undefined,
         category: pubTypeToCategory[form.pubType] || "Réels",
         pub_type: form.pubType,
         status: "brouillon",
@@ -2726,7 +2728,6 @@ export default function Publication() {
       <PageHeader
         title="Studio Pro"
         dark={isDark}
-        backTo="/profil-pro"
         right={mainTab === "publier" ? (
           <button onClick={() => setShowWizard(true)} className="w-9 h-9 bg-primary rounded-full flex items-center justify-center active:scale-95 transition-all shadow-md shadow-primary/30">
             <Plus className="w-5 h-5 text-white" />
