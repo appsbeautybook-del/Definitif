@@ -1427,8 +1427,8 @@ function SalonsTab({ activeCategory }) {
         <div ref={listRef}>
           {filtered.map((item) => {
             const media = [];
-            if (item.gallery?.length > 0) item.gallery.forEach(u => { if (u) media.push(u); });
-            if (media.length === 0 && item.cover_url) media.push(item.cover_url);
+            if (item.cover_url) media.push(item.cover_url);
+            if (item.gallery?.length > 0) item.gallery.forEach(u => { if (u && !media.includes(u)) media.push(u); });
             if (media.length === 0 && item.avatar_url) media.push(item.avatar_url);
             const open = isOpenNow(item.ouverture);
             return (
@@ -1527,9 +1527,9 @@ function ParticuliersTab({ activeCategory }) {
         <div ref={listRef}>
           {filtered.map((item) => {
             const media = [];
-            if (item.gallery?.length > 0) item.gallery.forEach(u => { if (u) media.push(u); });
+            if (item.cover_url) media.push(item.cover_url);
+            if (item.gallery?.length > 0) item.gallery.forEach(u => { if (u && !media.includes(u)) media.push(u); });
             if (media.length === 0 && item.avatar_url) media.push(item.avatar_url);
-            if (media.length === 0 && item.cover_url) media.push(item.cover_url);
             const open = isOpenNow(item.ouverture);
             return (
               <div key={item.id} id={`part-card-${item.id}`}>
