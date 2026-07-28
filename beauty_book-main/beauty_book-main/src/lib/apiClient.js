@@ -189,8 +189,8 @@ export const apiClient = {
       analyzePhoto: (p) => [{
         role: 'user',
         content: [
-          ...(p.photoUrl && !p.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
-          { type: 'text', text: `Tu es un expert en essayage virtuel. Analyse cette photo pour evaluer sa compatibilite avec un essayage virtuel de vetement.\nVetement : ${p.productName || 'vetement non precise'}\n\nRetourne UNIQUEMENT ce JSON (sans markdown) :\n{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre 40-98,"issues":[],"body_type":"","suggestion":"Conseil pratique"}` }
+          ...(p.photoUrl ? [{ type: 'image_url', image_url: { url: p.photoUrl } }] : []),
+          { type: 'text', text: `Tu es un expert en essayage virtuel et en photo pour coiffure IA. Analyse cette photo pour evaluer sa compatibilite avec un essayage virtuel de vetement OU un changement de coiffure.\nVetement/Sujet : ${p.productName || 'non precise'}\n\nCritères d'evaluation :\n1. Y a-t-il une personne visible ? (visage + corps)\n2. La photo est-elle de bonne qualité ? (lumière, netteté, résolution)\n3. Le corps/visage est-il bien visible ? (pas trop de vêtements encombrants, pas de coupure)\n4. Le fond est-il assez neutre pour un essayage ?\n5. La morphologie est-elle identifiable ?\n\nRetourne UNIQUEMENT ce JSON (sans markdown, sans backticks) :\n{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre_entre_40_et_98,"issues":["probleme1 si applicable"],"body_type":"morphologie detectee","suggestion":"Conseil pratique pour améliorer la photo si score < 70"}` }
         ]
       }],
       shAiTryOn: (p) => [{

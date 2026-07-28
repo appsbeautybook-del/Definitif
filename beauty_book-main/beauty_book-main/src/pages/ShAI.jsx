@@ -541,15 +541,14 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
     setAnalyzingPhoto(true);
     setPhotoAnalysis(null);
     try {
-      // If photoUrl is a data: URI, try uploading first
+      // Try uploading to get a hosted URL, but keep base64 as fallback
       let urlToSend = photoUrl;
       if (photoUrl && photoUrl.startsWith('data:') && file) {
         try {
           const { file_url } = await uploadFile({ file });
-          urlToSend = file_url;
+          if (file_url) urlToSend = file_url;
         } catch {
-          // Keep base64 URL — maria.js will handle it as text-only analysis
-          urlToSend = null;
+          // Keep base64 data URL — Gemini supports it directly
         }
       }
 
