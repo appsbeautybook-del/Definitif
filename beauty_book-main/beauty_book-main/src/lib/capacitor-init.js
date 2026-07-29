@@ -30,11 +30,41 @@ export function initCapacitor() {
     }
   }).catch(() => {});
 
-  // Listen for OAuth callback via Browser close
-  App.addListener('appUrlOpen', (event) => {
+  // Handle OAuth callback via deep link
+  App.addListener('appUrlOpen', async (event) => {
     const url = event.url;
-    if (url && (url.includes('auth/callback') || url.includes('supabase.co'))) {
-      Browser.close().catch(() => {});
+    if (!url) return;
+
+    // Close the browser
+    Browser.close().catch(() => {});
+
+    // Parse tokens from hash or query
+    let hash = '';
+    if (url.includes('#')) {
+      hash = url.split('#')[1];
+    } else if (url.includes('?')) {
+      hash = url.split('?')[1];
+    }
+
+    if (!hash) return;
+
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (accessToken && refreshToken) {
+      try {
+        const { supabase } = await import('@/api/supabaseClient');
+        await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        // Navigate to home and reload to pick up the new session
+        window.location.href = '/#/';
+        setTimeout(() => window.location.reload(), 300);
+      } catch (e) {
+        console.error('[OAuth] Failed to set session:', e);
+      }
     }
   }).catch(() => {});
 }
