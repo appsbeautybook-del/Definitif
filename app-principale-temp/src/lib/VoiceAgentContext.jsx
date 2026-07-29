@@ -244,7 +244,7 @@ Quand l'utilisateur te demande d'ouvrir une page, retourne un bloc JSON d'action
               { role: 'user', content: text },
             ],
             temperature: 0.7,
-            max_tokens: 2048,
+            max_tokens: 512,
           }),
         });
       if (!apiRes.ok) {

@@ -655,7 +655,7 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
             { role: 'user', content: userContent },
           ],
           temperature: 0.7,
-          max_tokens: 2048,
+          max_tokens: 512,
         }),
       });
       console.log('[Maria] OpenRouter response:', apiRes.status, apiRes.statusText);
