@@ -131,15 +131,22 @@ function StepSignup({ onNext, onBack }) {
       }));
     }
     sessionStorage.setItem("bb_social_signup", "1");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        skipBrowserRedirect: false,
-      },
-    });
-    if (error) {
-      console.error(`[${provider} Auth] Error:`, error);
+    try {
+      const { isNativeApp, signInWithOAuthMobile } = await import('@/lib/oauth-mobile');
+      if (isNativeApp()) {
+        await signInWithOAuthMobile(provider);
+      } else {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+            skipBrowserRedirect: false,
+          },
+        });
+        if (error) throw error;
+      }
+    } catch (e) {
+      console.error(`[${provider} Auth] Error:`, e);
     }
   };
 

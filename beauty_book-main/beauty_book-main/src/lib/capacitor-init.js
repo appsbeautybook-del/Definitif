@@ -2,6 +2,7 @@ import { App } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Keyboard } from '@capacitor/keyboard';
 import { SplashScreen } from '@capacitor/splash-screen';
+import { Browser } from '@capacitor/browser';
 
 export function initCapacitor() {
   const isNative = !!window.Capacitor;
@@ -30,6 +31,23 @@ export function initCapacitor() {
       window.history.back();
     } else {
       App.minimizeApp();
+    }
+  }).catch(() => {});
+
+  // Handle OAuth deep link callback
+  App.addListener('appUrlOpen', (event) => {
+    const url = event.url;
+    if (url && url.includes('auth/callback')) {
+      Browser.close().catch(() => {});
+
+      import('@/lib/oauth-mobile').then(({ handleOAuthCallback }) => {
+        handleOAuthCallback(url).then((success) => {
+          if (success) {
+            window.location.href = '/#/';
+            setTimeout(() => window.location.reload(), 100);
+          }
+        });
+      });
     }
   }).catch(() => {});
 }
