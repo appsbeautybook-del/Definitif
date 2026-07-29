@@ -163,6 +163,7 @@ export default function Connexion() {
     try {
       const { isNativeApp, signInWithOAuthMobile } = await import('@/lib/oauth-mobile');
       if (isNativeApp()) {
+        setLoading(true);
         await signInWithOAuthMobile(provider);
       } else {
         const { error } = await supabase.auth.signInWithOAuth({
@@ -176,6 +177,7 @@ export default function Connexion() {
       }
     } catch (e) {
       console.error(`[${provider} Auth] Error:`, e);
+      setLoading(false);
       setError(`Erreur lors de la connexion avec ${provider === 'google' ? 'Google' : 'Apple'}.`);
     }
   };

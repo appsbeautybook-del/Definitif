@@ -9,11 +9,9 @@ export function initCapacitor() {
 
   if (!isNative) return;
 
-  // Status bar
   StatusBar.setStyle({ style: Style.Light }).catch(() => {});
   StatusBar.setBackgroundColor({ color: '#ffffff' }).catch(() => {});
 
-  // Keyboard adjustments
   Keyboard.addListener('keyboardWillShow', (info) => {
     document.body.style.paddingBottom = `${info.keyboardHeight}px`;
   }).catch(() => {});
@@ -22,10 +20,8 @@ export function initCapacitor() {
     document.body.style.paddingBottom = '0px';
   }).catch(() => {});
 
-  // Hide splash screen
   SplashScreen.hide().catch(() => {});
 
-  // Handle back button (Android)
   App.addListener('backButton', ({ canGoBack }) => {
     if (canGoBack) {
       window.history.back();
@@ -34,20 +30,11 @@ export function initCapacitor() {
     }
   }).catch(() => {});
 
-  // Handle OAuth deep link callback
+  // Listen for OAuth callback via Browser close
   App.addListener('appUrlOpen', (event) => {
     const url = event.url;
-    if (url && url.includes('auth/callback')) {
+    if (url && (url.includes('auth/callback') || url.includes('supabase.co'))) {
       Browser.close().catch(() => {});
-
-      import('@/lib/oauth-mobile').then(({ handleOAuthCallback }) => {
-        handleOAuthCallback(url).then((success) => {
-          if (success) {
-            window.location.href = '/#/';
-            setTimeout(() => window.location.reload(), 100);
-          }
-        });
-      });
     }
   }).catch(() => {});
 }
