@@ -6,6 +6,10 @@ import '@/index.css'
 // Override base44.integrations.Core.InvokeLLM → GLM backend
 import '@/lib/base44Shim.js'
 
+// Capacitor initialization (status bar, keyboard, splash screen)
+import { initCapacitor } from '@/lib/capacitor-init'
+initCapacitor();
+
 // Appliquer le thème sauvegardé dès le démarrage
 import { applyTheme } from "@/hooks/useTheme";
 applyTheme(localStorage.getItem("bb_theme") || "light");
