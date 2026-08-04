@@ -655,7 +655,7 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
             { role: 'user', content: userContent },
           ],
           temperature: 0.7,
-          max_tokens: 512,
+          max_tokens: 200,
         }),
       });
       console.log('[Maria] OpenRouter response:', apiRes.status, apiRes.statusText);
@@ -685,7 +685,7 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
       }
     } catch (err2) {
       console.error("[Maria] OpenRouter failed:", err2);
-      reply = `[DEBUG] Erreur: ${err2.message || err2}`;
+      reply = "Oups, j'ai un petit souci technique pour le moment. Réessaie dans quelques instants !";
     }
 
     // Accumuler les données du profil pro si step guidé
