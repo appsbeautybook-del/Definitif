@@ -644,8 +644,6 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
         content: m.content,
       }));
       
-      const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
-      
       let apiData = null;
       
       // Essayer d'abord le serveur Vercel
@@ -655,7 +653,7 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model: 'mimo-v2-5-free',
             messages: [
               { role: 'system', content: MARIA_SYSTEM_PROMPT },
               ...historyMsgs,
@@ -670,36 +668,40 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
           apiData = await apiRes.json();
         }
       } catch (e) {
-        console.log('[Maria] Vercel failed, trying direct OpenRouter...', e.message);
+        console.log('[Maria] Vercel failed, trying OpenCode directly...', e.message);
       }
       
-      // Fallback : appeler OpenRouter directement depuis le frontend
-      if (!apiData && OPENROUTER_KEY) {
-        console.log('[Maria] Calling OpenRouter directly...');
-        const directRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${OPENROUTER_KEY}`,
-            'HTTP-Referer': 'https://definitif-beta.vercel.app',
-            'X-Title': 'BeautyBook Maria AI',
-          },
-          body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
-            messages: [
-              { role: 'system', content: MARIA_SYSTEM_PROMPT },
-              ...historyMsgs,
-              { role: 'user', content: userContent },
-            ],
-            temperature: 0.7,
-            max_tokens: 200,
-          }),
-        });
-        console.log('[Maria] Direct OpenRouter response:', directRes.status);
-        if (directRes.ok) {
-          apiData = await directRes.json();
-        } else {
-          console.log('[Maria] OpenRouter failed:', directRes.status);
+      // Fallback : appeler OpenCode directement depuis le frontend
+      if (!apiData) {
+        const OPENCODE_KEY_B64 = 'c2stRlBQNnNoNzhZc09oeWpqMG1tenRjaFM3UEd2dUgyRUUzbklNOHZDTmVhV1VZaEFtemxBRE9yU0p0WjBRVHU1dQ==';
+        const OPENCODE_KEY = atob(OPENCODE_KEY_B64);
+        console.log('[Maria] Calling OpenCode directly...');
+        try {
+          const directRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENCODE_KEY}`,
+            },
+            body: JSON.stringify({
+              model: 'mimo-v2-5-free',
+              messages: [
+                { role: 'system', content: MARIA_SYSTEM_PROMPT },
+                ...historyMsgs,
+                { role: 'user', content: userContent },
+              ],
+              temperature: 0.7,
+              max_tokens: 200,
+            }),
+          });
+          console.log('[Maria] OpenCode response:', directRes.status);
+          if (directRes.ok) {
+            apiData = await directRes.json();
+          } else {
+            console.log('[Maria] OpenCode failed:', directRes.status);
+          }
+        } catch (e) {
+          console.log('[Maria] OpenCode error:', e.message);
         }
       }
 
@@ -735,7 +737,7 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
       }
 
       if (!apiData) {
-        throw new Error('Aucune API disponible (Vercel, OpenRouter ou Gemini)');
+        throw new Error('Aucune API disponible (Vercel, OpenCode ou Gemini)');
       }
 
       const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';

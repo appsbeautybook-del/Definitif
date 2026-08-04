@@ -215,7 +215,9 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
     }
   }
 
-  // ── Default: chat completions via OpenRouter → Gemini fallback ──────────────
+  // ── Default: chat completions via OpenCode → Gemini fallback ────────────────
+  const OPENCODE_KEY_B64 = 'c2stRlBQNnNoNzhZc09oeWpqMG1tenRjaFM3UEd2dUgyRUUzbklNOHZDTmVhV1VZaEFtemxBRE9yU0p0WjBRVHU1dQ==';
+  const OPENCODE_KEY = Buffer.from(OPENCODE_KEY_B64, 'base64').toString('utf-8');
   const GEMINI_KEY_B64 = 'QVEuQWI4Uk42SUJHQVpqN1pRaVBsQzJVRTF4MDFVWTZfdkdleF9PdDVOc3RFaGNBMEFWMlE=';
   const GEMINI_KEY = Buffer.from(GEMINI_KEY_B64, 'base64').toString('utf-8');
 
@@ -233,16 +235,14 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
     return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
   }
 
-  // Try OpenRouter first
+  // Try OpenCode first
   try {
-    const body = JSON.stringify({ model, messages, temperature, max_tokens });
-    const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const body = JSON.stringify({ model: 'mimo-v2-5-free', messages, temperature, max_tokens });
+    const apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_KEY}`,
-        'HTTP-Referer': 'https://definitif-beta.vercel.app',
-        'X-Title': 'BeautyBook Maria AI',
+        'Authorization': `Bearer ${OPENCODE_KEY}`,
       },
       body,
     });
@@ -251,9 +251,9 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
       const data = await apiRes.json();
       return res.status(200).json(data);
     }
-    console.log('[maria] OpenRouter failed:', apiRes.status, '- trying Gemini...');
+    console.log('[maria] OpenCode failed:', apiRes.status, '- trying Gemini...');
   } catch (err) {
-    console.log('[maria] OpenRouter error:', err.message, '- trying Gemini...');
+    console.log('[maria] OpenCode error:', err.message, '- trying Gemini...');
   }
 
   // Fallback: Gemini API (free tier)
