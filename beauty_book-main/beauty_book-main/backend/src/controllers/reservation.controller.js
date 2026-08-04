@@ -138,7 +138,6 @@ export const createReservation = async (req, res) => {
         client_name: userProfile?.full_name || user.email,
         pro_email,
         pro_name,
-        service_id,
         service_name,
         service_price,
         date,
@@ -146,17 +145,11 @@ export const createReservation = async (req, res) => {
         end_time_slot: endSlot,
         duration_min: dur,
         persons,
-        addons: addons || [],
         total_price,
-        notes,
         salon_name,
         salon_address,
         seats_total: seatsTotal,
         status: reservationStatus,
-        payment_status: paymentStatus,
-        payment_type,
-        reminder_scheduled: true,
-        crg_code: crg_code || null,
       })
       .select()
       .single();

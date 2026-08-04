@@ -453,7 +453,6 @@ export const apiClient = {
         client_name: userProfile?.full_name || user.email,
         pro_email: payload.pro_email || "",
         pro_name: payload.pro_name || "",
-        service_id: payload.service_id || "",
         service_name: payload.service_name || "",
         service_price: payload.service_price || 0,
         date: payload.date,
@@ -461,16 +460,10 @@ export const apiClient = {
         end_time_slot: endSlot,
         duration_min: dur,
         persons: payload.persons || 1,
-        addons: payload.addons || [],
         total_price: payload.total_price || 0,
-        notes: payload.notes || "",
         salon_name: payload.salon_name || "",
         salon_address: payload.salon_address || "",
         status: "confirme",
-        payment_status: payload.payment_type === "acompte" ? "acompte_paye" : "paye",
-        payment_type: payload.payment_type || "full",
-        crg_code: payload.crg_code || null,
-        reminder_scheduled: true,
       })
       .select()
       .single();
