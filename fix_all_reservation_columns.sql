@@ -3,6 +3,11 @@
 -- Exécuter dans Supabase SQL Editor → Nouvelle requête → Run
 -- ============================================================
 
+-- Colonnes critiques pour la réservation
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "time_slot" text DEFAULT '';
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "notes" text DEFAULT '';
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "updated_at" timestamptz DEFAULT now();
+
 -- client_name (si pas encore ajoutée)
 ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "client_name" text DEFAULT '';
 -- client_phone
