@@ -63,11 +63,11 @@ export default function CatalogueServices() {
 
   const toggleActive = async (id) => {
     const svc = services.find(s => s.id === id);
+    if (!svc) return;
     const newStatus = svc.status === "actif" ? "inactif" : "actif";
     setServices(s => s.map(sv => sv.id === id ? { ...sv, status: newStatus } : sv));
     try {
-      const { error } = await supabase.from("Service").update({ status: newStatus }).eq("id", id);
-      if (error) throw error;
+      await entities.Service.update(id, { status: newStatus });
     } catch (err) {
       console.error("Toggle status error:", err);
       setServices(s => s.map(sv => sv.id === id ? { ...sv, status: svc.status } : sv));
@@ -78,8 +78,7 @@ export default function CatalogueServices() {
     if (!confirm("Supprimer ce service ?")) return;
     setServices(s => s.filter(sv => sv.id !== id));
     try {
-      const { error } = await supabase.from("Service").delete().eq("id", id);
-      if (error) throw error;
+      await entities.Service.delete(id);
     } catch (err) {
       console.error("Delete error:", err);
       entities.Service.filter({ pro_email: user?.email }, "-created_at", 100).then(setServices).catch(() => {});
