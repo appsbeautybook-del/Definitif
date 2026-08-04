@@ -2421,9 +2421,21 @@ export default function Publication() {
   };
 
   useEffect(() => {
-    entities.Reel.list("-created_at", 50)
-      .then(data => { setPublications(data); setLoading(false); })
-      .catch(() => setLoading(false));
+    (async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setLoading(false); return; }
+        const { data, error } = await supabase
+          .from("Reel")
+          .select("*")
+          .eq("created_by_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (error) throw error;
+        setPublications(data || []);
+      } catch { /* ignore */ }
+      setLoading(false);
+    })();
   }, []);
 
   // Génère une miniature depuis la première frame d'une vidéo
