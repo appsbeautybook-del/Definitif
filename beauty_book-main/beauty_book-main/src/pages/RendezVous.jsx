@@ -457,7 +457,7 @@ export default function RendezVous() {
                 <p className="text-[11px] font-black text-white/70 uppercase tracking-widest">Prochain RDV</p>
                 <p className="text-[15px] font-black text-white mt-0.5">{next.service_name}</p>
                 <p className="text-[11px] text-white/80 font-medium mt-0.5">
-                  {DAYS_FR[new Date(next.date).getDay()]} {new Date(next.date).getDate()} {MONTHS_FR[new Date(next.date).getMonth()].slice(0,3)} · {next.time_slot}
+                  {DAYS_FR[new Date(next.date).getDay()]} {new Date(next.date).getDate()} {MONTHS_FR[new Date(next.date).getMonth()].slice(0,3)} · {next.time || next.time_slot}
                 </p>
               </div>
             </div>
@@ -630,7 +630,7 @@ export default function RendezVous() {
                   <div>
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Heure</p>
                     <p className="text-[13px] font-black text-gray-900">
-                      {selectedReservation.time_slot}{selectedReservation.end_time_slot ? ` → ${selectedReservation.end_time_slot}` : ""}
+                      {selectedReservation.time || selectedReservation.time_slot}{selectedReservation.end_time_slot ? ` → ${selectedReservation.end_time_slot}` : ""}
                       {selectedReservation.duration_min ? ` (${selectedReservation.duration_min} min)` : ""}
                     </p>
                   </div>

@@ -134,6 +134,33 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
           </div>
         )}
 
+        {/* Adresse salon */}
+        {rdv.salon_address && (
+          <div className="bg-gray-50 rounded-2xl p-4 mb-3">
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Adresse</p>
+            <p className="text-[13px] font-black text-gray-900">{rdv.salon_address}</p>
+          </div>
+        )}
+
+        {/* Infos paiement */}
+        {rdv.payment_status && (
+          <div className="bg-gray-50 rounded-2xl p-4 mb-3">
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Paiement</p>
+            <div className="flex items-center gap-2">
+              <span className={`text-[11px] font-black uppercase px-2 py-0.5 rounded-full ${
+                rdv.payment_status === "paye" ? "bg-green-100 text-green-600" :
+                rdv.payment_status === "acompte_paye" ? "bg-orange-100 text-orange-600" :
+                "bg-gray-100 text-gray-500"
+              }`}>
+                {rdv.payment_status === "paye" ? "Payé" : rdv.payment_status === "acompte_paye" ? "Acompte payé" : "Non payé"}
+              </span>
+              {rdv.acompte_amount > 0 && (
+                <span className="text-[11px] text-gray-400 font-medium">Acompte: {rdv.acompte_amount}€</span>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Actions selon statut */}
         {rdv.status === "en_attente" && (
           <div className="flex gap-3 mt-4">
@@ -202,18 +229,6 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
             >
               No Show
             </button>
-          </div>
-        )}
-        {/* Info acompte */}
-        {rdv.acompte_amount > 0 && (
-          <div className="mt-3 bg-orange-50 rounded-2xl px-4 py-3 border border-orange-100">
-            <p className="text-[9px] font-black text-primary uppercase tracking-widest mb-1">Paiement</p>
-            <p className="text-[13px] font-black text-gray-900">
-              Acompte payé : {rdv.acompte_amount}€
-              <span className="text-[11px] font-medium text-gray-400 ml-2">
-                (reste {((rdv.total_price || 0) - rdv.acompte_amount).toFixed(2)}€ sur place)
-              </span>
-            </p>
           </div>
         )}
       </div>
