@@ -530,7 +530,7 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
       service_name: booking.services.map(s => s.title || s.name).join(" + "),
       service_price: totalPrice,
       date: dateStr,
-      time_slot: booking.time,
+      time_slot: booking.time || "00:00",
       duration_min: totalDuration,
       persons: totalPersons,
       total_price: totalPrice,
