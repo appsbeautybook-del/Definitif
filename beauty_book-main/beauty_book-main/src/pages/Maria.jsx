@@ -643,27 +643,72 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
       }));
-      console.log('[Maria] Calling /api/ai/maria...');
-      const apiRes = await fetch('/api/ai/maria', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: MARIA_SYSTEM_PROMPT },
-            ...historyMsgs,
-            { role: 'user', content: userContent },
-          ],
-          temperature: 0.7,
-          max_tokens: 200,
-        }),
-      });
-      console.log('[Maria] OpenRouter response:', apiRes.status, apiRes.statusText);
-      if (!apiRes.ok) {
-        const errBody = await apiRes.text();
-        throw new Error(`HTTP ${apiRes.status}: ${errBody.substring(0, 200)}`);
+      
+      const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || '';
+      
+      let apiData = null;
+      
+      // Essayer d'abord le serveur Vercel
+      try {
+        console.log('[Maria] Trying Vercel serverless...');
+        const apiRes = await fetch('/api/ai/maria', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: MARIA_SYSTEM_PROMPT },
+              ...historyMsgs,
+              { role: 'user', content: userContent },
+            ],
+            temperature: 0.7,
+            max_tokens: 200,
+          }),
+        });
+        console.log('[Maria] Vercel response:', apiRes.status);
+        if (apiRes.ok) {
+          apiData = await apiRes.json();
+        }
+      } catch (e) {
+        console.log('[Maria] Vercel failed, trying direct OpenRouter...', e.message);
       }
-      const apiData = await apiRes.json();
+      
+      // Fallback : appeler OpenRouter directement depuis le frontend
+      if (!apiData && OPENROUTER_KEY) {
+        console.log('[Maria] Calling OpenRouter directly...');
+        const directRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${OPENROUTER_KEY}`,
+            'HTTP-Referer': 'https://definitif-beta.vercel.app',
+            'X-Title': 'BeautyBook Maria AI',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: MARIA_SYSTEM_PROMPT },
+              ...historyMsgs,
+              { role: 'user', content: userContent },
+            ],
+            temperature: 0.7,
+            max_tokens: 200,
+          }),
+        });
+        console.log('[Maria] Direct OpenRouter response:', directRes.status);
+        if (directRes.ok) {
+          apiData = await directRes.json();
+        } else {
+          const errText = await directRes.text();
+          console.error('[Maria] OpenRouter error:', directRes.status, errText.substring(0, 200));
+          throw new Error(`OpenRouter ${directRes.status}: ${errText.substring(0, 100)}`);
+        }
+      }
+      
+      if (!apiData) {
+        throw new Error('No API available (Vercel or OpenRouter)');
+      }
+      
       const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
       reply = rawReply || reply;
 
