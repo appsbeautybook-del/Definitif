@@ -78,8 +78,6 @@ const stripUnknownColumns = async (tableName, payload) => {
 };
 
 const getSelectColumns = (tableName) => {
-  const known = KNOWN_COLUMNS[tableName];
-  if (known && known.length > 0) return known.join(',');
   return '*';
 };
 
