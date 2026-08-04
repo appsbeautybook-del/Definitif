@@ -56,6 +56,7 @@ const KNOWN_COLUMNS = {
   user_favorite: ['id','user_email','target_id','target_type','target_title','target_image','target_data','created_at'],
   reel_comment: ['id','reel_id','user_email','user_name','user_avatar','content','likes','parent_id','created_at','updated_at'],
   user_follow: ['id','follower_email','follower_name','follower_avatar','followed_email','created_at'],
+  Reservation: ['id','client_email','client_name','client_phone','pro_email','pro_name','service_id','service_name','service_price','date','time_slot','end_time_slot','duration_min','persons','total_price','salon_name','salon_address','seats_total','status','payment_status','payment_type','notes','crg_code','created_at','updated_at','created_by_id'],
 };
 
 const stripUnknownColumns = async (tableName, payload) => {

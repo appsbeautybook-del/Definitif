@@ -465,7 +465,7 @@ export const apiClient = {
         salon_address: payload.salon_address || "",
         status: "confirme",
       })
-      .select()
+      .select('id,client_email,client_name,pro_email,pro_name,service_name,service_price,date,time_slot,end_time_slot,duration_min,persons,total_price,salon_name,salon_address,status,created_at')
       .single();
 
     if (error) throw error;
