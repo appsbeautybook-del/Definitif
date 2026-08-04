@@ -442,10 +442,8 @@ export const apiClient = {
 
     const wantedData = {
       client_email: user.email,
-      client_phone: payload.client_phone || "",
       pro_email: payload.pro_email || "",
       pro_name: payload.pro_name || "",
-      service_id: payload.service_id || "",
       service_name: payload.service_name || "",
       service_price: payload.service_price || 0,
       date: payload.date,
@@ -454,13 +452,12 @@ export const apiClient = {
       duration_min: dur,
       persons: payload.persons || 1,
       total_price: payload.total_price || 0,
-      payment_type: payload.payment_type || "surplace",
-      crg_code: payload.crg_code || "",
-      notes: payload.notes || "",
-      status: "confirme",
-      payment_status: "non_paye",
       salon_name: payload.salon_name || "",
       salon_address: payload.salon_address || "",
+      payment_type: payload.payment_type || "surplace",
+      payment_status: "non_paye",
+      crg_code: payload.crg_code || "",
+      status: "confirme",
     };
 
     // Ensure pro_email is never empty (required by NOT NULL constraint)
@@ -468,8 +465,19 @@ export const apiClient = {
       wantedData.pro_email = user.email;
     }
 
-    // Discover actual columns in the Reservation table
-    let actualColumns = [];
+    // Known columns that exist in the Reservation table (backend-validated)
+    const KNOWN_COLUMNS = [
+      "id", "created_at",
+      "client_email", "pro_email", "pro_name",
+      "service_name", "service_price", "date", "time_slot", "end_time_slot",
+      "duration_min", "persons", "total_price",
+      "salon_name", "salon_address", "seats_total",
+      "payment_type", "payment_status", "crg_code", "acompte_amount",
+      "status",
+    ];
+
+    // Discover actual columns if table has data, fallback to known list
+    let actualColumns = KNOWN_COLUMNS;
     try {
       const { data: sample } = await supabase.from('Reservation').select('*').limit(1);
       if (sample && sample.length > 0) {
@@ -477,14 +485,11 @@ export const apiClient = {
       }
     } catch {}
 
-    // Build payload: start with ALL wanted columns, then filter out
-    // only columns confirmed NOT to exist (if we could discover them)
-    const insertPayload = { ...wantedData };
-    if (actualColumns.length > 0) {
-      for (const key of Object.keys(insertPayload)) {
-        if (!actualColumns.includes(key)) {
-          delete insertPayload[key];
-        }
+    // Build payload: only columns that actually exist
+    const insertPayload = {};
+    for (const key of Object.keys(wantedData)) {
+      if (actualColumns.includes(key)) {
+        insertPayload[key] = wantedData[key];
       }
     }
     // Ensure at least client_email exists
