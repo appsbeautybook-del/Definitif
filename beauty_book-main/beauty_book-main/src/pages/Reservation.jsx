@@ -28,7 +28,7 @@ export default function Reservation() {
     date: null,
     time: null,
     seat: null,
-    salon: { name: state?.service?.pro_name || "Professionnel BeautyBook", address: state?.service?.pro_city || "" },
+    salon: { name: state?.service?.pro_name || "Professionnel BeautyBook", address: state?.service?.pro_city || "", pro_email: proEmail || "" },
   });
 
   const update = (key, value) => setBooking(prev => ({ ...prev, [key]: value }));

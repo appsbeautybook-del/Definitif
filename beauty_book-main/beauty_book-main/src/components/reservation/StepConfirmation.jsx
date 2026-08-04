@@ -461,6 +461,7 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
   const [error, setError] = useState(null);
   const [paymentMode, setPaymentMode] = useState("full"); // "full" | "acompte"
   const [showCardForm, setShowCardForm] = useState(false);
+  const [paid, setPaid] = useState(false);
   const [icsData, setIcsData] = useState(null);
   const [crgCode] = useState(() => generateCRG());
   const [editingLieu, setEditingLieu] = useState(false);
@@ -520,26 +521,30 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
   const acompteAmount = Math.round(totalPrice * 0.3 * 100) / 100;
   const dateStr = booking.date ? format(booking.date, "yyyy-MM-dd") : null;
 
-  const buildPayload = (pType) => ({
-    pro_email: booking.services[0]?.pro_email || booking.salon?.pro_email || "",
-    pro_name: savedLieu.name || "",
-    service_id: booking.services[0]?.id || "",
-    service_name: booking.services.map(s => s.title || s.name).join(" + "),
-    service_price: totalPrice,
-    date: dateStr,
-    time_slot: booking.time,
-    duration_min: totalDuration,
-    persons: totalPersons,
-    total_price: totalPrice,
-    salon_name: savedLieu.name || "",
-    salon_address: savedLieu.address || "",
-    seat_number: booking.seat || null,
-    payment_type: pType,
-    crg_code: crgCode,
-  });
+  const buildPayload = (pType) => {
+    const pro_email = booking.services[0]?.pro_email || booking.salon?.pro_email || "";
+    return {
+      pro_email,
+      pro_name: savedLieu.name || "",
+      service_id: booking.services[0]?.id || "",
+      service_name: booking.services.map(s => s.title || s.name).join(" + "),
+      service_price: totalPrice,
+      date: dateStr,
+      time_slot: booking.time,
+      duration_min: totalDuration,
+      persons: totalPersons,
+      total_price: totalPrice,
+      salon_name: savedLieu.name || "",
+      salon_address: savedLieu.address || "",
+      seat_number: booking.seat || null,
+      payment_type: pType,
+      crg_code: crgCode,
+    };
+  };
 
   const handleConfirmAndBook = async () => {
     setSaving(true);
+    setPaid(true);
     setError(null);
     try {
       // ── Sauvegarder la réservation via l'API Backend ──────────────────────
@@ -801,11 +806,11 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
         />
 
         {/* Info QR Code */}
-        <div className="bg-gray-900 rounded-2xl px-4 py-3 flex items-center gap-3">
+        <div className={`rounded-2xl px-4 py-3 flex items-center gap-3 transition-all ${paid ? "bg-gray-900" : "bg-gray-200 opacity-50"}`}>
           <span className="text-[22px]">📲</span>
           <div>
-            <p className="text-[12px] font-black text-white">QR Code de validation</p>
-            <p className="text-[11px] text-gray-400 font-medium">Généré automatiquement après confirmation. Présentez-le au salon.</p>
+            <p className={`text-[12px] font-black ${paid ? "text-white" : "text-gray-500"}`}>QR Code de validation</p>
+            <p className={`text-[11px] font-medium ${paid ? "text-gray-400" : "text-gray-400"}`}>{paid ? "Présentez-le au salon." : "Disponible après le paiement."}</p>
           </div>
         </div>
 
@@ -820,6 +825,7 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
 
         {/* Bouton télécharger ticket avant paiement */}
         <button
+          disabled={!paid}
           onClick={() => {
             const lines = [
               `🎟 BEAUTYBOOK — TICKET DE RÉSERVATION`,
@@ -846,7 +852,7 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
             a.click();
             URL.revokeObjectURL(url);
           }}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-gray-200 bg-gray-50 text-gray-700 font-black text-[13px] uppercase tracking-widest active:scale-95 transition-all"
+          className={`w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 font-black text-[13px] uppercase tracking-widest transition-all ${paid ? "border-gray-200 bg-gray-50 text-gray-700 active:scale-95" : "border-gray-100 bg-gray-100 text-gray-400 cursor-not-allowed opacity-50"}`}
         >
           <Download className="w-4 h-4" />
           Télécharger le ticket

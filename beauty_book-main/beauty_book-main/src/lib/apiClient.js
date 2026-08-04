@@ -442,7 +442,6 @@ export const apiClient = {
 
     const wantedData = {
       client_email: user.email,
-      client_name: payload.client_name || "",
       client_phone: payload.client_phone || "",
       pro_email: payload.pro_email || "",
       pro_name: payload.pro_name || "",
@@ -464,6 +463,11 @@ export const apiClient = {
       salon_address: payload.salon_address || "",
     };
 
+    // Ensure pro_email is never empty (required by NOT NULL constraint)
+    if (!wantedData.pro_email) {
+      wantedData.pro_email = user.email;
+    }
+
     // Discover actual columns in the Reservation table
     let actualColumns = [];
     try {
@@ -473,11 +477,14 @@ export const apiClient = {
       }
     } catch {}
 
-    // Build payload with ONLY columns that actually exist
-    const insertPayload = {};
-    for (const key of Object.keys(wantedData)) {
-      if (actualColumns.includes(key)) {
-        insertPayload[key] = wantedData[key];
+    // Build payload: start with ALL wanted columns, then filter out
+    // only columns confirmed NOT to exist (if we could discover them)
+    const insertPayload = { ...wantedData };
+    if (actualColumns.length > 0) {
+      for (const key of Object.keys(insertPayload)) {
+        if (!actualColumns.includes(key)) {
+          delete insertPayload[key];
+        }
       }
     }
     // Ensure at least client_email exists
