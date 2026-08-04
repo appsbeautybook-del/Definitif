@@ -1,3 +1,5 @@
+import { getOpenRouterKey } from '../_lib/config.js';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -7,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { image_url } = req.body;
-  const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
+  const OPENROUTER_KEY = getOpenRouterKey();
 
   try {
     const userContent = [];

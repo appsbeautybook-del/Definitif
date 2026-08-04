@@ -1,3 +1,5 @@
+import { getOpenRouterKey, getFalKey } from '../_lib/config.js';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -8,8 +10,8 @@ export default async function handler(req, res) {
 
   const { messages, model, temperature, max_tokens, task, payload } = req.body;
 
-  const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
-  const FAL_KEY = process.env.FAL_KEY || '19b30674-e3b9-4b51-91ab-b46ccc4e828f:c87596ac7ab38438c8a2945656b50153';
+  const OPENROUTER_KEY = getOpenRouterKey();
+  const FAL_KEY = getFalKey() || '19b30674-e3b9-4b51-91ab-b46ccc4e828f:c87596ac7ab38438c8a2945656b50153';
 
   // ── Task: simulate-hairstyle via fal.ai ──────────────────────────────────
   if (task === 'simulate-hairstyle' && payload) {

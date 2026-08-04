@@ -1,3 +1,5 @@
+import { getOpenRouterKey } from '../_lib/config.js';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -8,7 +10,7 @@ export default async function handler(req, res) {
 
   const { prompt, response_json_schema, file_urls, model } = req.body;
 
-  const OPENROUTER_KEY = process.env.OPENROUTER_KEY || '';
+  const OPENROUTER_KEY = getOpenRouterKey();
 
   // Map Base44 model names → OpenRouter model IDs
   const modelMap = {
