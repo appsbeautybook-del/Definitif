@@ -140,7 +140,7 @@ export const createReservation = async (req, res) => {
         service_name,
         service_price,
         date,
-        time_slot,
+        time: time_slot,
         end_time_slot: endSlot,
         duration_min: dur,
         persons,

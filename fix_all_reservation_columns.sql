@@ -4,6 +4,7 @@
 -- ============================================================
 
 -- Colonnes critiques pour la réservation
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "time" text DEFAULT '';
 ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "time_slot" text DEFAULT '';
 ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "notes" text DEFAULT '';
 ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "updated_at" timestamptz DEFAULT now();

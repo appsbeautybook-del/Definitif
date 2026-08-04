@@ -447,7 +447,7 @@ export const apiClient = {
       service_name: payload.service_name || "",
       service_price: payload.service_price || 0,
       date: payload.date,
-      time_slot: payload.time_slot,
+      time: payload.time_slot,
       end_time_slot: endSlot,
       duration_min: dur,
       persons: payload.persons || 1,
@@ -469,7 +469,7 @@ export const apiClient = {
     const KNOWN_COLUMNS = [
       "id", "created_at",
       "client_email", "pro_email", "pro_name",
-      "service_name", "service_price", "date", "time_slot", "end_time_slot",
+      "service_name", "service_price", "date", "time", "end_time_slot",
       "duration_min", "persons", "total_price",
       "salon_name", "salon_address", "seats_total",
       "payment_type", "payment_status", "crg_code", "acompte_amount",
