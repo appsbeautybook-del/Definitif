@@ -518,7 +518,7 @@ export const apiClient = {
         user_email: payload.pro_email,
         type: "reservation",
         title: "📅 Nouvelle réservation",
-        body: `${userProfile?.full_name || user.email} a réservé : ${payload.service_name} le ${payload.date} à ${payload.time_slot}`,
+        body: `${user.email} a réservé : ${payload.service_name} le ${payload.date} à ${payload.time_slot || payload.time || "00:00"}`,
         link: "/pro/gestion-agenda",
         read: false,
       }
