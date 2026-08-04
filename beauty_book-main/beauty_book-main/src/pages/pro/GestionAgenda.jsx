@@ -1283,9 +1283,11 @@ export default function GestionAgenda() {
                 setTravailNuit(val);
                 if (proEmail) {
                   const { error } = await supabase.from('ProfilPro').update({ travail_nuit: val }).eq('user_email', proEmail);
-                  if (error) console.error('[GestionAgenda] Mode Nuit save error:', error.message);
+                  if (error) {
+                    console.error('[GestionAgenda] Mode Nuit save error:', error.message);
+                    setTravailNuit(!val);
+                  }
                 }
-                window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { travail_nuit: val } }));
               }} />
             )}
           </>

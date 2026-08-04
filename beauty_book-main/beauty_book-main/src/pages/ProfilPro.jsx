@@ -438,11 +438,15 @@ export default function ProfilPro() {
             onClick={async () => {
               const next = !nightMode;
               setNightMode(next);
+              setProInfo(prev => prev ? { ...prev, travail_nuit: next } : prev);
               if (user?.email) {
                 const { error } = await supabase.from('ProfilPro').update({ travail_nuit: next }).eq('user_email', user.email);
-                if (error) console.error('[ProfilPro] Mode Nuit save error:', error.message);
+                if (error) {
+                  console.error('[ProfilPro] Mode Nuit save error:', error.message);
+                  setNightMode(!next);
+                  setProInfo(prev => prev ? { ...prev, travail_nuit: !next } : prev);
+                }
               }
-              window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { travail_nuit: next } }));
             }}
             className={`relative w-12 h-6 rounded-full transition-colors shrink-0 ${nightMode ? "bg-indigo-500" : "bg-gray-200"}`}
           >

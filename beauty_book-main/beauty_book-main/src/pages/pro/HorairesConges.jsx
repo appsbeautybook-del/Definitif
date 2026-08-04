@@ -246,7 +246,6 @@ export default function HorairesConges() {
       travail_nuit: travailNuit,
     }).eq('user_email', profil.user_email);
     if (error) console.error('[HorairesConges] Save error:', error.message);
-    window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { travail_nuit: travailNuit } }));
     setSaving(false);
   };
 
