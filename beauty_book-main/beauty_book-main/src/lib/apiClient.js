@@ -433,12 +433,6 @@ export const apiClient = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Vous devez être connecté.");
 
-    const { data: userProfile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user.id)
-      .single();
-
     const dur = payload.duration_min || 60;
     const [h, m] = (payload.time_slot || "00:00").split(":").map(Number);
     const endMin = h * 60 + m + dur;
@@ -446,10 +440,13 @@ export const apiClient = {
     const endM = endMin % 60;
     const endSlot = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 
-    const fullPayload = {
+    const wantedData = {
       client_email: user.email,
+      client_name: payload.client_name || "",
+      client_phone: payload.client_phone || "",
       pro_email: payload.pro_email || "",
       pro_name: payload.pro_name || "",
+      service_id: payload.service_id || "",
       service_name: payload.service_name || "",
       service_price: payload.service_price || 0,
       date: payload.date,
@@ -458,43 +455,41 @@ export const apiClient = {
       duration_min: dur,
       persons: payload.persons || 1,
       total_price: payload.total_price || 0,
+      payment_type: payload.payment_type || "surplace",
+      crg_code: payload.crg_code || "",
+      notes: payload.notes || "",
+      status: "confirme",
+      payment_status: "non_paye",
       salon_name: payload.salon_name || "",
       salon_address: payload.salon_address || "",
-      status: "confirme",
-      crg_code: payload.crg_code || "",
     };
 
-    let reservation = null;
+    // Discover actual columns in the Reservation table
+    let actualColumns = [];
+    try {
+      const { data: sample } = await supabase.from('Reservation').select('*').limit(1);
+      if (sample && sample.length > 0) {
+        actualColumns = Object.keys(sample[0]);
+      }
+    } catch {}
 
-    const { data: result1, error: err1 } = await supabase
+    // Build payload with ONLY columns that actually exist
+    const insertPayload = {};
+    for (const key of Object.keys(wantedData)) {
+      if (actualColumns.includes(key)) {
+        insertPayload[key] = wantedData[key];
+      }
+    }
+    // Ensure at least client_email exists
+    if (!insertPayload.client_email) insertPayload.client_email = user.email;
+
+    const { data: reservation, error } = await supabase
       .from('Reservation')
-      .insert(fullPayload)
+      .insert(insertPayload)
       .select()
       .single();
 
-    if (!err1) {
-      reservation = result1;
-    } else if (err1.message && err1.message.includes('column')) {
-      // Schema cache error: missing column. Retry with only safe columns.
-      const safePayload = {
-        client_email: user.email,
-        pro_email: payload.pro_email || "",
-        service_name: payload.service_name || "",
-        service_price: payload.service_price || 0,
-        date: payload.date,
-        time_slot: payload.time_slot,
-        status: "confirme",
-      };
-      const { data: result2, error: err2 } = await supabase
-        .from('Reservation')
-        .insert(safePayload)
-        .select()
-        .single();
-      if (err2) throw err2;
-      reservation = result2;
-    } else {
-      throw err1;
-    }
+    if (error) throw error;
 
     // Create notifications
     await supabase.from('Notification').insert([
