@@ -156,6 +156,9 @@ export const apiClient = {
       if (functionName === 'verifyCode') {
         return this._verifyOtpClient(payload);
       }
+      if (functionName === 'createReservation') {
+        return this._createReservationClient(payload);
+      }
     }
 
     const options = { method: route.method };
@@ -424,6 +427,79 @@ export const apiClient = {
       return { data: { success: false, error: result.error } };
     }
     return { data: { success: true } };
+  },
+
+  async _createReservationClient(payload) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Vous devez être connecté.");
+
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single();
+
+    const dur = payload.duration_min || 60;
+    const [h, m] = (payload.time_slot || "00:00").split(":").map(Number);
+    const endMin = h * 60 + m + dur;
+    const endH = Math.floor(endMin / 60) % 24;
+    const endM = endMin % 60;
+    const endSlot = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
+
+    const { data: reservation, error } = await supabase
+      .from('Reservation')
+      .insert({
+        client_email: user.email,
+        client_name: userProfile?.full_name || user.email,
+        pro_email: payload.pro_email || "",
+        pro_name: payload.pro_name || "",
+        service_id: payload.service_id || "",
+        service_name: payload.service_name || "",
+        service_price: payload.service_price || 0,
+        date: payload.date,
+        time_slot: payload.time_slot,
+        end_time_slot: endSlot,
+        duration_min: dur,
+        persons: payload.persons || 1,
+        addons: payload.addons || [],
+        total_price: payload.total_price || 0,
+        acompte_amount: payload.payment_type === "acompte" ? Math.round((payload.total_price || 0) * 0.3 * 100) / 100 : 0,
+        notes: payload.notes || "",
+        salon_name: payload.salon_name || "",
+        salon_address: payload.salon_address || "",
+        status: "confirme",
+        payment_status: payload.payment_type === "acompte" ? "acompte_paye" : "paye",
+        payment_type: payload.payment_type || "full",
+        crg_code: payload.crg_code || null,
+        reminder_scheduled: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Create notifications
+    await supabase.from('Notification').insert([
+      {
+        user_email: user.email,
+        type: "reservation",
+        title: "✅ Réservation confirmée !",
+        body: `Votre rendez-vous pour "${payload.service_name}" est confirmé le ${payload.date} à ${payload.time_slot}. À bientôt !`,
+        link: "/rendez-vous",
+        read: false,
+        data: { reservation_id: reservation.id },
+      },
+      {
+        user_email: payload.pro_email,
+        type: "reservation",
+        title: "📅 Nouvelle réservation",
+        body: `${userProfile?.full_name || user.email} a réservé : ${payload.service_name} le ${payload.date} à ${payload.time_slot}`,
+        link: "/pro/gestion-agenda",
+        read: false,
+      }
+    ]);
+
+    return { data: { reservation, success: true } };
   },
 };
 
