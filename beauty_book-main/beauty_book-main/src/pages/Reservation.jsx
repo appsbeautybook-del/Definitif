@@ -45,8 +45,9 @@ export default function Reservation() {
       selected={booking.expert}
       onSelect={e => update("expert", e)}
       onNext={() => setStep(2)}
-      onBack={() => setStep(0)}
+      onBack={() => setStep(1)}
       proProfile={proProfile}
+      proEmail={proEmail}
     />,
     <StepCalendar
       selectedDate={booking.date}
