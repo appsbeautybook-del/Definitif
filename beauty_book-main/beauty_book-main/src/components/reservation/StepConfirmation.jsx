@@ -587,19 +587,59 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
       // ── Sauvegarder la réservation via l'API Backend ──────────────────────
       const payload = buildPayload(paymentMode);
       const res = await apiClient.callFunction('createReservation', payload);
-      
-      if (res.data?.ics_base64) {
-        setIcsData(res.data.ics_base64);
-      }
+
+      // Générer l'ICS côté frontend (toujours, même si le backend n'en retourne pas)
+      const pad = (n) => String(n).padStart(2, "0");
+      const [y, mo, d] = dateStr.split("-").map(Number);
+      const [sh, sm] = (booking.time || "00:00").split(":").map(Number);
+      const endT = sh * 60 + sm + totalDuration;
+      const eh = Math.floor(endT / 60) % 24, em = endT % 60;
+      const fmtICS = (yy, mm, dd, hh, min) => `${yy}${pad(mm)}${pad(dd)}T${pad(hh)}${pad(min)}00`;
+      const dtStart = `${fmtICS(y, mo, d, sh, sm)}00`;
+      const dtEnd = `${fmtICS(y, mo, d, eh, em)}00`;
+      const uid = `beautybook-${Date.now()}@beautybook`;
+      const serviceName = booking.services.map(s => s.title || s.name).join(" + ");
+      const salonName = savedLieu.name || "";
+      const salonAddress = savedLieu.address || "";
+
+      const icsContent = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//BeautyBook//FR",
+        "BEGIN:VEVENT",
+        `UID:${uid}`,
+        `SUMMARY:💆 ${serviceName}`,
+        `DESCRIPTION:Prestataire: ${salonName}\\nCode: ${crgCode}`,
+        `LOCATION:${salonAddress}`,
+        `DTSTART:${dtStart}`,
+        `DTEND:${dtEnd}`,
+        "STATUS:CONFIRMED",
+        "BEGIN:VALARM",
+        "TRIGGER:-P1D",
+        "ACTION:DISPLAY",
+        "DESCRIPTION:Rappel: votre RDV BeautyBook demain",
+        "END:VALARM",
+        "BEGIN:VALARM",
+        "TRIGGER:-PT2H",
+        "ACTION:DISPLAY",
+        "DESCRIPTION:Rappel: votre RDV BeautyBook dans 2 heures",
+        "END:VALARM",
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ].join("\r\n");
+
+      // Encoder en base64
+      const icsBase64 = btoa(unescape(encodeURIComponent(icsContent)));
+      setIcsData(icsBase64);
 
       // Stocker les données pour le lien Google Calendar sur l'écran de confirmation
       window.__bb_last_booking__ = {
         dateStr,
         time: booking.time,
         totalDuration,
-        serviceName: booking.services.map(s => s.title || s.name).join(" + "),
-        salonName: savedLieu.name,
-        salonAddress: savedLieu.address,
+        serviceName,
+        salonName,
+        salonAddress,
         crgCodeVal: crgCode,
       };
 
