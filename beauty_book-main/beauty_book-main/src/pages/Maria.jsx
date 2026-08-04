@@ -729,8 +729,17 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
         if (!reply) reply = action.type === 'NAVIGATE' ? `Je t'ouvre la page !` : 'Action effectuée.';
       }
     } catch (err2) {
-      console.error("[Maria] OpenRouter failed:", err2);
-      reply = "Oups, j'ai un petit souci technique pour le moment. Réessaie dans quelques instants !";
+      console.error("[Maria] All APIs failed:", err2);
+      const errMsg = err2?.message || '';
+      if (errMsg.includes('402') || errMsg.includes('credit') || errMsg.includes('balance') || errMsg.includes('insufficient')) {
+        reply = "⚠️ Crédits API épuisés. Veuillez recharger votre compte OpenRouter ou configurer une clé Gemini gratuite sur aistudio.google.com.";
+      } else if (errMsg.includes('401') || errMsg.includes('unauthorized') || errMsg.includes('Invalid')) {
+        reply = "⚠️ Clé API invalide. Veuillez vérifier la clé OpenRouter dans les variables d'environnement Vercel.";
+      } else if (errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError') || errMsg.includes('CORS')) {
+        reply = "⚠️ Impossible de contacter l'API. Vérifiez votre connexion internet.";
+      } else {
+        reply = "Oups, j'ai un petit souci technique pour le moment. Réessaie dans quelques instants !";
+      }
     }
 
     // Accumuler les données du profil pro si step guidé
