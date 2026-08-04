@@ -455,7 +455,6 @@ export const apiClient = {
       salon_name: payload.salon_name || "",
       salon_address: payload.salon_address || "",
       payment_type: payload.payment_type || "surplace",
-      payment_status: "non_paye",
       crg_code: payload.crg_code || "",
       status: "confirme",
     };
@@ -472,7 +471,7 @@ export const apiClient = {
       "service_name", "service_price", "date", "time", "end_time_slot",
       "duration_min", "persons", "total_price",
       "salon_name", "salon_address", "seats_total",
-      "payment_type", "payment_status", "crg_code", "acompte_amount",
+      "payment_type", "crg_code", "acompte_amount",
       "status",
     ];
 
