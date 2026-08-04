@@ -455,6 +455,7 @@ export const apiClient = {
       salon_name: payload.salon_name || "",
       salon_address: payload.salon_address || "",
       payment_type: payload.payment_type || "surplace",
+      payment_status: "non_paye",
       crg_code: payload.crg_code || "",
       status: "confirme",
     };
