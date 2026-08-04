@@ -51,7 +51,7 @@ export default function AdminReservations() {
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <p className="text-gray-900 text-[13px] font-black">{r.client_email}</p>
-                <p className="text-gray-500 text-[11px]">{r.service_name} · {r.date} {r.time_slot}</p>
+                <p className="text-gray-500 text-[11px]">{r.service_name} · {r.date} {r.time || r.time_slot}</p>
                 <p className="text-primary text-[13px] font-black">{r.total_price ? `${r.total_price}€` : ""}</p>
               </div>
               <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${STATUS_COLORS[r.status] || "bg-gray-100 text-gray-500"}`}>

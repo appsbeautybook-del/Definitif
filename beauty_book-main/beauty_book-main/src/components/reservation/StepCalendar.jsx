@@ -251,9 +251,9 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
           // On inclut un buffer : le créneau précédent doit être terminé + buffer avant notre début
           // => on vérifie que la réservation existante [resaStart, resaEnd+BUFFER] chevauche [slot, endSlot+BUFFER]
           const occupied = activeRes.filter(r => {
-            const resaStart = r.time_slot;
+            const resaStart = r.time || r.time_slot;
             // Fin réelle de la résa + buffer de transition
-            const resaEnd = addMinutes(r.end_time_slot || addMinutes(r.time_slot, r.duration_min || 60), BUFFER_MIN);
+            const resaEnd = addMinutes(r.end_time_slot || addMinutes(r.time || r.time_slot, r.duration_min || 60), BUFFER_MIN);
             // Notre créneau candidat + buffer
             const slotEnd = addMinutes(endSlot, BUFFER_MIN);
             return overlaps(slot, slotEnd, resaStart, resaEnd);

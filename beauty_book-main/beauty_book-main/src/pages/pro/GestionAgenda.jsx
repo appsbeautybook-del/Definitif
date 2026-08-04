@@ -605,7 +605,7 @@ function DemandesTab({ proEmail, reservations, setReservations }) {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Date & Heure</p>
-                <p className="text-[14px] font-black text-gray-900">{r.date} • {r.time_slot}</p>
+                <p className="text-[14px] font-black text-gray-900">{r.date} • {r.time || r.time_slot}</p>
               </div>
               <div>
                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Durée & Prix</p>
@@ -759,7 +759,7 @@ function CrmTab({ reservations, proEmail }) {
           <div key={r.id} className="bg-white rounded-2xl px-4 py-3.5 flex items-center gap-3 shadow-sm border border-gray-100">
             <div className="flex-1">
               <p className="text-[14px] font-black text-gray-900">{r.service_name}</p>
-              <p className="text-[11px] text-gray-400 font-medium">{r.date} • {r.time_slot}</p>
+              <p className="text-[11px] text-gray-400 font-medium">{r.date} • {r.time || r.time_slot}</p>
             </div>
             <div className="text-right">
               <p className="text-[14px] font-black text-primary">{r.total_price || r.service_price}€</p>

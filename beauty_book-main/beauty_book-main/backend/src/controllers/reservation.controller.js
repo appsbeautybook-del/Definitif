@@ -128,7 +128,7 @@ export const createReservation = async (req, res) => {
 
     const acompteAmount = payment_type === "acompte" ? Math.round(total_price * 0.3 * 100) / 100 : 0;
     const paymentStatus = payment_type === "acompte" ? "acompte_paye" : "paye";
-    const reservationStatus = "confirme";
+    const reservationStatus = "en_attente";
 
     // Create reservation
     const { data: reservation, error: reservationError } = await supabaseAdmin

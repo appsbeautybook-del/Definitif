@@ -457,7 +457,7 @@ export const apiClient = {
       payment_type: payload.payment_type || "surplace",
       payment_status: "non_paye",
       crg_code: payload.crg_code || "",
-      status: "confirme",
+      status: "en_attente",
     };
 
     // Ensure pro_email is never empty (required by NOT NULL constraint)

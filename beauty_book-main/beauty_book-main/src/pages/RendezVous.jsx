@@ -19,7 +19,7 @@ function reservationToEvent(r) {
     service: r.service_name,
     salon: r.salon_name || r.pro_name || "",
     date: r.date,
-    time: r.time_slot,
+    time: r.time || r.time_slot,
     location: r.salon_address || "",
     status: r.status === "confirme" ? "confirmed" : r.status === "annule" ? "cancelled" : "pending",
     type: "rdv",
@@ -496,7 +496,7 @@ export default function RendezVous() {
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex items-center gap-1">
                     <Clock className="w-3 h-3 text-primary" />
-                    <span className="text-[11px] font-bold text-gray-700">{r.time_slot}</span>
+                    <span className="text-[11px] font-bold text-gray-700">{r.time || r.time_slot}</span>
                   </div>
                   {r.total_price > 0 && (
                     <span className="text-[11px] font-black text-primary">{r.total_price}€</span>

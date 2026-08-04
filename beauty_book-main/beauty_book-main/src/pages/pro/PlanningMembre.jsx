@@ -71,7 +71,7 @@ export default function PlanningMembre() {
     const dayStr = format(day, "yyyy-MM-dd");
     return reservations.find(r => {
       if (r.date !== dayStr) return false;
-      const slotHour = parseInt((r.time_slot || "").split("h")[0], 10);
+      const slotHour = parseInt((r.time || r.time_slot || "").split("h")[0], 10);
       return slotHour === hour;
     });
   };
