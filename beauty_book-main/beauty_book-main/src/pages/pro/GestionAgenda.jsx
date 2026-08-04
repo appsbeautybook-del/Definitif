@@ -101,8 +101,26 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
         {/* Client */}
         <div className="bg-gray-50 rounded-2xl p-4 mb-3">
           <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Client</p>
-          <p className="text-[18px] font-black text-gray-900">{rdv.client_email}</p>
-          <p className="text-[12px] text-gray-400 font-medium">{rdv.client_email}</p>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
+              <span className="text-[18px] font-black text-primary">{(rdv.client_email || "?")[0].toUpperCase()}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[18px] font-black text-gray-900">{rdv.client_name || rdv.client_email}</p>
+              <p className="text-[12px] text-gray-400 font-medium">{rdv.client_email}</p>
+              {rdv.client_phone && <p className="text-[12px] text-gray-400 font-medium">{rdv.client_phone}</p>}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              onClose();
+              navigate(`/messages?to=${encodeURIComponent(rdv.client_email)}&name=${encodeURIComponent(rdv.client_name || rdv.client_email)}`);
+            }}
+            className="w-full mt-3 bg-primary/10 text-primary py-2.5 rounded-xl text-[12px] font-black uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all"
+          >
+            <Mail className="w-4 h-4" />
+            Contacter par message
+          </button>
         </div>
 
         {/* Prestation */}
@@ -570,7 +588,7 @@ function PlanningTab({ proEmail, reservations, onSelectRdv }) {
               </div>
               <div className="flex-1">
                 <p className="text-[15px] font-black text-gray-900">{rdv.service_name}</p>
-                <p className="text-[12px] font-medium text-gray-500">{rdv.client_email}</p>
+                <p className="text-[12px] font-medium text-gray-500">{rdv.client_name || rdv.client_email}</p>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-[14px] font-black text-primary">{rdv.total_price || rdv.service_price}€</p>
@@ -670,7 +688,7 @@ function DemandesTab({ proEmail, reservations, setReservations }) {
                 <span className="text-[18px] font-black text-primary">{(r.client_email || "?")[0].toUpperCase()}</span>
               </div>
               <div>
-                <p className="text-[16px] font-black text-gray-900">{r.client_email}</p>
+                <p className="text-[16px] font-black text-gray-900">{r.client_name || r.client_email}</p>
                 <p className="text-[12px] font-medium text-gray-500">{r.service_name}</p>
               </div>
             </div>

@@ -232,11 +232,13 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
           image_url: conversation.service.image_url,
           duration: conversation.service.duration,
         });
-        /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("sendMessage", {
+        supabase.from("MessageChat").insert({
+          conversation_id: convId,
+          sender_email: currentUser.email,
           receiver_email: conversation.other_email,
           content: serviceJson,
-          conversation_id: convId,
           type: "text",
+          read: false,
         }).catch(() => {});
       }
     });
@@ -285,7 +287,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
   // Envoyer signal "typing" à l'autre utilisateur
   const sendTypingSignal = () => {
     clearTimeout(myTypingRef.current);
-    entities.MessageChat.create({
+    supabase.from("MessageChat").insert({
       conversation_id: convId,
       sender_email: currentUser.email,
       receiver_email: conversation.other_email,
@@ -293,35 +295,57 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       type: "typing",
       read: false,
     }).catch(() => {});
-    // Stopper le signal après 2.5s si l'utilisateur arrête d'écrire
     myTypingRef.current = setTimeout(() => {}, 2500);
   };
 
-  const send = async () => {
-    if (!input.trim() || sending) return;
+  const send = async (imageFile = null) => {
+    if ((!input.trim() && !imageFile) || sending) return;
     clearTimeout(myTypingRef.current);
     setSending(true);
     const content = input.trim();
     setInput("");
 
+    let fileUrl = "";
+    if (imageFile) {
+      try {
+        const fileName = `chat/${convId}/${Date.now()}_${imageFile.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("media")
+          .upload(fileName, imageFile, { contentType: imageFile.type });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
+        fileUrl = urlData?.publicUrl || "";
+      } catch (e) {
+        console.error("Image upload error:", e);
+        setSending(false);
+        return;
+      }
+    }
+
+    const messagePayload = {
+      conversation_id: convId,
+      sender_email: currentUser.email,
+      sender_name: currentUser.user_metadata?.full_name || currentUser.email,
+      receiver_email: conversation.other_email,
+      content: content || "",
+      type: fileUrl ? "image" : "text",
+      file_url: fileUrl || "",
+      is_read: false,
+      read: false,
+      created_at: new Date().toISOString(),
+    };
+
     // Optimistic
     const optimistic = {
       id: `tmp_${Date.now()}`,
-      sender_email: currentUser.email,
-      receiver_email: conversation.other_email,
-      content,
+      ...messagePayload,
       created_date: new Date().toISOString(),
-      read: false,
     };
     setMessages(prev => [...prev, optimistic]);
 
-    await /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("sendMessage", {
-      receiver_email: conversation.other_email,
-      content,
-      conversation_id: convId,
-    });
+    const { error } = await supabase.from("MessageChat").insert(messagePayload);
+    if (error) console.error("Send message error:", error);
     setSending(false);
-    // Recharger pour remplacer le message optimiste par le vrai
     loadMessages();
   };
 
@@ -393,6 +417,17 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
                   </p>
                   <ServiceCard service={serviceData} navigate={navigate} />
                 </div>
+              ) : m.type === "image" && m.file_url ? (
+                <div className="max-w-[75%]">
+                  <img src={m.file_url} alt="image" className="rounded-2xl max-w-full shadow-sm" loading="lazy" />
+                  {m.content && (
+                    <div className={`mt-1 px-3 py-2 rounded-2xl text-[13px] font-medium ${
+                      isMe ? "bg-primary text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                    }`}>
+                      {cleanMarkdown(m.content)}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-[13px] font-medium leading-snug ${
                   isMe ? "bg-primary text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"
@@ -434,6 +469,22 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
         </div>
       ) : (
         <div className="px-4 pb-5 pt-3 border-t border-gray-100 flex items-center gap-2 bg-white">
+          <input
+            type="file"
+            accept="image/*"
+            id={`img-upload-${convId}`}
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (file) { await send(file); e.target.value = ""; }
+            }}
+          />
+          <button
+            onClick={() => document.getElementById(`img-upload-${convId}`)?.click()}
+            className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0 active:scale-95 transition-all"
+          >
+            <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          </button>
           <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-full px-4 py-3">
             <input
               value={input}
@@ -444,8 +495,8 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
             />
           </div>
           <button
-            onClick={send}
-            disabled={!input.trim() || sending}
+            onClick={() => send()}
+            disabled={(!input.trim() && !sending) || sending}
             className="w-11 h-11 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-all disabled:opacity-40"
           >
             <Send className="w-4 h-4 text-white" />
@@ -625,12 +676,19 @@ export default function Messages() {
       // Délai naturel (~2s) avant que Maria réponde
       setTimeout(async () => {
         try {
-          await /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("mariaAutoReply", {
-            conversation_id: m.conversation_id,
-            client_email: m.sender_email,
-            client_name: m.sender_name || m.sender_email,
-            pro_email: user.email,
-            client_message: m.content,
+          const convId = m.conversation_id;
+          const clientName = m.sender_name || m.sender_email;
+          const mariaReply = `Merci ${clientName} ! Je prends note de votre message. Je vous réponds très rapidement 😊`;
+          await supabase.from("MessageChat").insert({
+            conversation_id: convId,
+            sender_email: user.email,
+            sender_name: "Maria AI",
+            receiver_email: m.sender_email,
+            content: mariaReply,
+            type: "text",
+            is_read: false,
+            read: false,
+            is_maria: true,
           });
         } catch (e) {
           console.error("Maria AI reply error:", e);
