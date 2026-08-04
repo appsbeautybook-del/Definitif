@@ -735,6 +735,9 @@ export default function RendezVous() {
                     `SUMMARY:💆 ${selectedReservation.service_name || "RDV"}`,
                     `DESCRIPTION:Prestataire: ${selectedReservation.salon_name || ""}\\nCode: ${selectedReservation.crg_code || ""}`,
                     `LOCATION:${selectedReservation.salon_address || selectedReservation.salon_name || ""}`,
+                    "STATUS:CONFIRMED",
+                    "BEGIN:VALARM","TRIGGER:-P1D","ACTION:DISPLAY","DESCRIPTION:Rappel: votre RDV BeautyBook demain","END:VALARM",
+                    "BEGIN:VALARM","TRIGGER:-PT2H","ACTION:DISPLAY","DESCRIPTION:Rappel: votre RDV BeautyBook dans 2 heures","END:VALARM",
                     "END:VEVENT","END:VCALENDAR"
                   ].join("\r\n");
                   const blob = new Blob([ics], { type: "text/calendar" });

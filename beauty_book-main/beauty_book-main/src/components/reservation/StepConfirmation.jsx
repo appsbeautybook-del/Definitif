@@ -299,6 +299,24 @@ function QRCodeDisplay({ value, size = 200 }) {
 function ConfirmationSuccess({ totalPrice, icsData, crgCode, paymentMode, acompteAmount }) {
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState(5);
+  const [icsDownloaded, setIcsDownloaded] = useState(false);
+
+  // Auto-download ICS on mount (iPhone/iOS will prompt "Ajouter à l'agenda")
+  useEffect(() => {
+    if (icsData && !icsDownloaded) {
+      const raw = decodeURIComponent(escape(atob(icsData)));
+      const blob = new Blob([raw], { type: "text/calendar" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "beautybook-rdv.ics";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setIcsDownloaded(true);
+    }
+  }, [icsData, icsDownloaded]);
 
   useEffect(() => {
     if (countdown <= 0) {
