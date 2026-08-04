@@ -699,16 +699,45 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
         if (directRes.ok) {
           apiData = await directRes.json();
         } else {
-          const errText = await directRes.text();
-          console.error('[Maria] OpenRouter error:', directRes.status, errText.substring(0, 200));
-          throw new Error(`OpenRouter ${directRes.status}: ${errText.substring(0, 100)}`);
+          console.log('[Maria] OpenRouter failed:', directRes.status);
         }
       }
-      
+
+      // Dernier fallback : Gemini API gratuit
       if (!apiData) {
-        throw new Error('No API available (Vercel or OpenRouter)');
+        const GEMINI_KEY_B64 = 'QVEuQWI4Uk42SUJHQVpqN1pRaVBsQzJVRTF4MDFVWTZfdkdleF9PdDVOc3RFaGNBMEFWMlE=';
+        const GEMINI_KEY = atob(GEMINI_KEY_B64);
+        console.log('[Maria] Trying Gemini API...');
+        const allMsgs = [
+          { role: 'user', parts: [{ text: MARIA_SYSTEM_PROMPT }] },
+          ...historyMsgs.map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
+          })),
+          { role: 'user', parts: [{ text: typeof userContent === 'string' ? userContent : JSON.stringify(userContent) }] },
+        ];
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: allMsgs, generationConfig: { temperature: 0.7, maxOutputTokens: 200 } }),
+          }
+        );
+        console.log('[Maria] Gemini response:', geminiRes.status);
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          if (text) {
+            apiData = { choices: [{ message: { content: text } }] };
+          }
+        }
       }
-      
+
+      if (!apiData) {
+        throw new Error('Aucune API disponible (Vercel, OpenRouter ou Gemini)');
+      }
+
       const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
       reply = rawReply || reply;
 
