@@ -226,10 +226,10 @@ export default function AvisClients() {
                     <div key={r.id} className="bg-white rounded-2xl p-4 shadow-sm border border-yellow-100">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center font-black text-yellow-600 text-[15px] shrink-0">
-                          {(r.client_name || "?")[0].toUpperCase()}
+                          {(r.client_email || "?")[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-black text-gray-900">{r.client_name}</p>
+                          <p className="text-[14px] font-black text-gray-900">{r.client_email}</p>
                           <p className="text-[11px] text-gray-400 font-medium truncate">{r.service_name} · {new Date(r.date).toLocaleDateString("fr-FR")}</p>
                         </div>
                         <button onClick={() => setNoterModal(r)}

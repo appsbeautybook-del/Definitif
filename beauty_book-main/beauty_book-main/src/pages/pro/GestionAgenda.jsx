@@ -101,7 +101,7 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
         {/* Client */}
         <div className="bg-gray-50 rounded-2xl p-4 mb-3">
           <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-2">Client</p>
-          <p className="text-[18px] font-black text-gray-900">{rdv.client_name}</p>
+          <p className="text-[18px] font-black text-gray-900">{rdv.client_email}</p>
           <p className="text-[12px] text-gray-400 font-medium">{rdv.client_email}</p>
         </div>
 
@@ -245,7 +245,7 @@ function NouveauRdvModal({ onClose, proEmail, onCreated }) {
         const seen = {};
         reservations.forEach(r => {
           if (!seen[r.client_email]) {
-            seen[r.client_email] = { email: r.client_email, name: r.client_name };
+            seen[r.client_email] = { email: r.client_email, name: r.client_email };
           }
         });
         setClients(Object.values(seen));
@@ -270,7 +270,6 @@ function NouveauRdvModal({ onClose, proEmail, onCreated }) {
       pro_email: proEmail,
       pro_name: form.service.pro_email,
       client_email: form.client.email,
-      client_name: form.client.name,
       client_phone: form.client.phone || "",
       service_id: form.service.id,
       service_name: form.service.title,
@@ -534,7 +533,7 @@ function PlanningTab({ proEmail, reservations, onSelectRdv }) {
               </div>
               <div className="flex-1">
                 <p className="text-[15px] font-black text-gray-900">{rdv.service_name}</p>
-                <p className="text-[12px] font-medium text-gray-500">{rdv.client_name}</p>
+                <p className="text-[12px] font-medium text-gray-500">{rdv.client_email}</p>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-[14px] font-black text-primary">{rdv.total_price || rdv.service_price}€</p>
@@ -554,7 +553,7 @@ function DemandesTab({ proEmail, reservations, setReservations }) {
 
   const demandes = reservations.filter(r => r.status === "en_attente");
   const filtered = demandes.filter(r =>
-    r.client_name?.toLowerCase().includes(search.toLowerCase()) ||
+    r.client_email?.toLowerCase().includes(search.toLowerCase()) ||
     r.service_name?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -596,10 +595,10 @@ function DemandesTab({ proEmail, reservations, setReservations }) {
             <span className="absolute top-4 right-4 bg-orange-100 text-primary text-[10px] font-black uppercase px-3 py-1 rounded-full">Nouveau</span>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
-                <span className="text-[18px] font-black text-primary">{(r.client_name || "?")[0].toUpperCase()}</span>
+                <span className="text-[18px] font-black text-primary">{(r.client_email || "?")[0].toUpperCase()}</span>
               </div>
               <div>
-                <p className="text-[16px] font-black text-gray-900">{r.client_name}</p>
+                <p className="text-[16px] font-black text-gray-900">{r.client_email}</p>
                 <p className="text-[12px] font-medium text-gray-500">{r.service_name}</p>
               </div>
             </div>
@@ -681,7 +680,7 @@ function CrmTab({ reservations, proEmail }) {
     if (!clientMap[r.client_email]) {
       clientMap[r.client_email] = {
         email: r.client_email,
-        name: r.client_name || r.client_email,
+        name: r.client_email,
         phone: r.client_phone || "",
         rdvs: [],
         totalSpent: 0,
@@ -700,7 +699,7 @@ function CrmTab({ reservations, proEmail }) {
     if (!email || clientMap[email]) return;
     clientMap[email] = {
       email,
-      name: c.name || c.client_name || email,
+      name: c.name || email,
       phone: c.phone || "",
       rdvs: [],
       totalSpent: c.total_spent || 0,

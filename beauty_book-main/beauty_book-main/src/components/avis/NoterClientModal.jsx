@@ -83,7 +83,7 @@ export default function NoterClientModal({ reservation, onClose, onSuccess }) {
         auteur_email: user.email,
         auteur_nom: user.full_name || "Pro",
         cible_email: reservation.client_email,
-        cible_nom: reservation.client_name,
+        cible_nom: reservation.client_email,
         note,
         commentaire,
         service_nom: reservation.service_name,
@@ -117,7 +117,7 @@ export default function NoterClientModal({ reservation, onClose, onSuccess }) {
             </div>
             <div>
               <h2 className="text-[16px] font-black text-gray-900">Score de Fiabilité</h2>
-              <p className="text-[11px] text-gray-400 font-medium">{reservation.client_name} · {reservation.service_name}</p>
+              <p className="text-[11px] text-gray-400 font-medium">{reservation.client_email} · {reservation.service_name}</p>
             </div>
           </div>
           <button onClick={onClose} className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center">

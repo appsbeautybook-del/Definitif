@@ -122,7 +122,7 @@ export default function BeautyPay() {
     ...walletTransactions.map(t => ({ ...t, source: "wallet" })),
     ...reservations.map(r => ({
       id: r.id,
-      label: r.client_name || r.client_email,
+      label: r.client_email || r.client_name,
       sublabel: r.service_name,
       date: r.created_at,
       amount: r.total_price || r.service_price || 0,

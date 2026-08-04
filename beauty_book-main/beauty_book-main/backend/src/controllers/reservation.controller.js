@@ -135,7 +135,6 @@ export const createReservation = async (req, res) => {
       .from('Reservation')
       .insert({
         client_email: user.email,
-        client_name: userProfile?.full_name || user.email,
         pro_email,
         pro_name,
         service_name,
@@ -151,7 +150,7 @@ export const createReservation = async (req, res) => {
         seats_total: seatsTotal,
         status: reservationStatus,
       })
-      .select('id,client_email,client_name,pro_email,pro_name,service_name,service_price,date,time_slot,end_time_slot,duration_min,persons,total_price,salon_name,salon_address,status')
+      .select()
       .single();
 
     if (reservationError) {

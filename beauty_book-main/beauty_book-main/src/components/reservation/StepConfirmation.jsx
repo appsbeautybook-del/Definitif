@@ -1,11 +1,279 @@
-import { ArrowLeft, MapPin, Clock, CheckCircle2, Loader, Users, Download, CreditCard, Banknote, Share2, Pencil, X, Check, Tag } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, CheckCircle2, Loader, Users, Download, CreditCard, Banknote, Share2, Pencil, X, Check, Tag, Lock, Shield } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { apiClient } from '@/lib/apiClient';
 import QRCode from "qrcode";
+
+// ── Formatage carte bancaire ──────────────────────────────────────────────────
+function formatCardNumber(val) {
+  const digits = val.replace(/\D/g, "").slice(0, 16);
+  return digits.replace(/(\d{4})/g, "$1 ").trim();
+}
+
+function formatExpiry(val) {
+  const digits = val.replace(/\D/g, "").slice(0, 4);
+  if (digits.length >= 3) return digits.slice(0, 2) + " / " + digits.slice(2);
+  return digits;
+}
+
+function getCardType(number) {
+  const n = number.replace(/\D/g, "");
+  if (/^4/.test(n)) return "visa";
+  if (/^5[1-5]/.test(n) || /^2[2-7]/.test(n)) return "mastercard";
+  if (/^3[47]/.test(n)) return "amex";
+  return "generic";
+}
+
+// ── Visuel carte bancaire ─────────────────────────────────────────────────────
+function CardVisual({ cardNumber, cardHolder, expiry }) {
+  const type = getCardType(cardNumber);
+  const display = cardNumber || "•••• •••• •••• ••••";
+  const holder = cardHolder || "VOTRE NOM";
+  const exp = expiry || "MM / AA";
+
+  return (
+    <div className="relative w-full aspect-[1.586/1] max-w-[340px] mx-auto rounded-2xl overflow-hidden shadow-2xl" style={{
+      background: type === "visa" ? "linear-gradient(135deg, #1a1f71 0%, #2d3489 50%, #4a5ab9 100%)"
+        : type === "mastercard" ? "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)"
+        : "linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #404040 100%)"
+    }}>
+      {/* Texture overlay */}
+      <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.2) 0%, transparent 40%)" }} />
+
+      {/* Chip + Type */}
+      <div className="absolute top-4 left-5 flex items-center gap-3">
+        <div className="w-10 h-7 rounded-md bg-gradient-to-br from-yellow-300 via-yellow-400 to-yellow-600 shadow-inner" style={{ boxShadow: "inset 0 1px 2px rgba(0,0,0,0.2)" }}>
+          <div className="w-full h-full rounded-md border border-yellow-700/30" style={{ background: "linear-gradient(135deg, #fbbf24 0%, #d97706 100%)" }} />
+        </div>
+        {type === "visa" && <span className="text-white/80 text-[18px] font-black italic tracking-tight">VISA</span>}
+        {type === "mastercard" && (
+          <div className="flex items-center -space-x-2">
+            <div className="w-5 h-5 rounded-full bg-red-500/80" />
+            <div className="w-5 h-5 rounded-full bg-yellow-500/80" />
+          </div>
+        )}
+        {type === "amex" && <span className="text-white/80 text-[14px] font-black tracking-wider">AMEX</span>}
+        {type === "generic" && <CreditCard className="w-5 h-5 text-white/60" />}
+      </div>
+
+      {/* Card Number */}
+      <div className="absolute top-1/2 left-5 -translate-y-1/2">
+        <p className="text-[20px] sm:text-[22px] font-mono text-white/90 tracking-[0.15em] font-medium">
+          {display}
+        </p>
+      </div>
+
+      {/* Holder + Expiry */}
+      <div className="absolute bottom-4 left-5 right-5 flex items-end justify-between">
+        <div className="flex-1 min-w-0 mr-4">
+          <p className="text-[8px] font-black text-white/40 uppercase tracking-widest mb-0.5">Titulaire</p>
+          <p className="text-[13px] font-black text-white/90 uppercase tracking-wider truncate">{holder}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[8px] font-black text-white/40 uppercase tracking-widest mb-0.5">Expire</p>
+          <p className="text-[14px] font-black text-white/90 tracking-wider font-mono">{exp}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Formulaire carte bancaire ─────────────────────────────────────────────────
+function PaymentCardForm({ amount, onPay, saving }) {
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [paying, setPaying] = useState(false);
+  const [step, setStep] = useState("form"); // form | processing | success
+  const cvvRef = useRef(null);
+
+  const handleCardNumber = (e) => {
+    const raw = e.target.value.replace(/[^\d\s]/g, "");
+    setCardNumber(formatCardNumber(raw));
+  };
+
+  const handleExpiry = (e) => {
+    let val = e.target.value.replace(/\D/g, "");
+    if (val.length >= 2) {
+      const month = parseInt(val.slice(0, 2));
+      if (month > 12) val = "12" + val.slice(2);
+    }
+    setExpiry(formatExpiry(val));
+  };
+
+  const handleCvv = (e) => {
+    setCvv(e.target.value.replace(/\D/g, "").slice(0, 4));
+  };
+
+  const isFormValid = cardNumber.replace(/\s/g, "").length >= 15
+    && cardHolder.trim().length >= 2
+    && expiry.replace(/\D/g, "").length === 4
+    && cvv.length >= 3;
+
+  const handlePay = async () => {
+    if (!isFormValid || paying) return;
+    setPaying(true);
+    setStep("processing");
+
+    // Simulate payment processing
+    await new Promise(r => setTimeout(r, 2200));
+    await new Promise(r => setTimeout(r, 800));
+
+    setStep("success");
+    await new Promise(r => setTimeout(r, 1000));
+    onPay();
+  };
+
+  if (step === "processing") {
+    return (
+      <div className="bg-white border border-gray-100 rounded-3xl p-6 flex flex-col items-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-orange-50 flex items-center justify-center">
+          <Loader className="w-8 h-8 text-primary animate-spin" />
+        </div>
+        <div className="text-center">
+          <p className="text-[16px] font-black text-gray-900">Paiement en cours...</p>
+          <p className="text-[12px] text-gray-400 font-medium mt-1">Validation sécurisée en cours</p>
+        </div>
+        <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+          <div className="h-full bg-primary rounded-full animate-pulse" style={{ width: "70%" }} />
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "success") {
+    return (
+      <div className="bg-white border border-green-100 rounded-3xl p-6 flex flex-col items-center gap-3">
+        <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
+          <CheckCircle2 className="w-8 h-8 text-green-500" />
+        </div>
+        <div className="text-center">
+          <p className="text-[16px] font-black text-green-700">Paiement accepté !</p>
+          <p className="text-[12px] text-gray-400 font-medium mt-1">Transaction {Math.random().toString(36).slice(2, 10).toUpperCase()}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-3xl p-5 space-y-5">
+      <div>
+        <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Paiement par carte</p>
+        <p className="text-[11px] text-gray-400 font-medium">Environnement de test — aucune réelle débit</p>
+      </div>
+
+      {/* Card visual */}
+      <CardVisual cardNumber={cardNumber} cardHolder={cardHolder} expiry={expiry} />
+
+      {/* Form fields */}
+      <div className="space-y-3">
+        {/* Numéro */}
+        <div>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Numéro de carte</label>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              value={cardNumber}
+              onChange={handleCardNumber}
+              placeholder="1234 5678 9012 3456"
+              maxLength={19}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 pr-12 text-[15px] font-mono text-gray-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-gray-300"
+            />
+            <Lock className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+          </div>
+        </div>
+
+        {/* Nom */}
+        <div>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Nom du titulaire</label>
+          <input
+            type="text"
+            value={cardHolder}
+            onChange={e => setCardHolder(e.target.value.toUpperCase())}
+            placeholder="JEAN DUPONT"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-[15px] font-medium text-gray-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-gray-300 uppercase"
+          />
+        </div>
+
+        {/* Expiry + CVV */}
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Expiration</label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={expiry}
+              onChange={handleExpiry}
+              placeholder="MM / AA"
+              maxLength={7}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-[15px] font-mono text-gray-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-gray-300"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">CVV</label>
+            <div className="relative">
+              <input
+                ref={cvvRef}
+                type="text"
+                inputMode="numeric"
+                value={cvv}
+                onChange={handleCvv}
+                placeholder="123"
+                maxLength={4}
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 pr-10 text-[15px] font-mono text-gray-900 outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-gray-300"
+              />
+              <Shield className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Sécurité */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-green-50 rounded-xl">
+        <Shield className="w-4 h-4 text-green-500 shrink-0" />
+        <p className="text-[10px] font-black text-green-600 uppercase tracking-widest">Paiement 100% sécurisé SSL/TLS</p>
+      </div>
+
+      {/* Test cards info */}
+      <details className="group">
+        <summary className="text-[11px] text-gray-400 font-medium cursor-pointer hover:text-gray-600 transition-colors">
+          Cartes de test disponibles ↓
+        </summary>
+        <div className="mt-2 space-y-1 bg-gray-50 rounded-xl p-3">
+          <div className="flex justify-between text-[11px]">
+            <span className="font-mono text-gray-600">4242 4242 4242 4242</span>
+            <span className="text-green-500 font-black">Visa ✓</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="font-mono text-gray-600">5555 5555 5555 4444</span>
+            <span className="text-green-500 font-black">MC ✓</span>
+          </div>
+          <div className="flex justify-between text-[11px]">
+            <span className="font-mono text-gray-600">3782 822463 10005</span>
+            <span className="text-green-500 font-black">Amex ✓</span>
+          </div>
+          <p className="text-[10px] text-gray-400 font-medium pt-1">Date: any future · CVV: any 3 digits</p>
+        </div>
+      </details>
+
+      {/* Pay button */}
+      <button
+        onClick={handlePay}
+        disabled={!isFormValid || saving}
+        className="w-full py-4 rounded-2xl font-black text-[14px] uppercase tracking-widest text-white flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+        style={{ background: isFormValid ? "#E8732A" : "#ccc" }}
+      >
+        <Lock className="w-4 h-4" />
+        Payer {amount}€ de manière sécurisée
+      </button>
+    </div>
+  );
+}
 
 // ── Génère un code à 4 chiffres unique ───────────────────────────────────────
 function generateCRG() {
@@ -170,6 +438,7 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [paymentMode, setPaymentMode] = useState("full"); // "full" | "acompte"
+  const [showCardForm, setShowCardForm] = useState(false);
   const [icsData, setIcsData] = useState(null);
   const [crgCode] = useState(() => generateCRG());
   const [editingLieu, setEditingLieu] = useState(false);
@@ -502,6 +771,13 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
           </div>
         </div>
 
+        {/* Formulaire carte bancaire */}
+        <PaymentCardForm
+          amount={amountToPay}
+          onPay={handleConfirmAndBook}
+          saving={saving}
+        />
+
         {/* Info QR Code */}
         <div className="bg-gray-900 rounded-2xl px-4 py-3 flex items-center gap-3">
           <span className="text-[22px]">📲</span>
@@ -559,34 +835,6 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
             <p className="text-[13px] font-black text-red-500">⚠️ {error}</p>
           </div>
         )}
-      </div>
-
-      {/* Bottom fixe */}
-      <div className="px-5 pb-8 pt-4 border-t border-gray-100 bg-white flex-shrink-0">
-        <div className="flex items-end justify-between mb-4">
-          <div>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              {paymentMode === "acompte" ? "Acompte à payer" : "Total"}
-            </p>
-            <p className="text-[32px] font-black text-gray-900 leading-none">
-              {amountToPay}€
-              {totalPersons > 1 && <span className="text-[13px] text-gray-400 font-medium ml-2">{totalPersons} pers.</span>}
-            </p>
-          </div>
-          <Clock className="w-5 h-5 text-gray-300" />
-        </div>
-
-        <button
-          onClick={handleConfirmAndBook}
-          disabled={saving}
-          className="w-full py-4 rounded-2xl font-black text-[14px] uppercase tracking-widest text-white flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-60"
-          style={{ background: "#E8732A" }}
-        >
-          {saving
-            ? <><Loader className="w-4 h-4 animate-spin" /><span>Confirmation...</span></>
-            : <><CheckCircle2 className="w-4 h-4" />{paymentMode === "acompte" ? `Confirmer & payer l'acompte ${acompteAmount}€` : `Confirmer & payer ${totalPrice}€`} →</>
-          }
-        </button>
       </div>
     </div>
   );

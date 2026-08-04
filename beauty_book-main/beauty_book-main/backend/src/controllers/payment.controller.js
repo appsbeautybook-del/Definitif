@@ -108,7 +108,7 @@ export const stripeWebhook = async (req, res) => {
             {
               user_email: resa.pro_email, type: 'reservation',
               title: '💰 Paiement reçu',
-              body: `${resa.client_name} a payé pour "${resa.service_name}" le ${resa.date} à ${resa.time_slot}.`,
+              body: `${resa.client_email} a payé pour "${resa.service_name}" le ${resa.date} à ${resa.time_slot}.`,
               link: '/pro/gestion-agenda', read: false,
             }
           ]);

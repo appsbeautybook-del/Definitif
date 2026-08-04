@@ -50,7 +50,7 @@ async function send24hReminders() {
     await supabaseAdmin.from('Notification').insert({
       user_email: r.pro_email, type: 'reservation',
       title: '📅 Rappel – RDV demain',
-      body: `Rappel : ${r.client_name} a RDV demain à ${r.time_slot} pour "${r.service_name}"`,
+      body: `Rappel : ${r.client_email} a RDV demain à ${r.time_slot} pour "${r.service_name}"`,
       link: '/pro/gestion-agenda', read: false,
     });
 
@@ -97,7 +97,7 @@ async function send2hReminders() {
     await supabaseAdmin.from('Notification').insert({
       user_email: r.pro_email, type: 'reservation',
       title: '⏳ RDV dans 2h',
-      body: `Dans 2h : ${r.client_name} à ${r.time_slot} pour "${r.service_name}"`,
+      body: `Dans 2h : ${r.client_email} à ${r.time_slot} pour "${r.service_name}"`,
       link: '/pro/gestion-agenda', read: false,
     });
 

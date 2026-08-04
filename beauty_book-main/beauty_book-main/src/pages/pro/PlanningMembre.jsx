@@ -173,7 +173,7 @@ export default function PlanningMembre() {
                     <p className="text-[13px] font-bold text-gray-900">{rdv.service_name || "Service"}</p>
                     <div className="flex items-center gap-1.5 mt-1">
                       <User className="w-3 h-3 text-gray-400" />
-                      <span className="text-[11px] text-gray-500">{rdv.client_name || rdv.client_email}</span>
+                      <span className="text-[11px] text-gray-500">{rdv.client_email}</span>
                     </div>
                     {rdv.duration_min && (
                       <div className="flex items-center gap-1.5 mt-0.5">

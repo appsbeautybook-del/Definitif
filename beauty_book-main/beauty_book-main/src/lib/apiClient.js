@@ -450,7 +450,6 @@ export const apiClient = {
       .from('Reservation')
       .insert({
         client_email: user.email,
-        client_name: userProfile?.full_name || user.email,
         pro_email: payload.pro_email || "",
         pro_name: payload.pro_name || "",
         service_name: payload.service_name || "",
@@ -465,7 +464,7 @@ export const apiClient = {
         salon_address: payload.salon_address || "",
         status: "confirme",
       })
-      .select('id,client_email,client_name,pro_email,pro_name,service_name,service_price,date,time_slot,end_time_slot,duration_min,persons,total_price,salon_name,salon_address,status,created_at')
+      .select()
       .single();
 
     if (error) throw error;
