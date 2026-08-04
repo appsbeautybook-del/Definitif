@@ -646,40 +646,44 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
       
       let apiData = null;
       
-      // Essayer d'abord le serveur Vercel
+      const OR_KEY_B64 = 'c2stb3ItdjEtOThjODllNjY1MzI5ZTdkYjg5YmQ3MmVmOGRiNzVjZTYyYjk1YWY4ZDRjMDNjOTI2YzZkZDIxOWE3NTcxMDRmZQ==';
+      const OR_KEY = atob(OR_KEY_B64);
+      const FREE_MODELS = [
+        'openrouter/free',
+        'google/gemma-4-31b-it:free',
+        'nvidia/nemotron-3-ultra-550b-a55b:free',
+        'openai/gpt-oss-20b:free',
+      ];
+
+      // Essayer d'abord le serveur Vercel (si disponible)
       try {
         console.log('[Maria] Trying Vercel serverless...');
         const apiRes = await fetch('/api/ai/maria', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'mimo-v2-5-free',
             messages: [
               { role: 'system', content: MARIA_SYSTEM_PROMPT },
               ...historyMsgs,
               { role: 'user', content: userContent },
             ],
             temperature: 0.7,
-            max_tokens: 200,
+            max_tokens: 512,
           }),
         });
         console.log('[Maria] Vercel response:', apiRes.status);
         if (apiRes.ok) {
-          apiData = await apiRes.json();
+          const vData = await apiRes.json();
+          if (vData?.choices?.[0]?.message?.content) {
+            apiData = vData;
+          }
         }
       } catch (e) {
-        console.log('[Maria] Vercel failed, trying OpenCode directly...', e.message);
+        console.log('[Maria] Vercel failed:', e.message);
       }
       
       // Fallback : appeler OpenRouter directement depuis le frontend
       if (!apiData) {
-        const OR_KEY_B64 = 'c2stb3ItdjEtOThjODllNjY1MzI5ZTdkYjg5YmQ3MmVmOGRiNzVjZTYyYjk1YWY4ZDRjMDNjOTI2YzZkZDIxOWE3NTcxMDRmZQ==';
-        const OR_KEY = atob(OR_KEY_B64);
-        const FREE_MODELS = [
-          'meta-llama/llama-4-scout:free',
-          'google/gemma-4-31b-it:free',
-          'nvidia/nemotron-3-ultra-550b-a55b:free',
-        ];
         console.log('[Maria] Calling OpenRouter directly...');
         for (const freeModel of FREE_MODELS) {
           try {

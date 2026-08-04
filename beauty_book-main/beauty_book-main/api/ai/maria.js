@@ -217,10 +217,10 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
 
   // ── Default: chat completions via OpenRouter free models (cascade) ─────────
   const FREE_MODELS = [
-    'meta-llama/llama-4-scout:free',
+    'openrouter/free',
     'google/gemma-4-31b-it:free',
     'nvidia/nemotron-3-ultra-550b-a55b:free',
-    'qwen/qwen3-coder:free',
+    'openai/gpt-oss-20b:free',
   ];
 
   for (const freeModel of FREE_MODELS) {
