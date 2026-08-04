@@ -310,13 +310,22 @@ function ConfirmationSuccess({ totalPrice, icsData, crgCode, paymentMode, acompt
   }, [countdown, navigate]);
   const downloadICS = () => {
     if (!icsData) return;
-    const blob = new Blob([decodeURIComponent(escape(atob(icsData)))], { type: "text/calendar" });
+    const raw = decodeURIComponent(escape(atob(icsData)));
+    const blob = new Blob([raw], { type: "text/calendar" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "beautybook-rdv.ics";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const openAppleCalendar = () => {
+    if (!icsData) return;
+    const raw = decodeURIComponent(escape(atob(icsData)));
+    const blob = new Blob([raw], { type: "text/calendar" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
   };
 
   const shareCode = () => {
@@ -428,14 +437,24 @@ function ConfirmationSuccess({ totalPrice, icsData, crgCode, paymentMode, acompt
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
           Ajouter à Google Calendar
         </a>
-        {/* ICS / Apple Calendar */}
+        {/* Apple Calendar (iOS) */}
+        {icsData && (
+          <button
+            onClick={openAppleCalendar}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl font-black text-[13px] uppercase tracking-widest active:scale-95 transition-all w-full"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5C17.88 20.74 17 21.95 15.66 21.97C14.32 22 13.89 21.18 12.37 21.18C10.84 21.18 10.37 21.95 9.1 22C7.79 22.05 6.8 20.68 5.96 19.47C4.25 16.56 2.93 11.3 4.7 7.72C5.57 5.94 7.36 4.86 9.28 4.84C10.56 4.81 11.78 5.72 12.57 5.72C13.36 5.72 14.85 4.62 16.4 4.8C17.06 4.83 18.85 5.07 19.97 6.72C19.88 6.79 17.66 8.04 17.68 10.78C17.71 14.05 20.56 15.11 20.59 15.12C20.56 15.21 20.12 16.77 18.71 19.5ZM13 3.5C13.73 2.67 14.94 2.04 15.94 2C16.07 3.17 15.6 4.35 14.9 5.19C14.21 6.04 13.07 6.7 11.95 6.61C11.8 5.46 12.36 4.26 13 3.5Z"/></svg>
+            Ajouter à Apple Calendar
+          </button>
+        )}
+        {/* ICS / Autre calendrier */}
         {icsData && (
           <button
             onClick={downloadICS}
             className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-2xl font-black text-[13px] uppercase tracking-widest active:scale-95 transition-all w-full"
           >
             <Download className="w-4 h-4" />
-            Apple / Autre calendrier (.ics)
+            Télécharger le fichier .ics
           </button>
         )}
       </div>

@@ -689,6 +689,67 @@ export default function RendezVous() {
                   <p className="text-[12px] text-gray-700 font-medium">{selectedReservation.notes}</p>
                 </div>
               )}
+
+              {/* Boutons calendrier */}
+              <div className="space-y-2 pt-2">
+                {/* Google Calendar */}
+                <a
+                  href={(() => {
+                    const pad = (n) => String(n).padStart(2, "0");
+                    const [y, mo, d] = (selectedReservation.date || "2000-01-01").split("-").map(Number);
+                    const [sh, sm] = (selectedReservation.time || selectedReservation.time_slot || "00:00").split(":").map(Number);
+                    const endT = sh * 60 + sm + (selectedReservation.duration_min || 60);
+                    const eh = Math.floor(endT / 60) % 24, em = endT % 60;
+                    const fmt = (yy, mm, dd, hh, min) => `${yy}${pad(mm)}${pad(dd)}T${pad(hh)}${pad(min)}00`;
+                    const p = new URLSearchParams({
+                      action: "TEMPLATE",
+                      text: `💆 BeautyBook – ${selectedReservation.service_name || "RDV"}`,
+                      dates: `${fmt(y, mo, d, sh, sm)}/${fmt(y, mo, d, eh, em)}`,
+                      details: `Prestataire: ${selectedReservation.salon_name || selectedReservation.pro_name || ""}\nCode: ${selectedReservation.crg_code || ""}`,
+                      location: selectedReservation.salon_address || selectedReservation.salon_name || "",
+                    });
+                    return `https://calendar.google.com/calendar/render?${p.toString()}`;
+                  })()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 px-4 py-3 bg-[#4285F4] text-white rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-all w-full"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Ajouter à Google Calendar
+                </a>
+                {/* Apple Calendar */}
+                {(() => {
+                  const pad = (n) => String(n).padStart(2, "0");
+                  const [y, mo, d] = (selectedReservation.date || "2000-01-01").split("-").map(Number);
+                  const [sh, sm] = (selectedReservation.time || selectedReservation.time_slot || "00:00").split(":").map(Number);
+                  const endT = sh * 60 + sm + (selectedReservation.duration_min || 60);
+                  const eh = Math.floor(endT / 60) % 24, em = endT % 60;
+                  const fmtDate = (dt) => `${dt.getFullYear()}${pad(dt.getMonth()+1)}${pad(dt.getDate())}T${pad(dt.getHours())}${pad(dt.getMinutes())}00`;
+                  const dtStart = new Date(y, mo-1, d, sh, sm);
+                  const dtEnd = new Date(y, mo-1, d, eh, em);
+                  const ics = [
+                    "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//BeautyBook//FR",
+                    "BEGIN:VEVENT",
+                    `DTSTART:${fmtDate(dtStart)}`,
+                    `DTEND:${fmtDate(dtEnd)}`,
+                    `SUMMARY:💆 ${selectedReservation.service_name || "RDV"}`,
+                    `DESCRIPTION:Prestataire: ${selectedReservation.salon_name || ""}\\nCode: ${selectedReservation.crg_code || ""}`,
+                    `LOCATION:${selectedReservation.salon_address || selectedReservation.salon_name || ""}`,
+                    "END:VEVENT","END:VCALENDAR"
+                  ].join("\r\n");
+                  const blob = new Blob([ics], { type: "text/calendar" });
+                  const url = URL.createObjectURL(blob);
+                  return (
+                    <button
+                      onClick={() => window.open(url, "_blank")}
+                      className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-all w-full"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Ajouter à Apple Calendar
+                    </button>
+                  );
+                })()}
+              </div>
             </div>
           </div>
         </div>
