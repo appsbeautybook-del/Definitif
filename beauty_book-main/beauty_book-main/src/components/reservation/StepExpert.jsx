@@ -78,11 +78,6 @@ export default function StepExpert({ selected, onSelect, onNext, onBack, proProf
           <div className="flex items-center justify-center py-12">
             <div className="w-8 h-8 border-4 border-gray-200 border-t-primary rounded-full animate-spin" />
           </div>
-        ) : experts.length <= 1 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2">
-            <p className="text-[13px] text-gray-400 font-medium">Aucun membre d'équipe ajouté</p>
-            <p className="text-[11px] text-gray-300 font-medium text-center">Le professionnel n'a pas encore ajouté de membre à son équipe.</p>
-          </div>
         ) : (
           experts.map(expert => {
             const isSelected = current?.id === expert.id;
