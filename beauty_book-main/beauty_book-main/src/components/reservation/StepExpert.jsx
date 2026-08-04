@@ -19,7 +19,7 @@ export default function StepExpert({ selected, onSelect, onNext, onBack, proProf
 
   useEffect(() => {
     if (!proEmail) { setLoading(false); return; }
-    entities.MembreEquipe.filter({ pro_email: proEmail, status: "actif" }, "-created_at", 50)
+    entities.MembreEquipe.filter({ pro_email: proEmail }, "-created_at", 50)
       .then(data => {
         const mapped = (data || []).map(m => ({
           id: m.id,
