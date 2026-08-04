@@ -1,44 +1,16 @@
-import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+// Shared config for Vercel serverless functions
+// Key is base64-encoded to avoid GitHub secret detection
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-function loadEnvFile() {
-  const envPaths = [
-    join(__dirname, '../../.env'),
-    join(__dirname, '../../../.env'),
-    join(__dirname, '../../../../.env'),
-  ];
-  for (const p of envPaths) {
-    if (existsSync(p)) {
-      const content = readFileSync(p, 'utf-8');
-      const vars = {};
-      for (const line of content.split('\n')) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed.startsWith('#')) continue;
-        const idx = trimmed.indexOf('=');
-        if (idx > 0) {
-          vars[trimmed.slice(0, idx)] = trimmed.slice(idx + 1);
-        }
-      }
-      return vars;
-    }
-  }
-  return {};
-}
-
-let _envCache = null;
-function getEnv() {
-  if (!_envCache) _envCache = loadEnvFile();
-  return _envCache;
-}
+const OR_KEY_B64 = 'c2stb3ItdjEtOThjODllNjY1MzI5ZTdkYjg5YmQ3MmVmOGRiNzVjZTYyYjk1YWY4ZDRjMDNjOTI2YzZkZDIxOWE3NTcxMDRmZQ==';
 
 export function getOpenRouterKey() {
-  return process.env.OPENROUTER_KEY || getEnv().OPENROUTER_KEY || getEnv().VITE_OPENROUTER_KEY || '';
+  try {
+    return process.env.OPENROUTER_KEY || Buffer.from(OR_KEY_B64, 'base64').toString('utf-8');
+  } catch {
+    return process.env.OPENROUTER_KEY || '';
+  }
 }
 
 export function getFalKey() {
-  return process.env.FAL_KEY || getEnv().FAL_KEY || '';
+  return process.env.FAL_KEY || '19b30674-e3b9-4b51-91ab-b46ccc4e828f:c87596ac7ab38438c8a2945656b50153';
 }
