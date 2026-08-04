@@ -671,73 +671,45 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
         console.log('[Maria] Vercel failed, trying OpenCode directly...', e.message);
       }
       
-      // Fallback : appeler OpenCode directement depuis le frontend
+      // Fallback : appeler OpenRouter directement depuis le frontend
       if (!apiData) {
-        const OPENCODE_KEY_B64 = 'c2stRlBQNnNoNzhZc09oeWpqMG1tenRjaFM3UEd2dUgyRUUzbklNOHZDTmVhV1VZaEFtemxBRE9yU0p0WjBRVHU1dQ==';
-        const OPENCODE_KEY = atob(OPENCODE_KEY_B64);
-        console.log('[Maria] Calling OpenCode directly...');
+        const OR_KEY_B64 = 'c2stb3ItdjEtOThjODllNjY1MzI5ZTdkYjg5YmQ3MmVmOGRiNzVjZTYyYjk1YWY4ZDRjMDNjOTI2YzZkZDIxOWE3NTcxMDRmZQ==';
+        const OR_KEY = atob(OR_KEY_B64);
+        console.log('[Maria] Calling OpenRouter directly...');
         try {
-          const directRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+          const directRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${OPENCODE_KEY}`,
+              'Authorization': `Bearer ${OR_KEY}`,
+              'HTTP-Referer': window.location.origin,
+              'X-Title': 'BeautyBook Maria AI',
             },
             body: JSON.stringify({
-              model: 'mimo-v2-5-free',
+              model: 'google/gemma-4-31b-it:free',
               messages: [
                 { role: 'system', content: MARIA_SYSTEM_PROMPT },
                 ...historyMsgs,
                 { role: 'user', content: userContent },
               ],
               temperature: 0.7,
-              max_tokens: 200,
+              max_tokens: 512,
             }),
           });
-          console.log('[Maria] OpenCode response:', directRes.status);
+          console.log('[Maria] OpenRouter response:', directRes.status);
           if (directRes.ok) {
             apiData = await directRes.json();
           } else {
-            console.log('[Maria] OpenCode failed:', directRes.status);
+            const errBody = await directRes.text().catch(() => '');
+            console.log('[Maria] OpenRouter failed:', directRes.status, errBody.substring(0, 200));
           }
         } catch (e) {
-          console.log('[Maria] OpenCode error:', e.message);
-        }
-      }
-
-      // Dernier fallback : Gemini API gratuit
-      if (!apiData) {
-        const GEMINI_KEY_B64 = 'QVEuQWI4Uk42SUJHQVpqN1pRaVBsQzJVRTF4MDFVWTZfdkdleF9PdDVOc3RFaGNBMEFWMlE=';
-        const GEMINI_KEY = atob(GEMINI_KEY_B64);
-        console.log('[Maria] Trying Gemini API...');
-        const allMsgs = [
-          { role: 'user', parts: [{ text: MARIA_SYSTEM_PROMPT }] },
-          ...historyMsgs.map(m => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
-          })),
-          { role: 'user', parts: [{ text: typeof userContent === 'string' ? userContent : JSON.stringify(userContent) }] },
-        ];
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: allMsgs, generationConfig: { temperature: 0.7, maxOutputTokens: 200 } }),
-          }
-        );
-        console.log('[Maria] Gemini response:', geminiRes.status);
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const text = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          if (text) {
-            apiData = { choices: [{ message: { content: text } }] };
-          }
+          console.log('[Maria] OpenRouter error:', e.message);
         }
       }
 
       if (!apiData) {
-        throw new Error('Aucune API disponible (Vercel, OpenCode ou Gemini)');
+        throw new Error('Aucune API disponible. Vérifiez votre connexion.');
       }
 
       const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';

@@ -215,83 +215,31 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
     }
   }
 
-  // ── Default: chat completions via OpenCode → Gemini fallback ────────────────
-  const OPENCODE_KEY_B64 = 'c2stRlBQNnNoNzhZc09oeWpqMG1tenRjaFM3UEd2dUgyRUUzbklNOHZDTmVhV1VZaEFtemxBRE9yU0p0WjBRVHU1dQ==';
-  const OPENCODE_KEY = Buffer.from(OPENCODE_KEY_B64, 'base64').toString('utf-8');
-  const GEMINI_KEY_B64 = 'QVEuQWI4Uk42SUJHQVpqN1pRaVBsQzJVRTF4MDFVWTZfdkdleF9PdDVOc3RFaGNBMEFWMlE=';
-  const GEMINI_KEY = Buffer.from(GEMINI_KEY_B64, 'base64').toString('utf-8');
+  // ── Default: chat completions via OpenRouter free model ─────────────────────
+  const FREE_MODEL = 'google/gemma-4-31b-it:free';
 
-  // Convert OpenRouter messages → Gemini contents format
-  function toGeminiContents(msgs) {
-    return msgs
-      .filter(m => m.role !== 'system')
-      .map(m => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: typeof m.content === 'string' ? m.content : JSON.stringify(m.content) }],
-      }));
-  }
-
-  function extractGeminiText(data) {
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  }
-
-  // Try OpenCode first
   try {
-    const body = JSON.stringify({ model: 'mimo-v2-5-free', messages, temperature, max_tokens });
-    const apiRes = await fetch('https://opencode.ai/zen/v1/chat/completions', {
+    const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENCODE_KEY}`,
+        'Authorization': `Bearer ${OPENROUTER_KEY}`,
+        'HTTP-Referer': 'https://definitif-beta.vercel.app',
+        'X-Title': 'BeautyBook Maria AI',
       },
-      body,
+      body: JSON.stringify({ model: FREE_MODEL, messages, temperature: temperature || 0.7, max_tokens: max_tokens || 512 }),
     });
 
-    if (apiRes.ok) {
-      const data = await apiRes.json();
-      return res.status(200).json(data);
-    }
-    console.log('[maria] OpenCode failed:', apiRes.status, '- trying Gemini...');
-  } catch (err) {
-    console.log('[maria] OpenCode error:', err.message, '- trying Gemini...');
-  }
-
-  // Fallback: Gemini API (free tier)
-  try {
-    const systemMsg = messages.find(m => m.role === 'system');
-    const contents = toGeminiContents(messages);
-    const systemInstruction = systemMsg ? { parts: [{ text: systemMsg.content }] } : undefined;
-
-    const geminiBody = {
-      contents,
-      generationConfig: {
-        temperature: temperature || 0.7,
-        maxOutputTokens: max_tokens || 200,
-      },
-    };
-    if (systemInstruction) geminiBody.systemInstruction = systemInstruction;
-
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(geminiBody),
-      }
-    );
-
-    if (!geminiRes.ok) {
-      const errBody = await geminiRes.text().catch(() => 'Gemini error');
-      return res.status(geminiRes.status).json({ error: `Gemini error: ${errBody}` });
+    if (!apiRes.ok) {
+      const errBody = await apiRes.text().catch(() => 'OpenRouter error');
+      console.error('[maria] OpenRouter error:', apiRes.status, errBody);
+      return res.status(500).json({ error: `OpenRouter error: ${errBody}` });
     }
 
-    const geminiData = await geminiRes.json();
-    const text = extractGeminiText(geminiData);
-    return res.status(200).json({
-      choices: [{ message: { content: text } }],
-    });
+    const data = await apiRes.json();
+    return res.status(200).json(data);
   } catch (err) {
-    console.error('[api/ai/maria] All APIs failed:', err.message);
+    console.error('[api/ai/maria] API error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 }
