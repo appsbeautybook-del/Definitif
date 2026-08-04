@@ -123,7 +123,7 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
           </div>
           <div className="bg-gray-50 rounded-2xl p-4">
             <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Heure</p>
-            <p className="text-[15px] font-black text-gray-900">{rdv.time_slot}</p>
+            <p className="text-[15px] font-black text-gray-900">{rdv.time || rdv.time_slot}</p>
           </div>
         </div>
 
@@ -239,9 +239,10 @@ function NouveauRdvModal({ onClose, proEmail, onCreated }) {
   });
 
   useEffect(() => {
-    // Charger clients depuis reservations précédentes
+    // Charger clients depuis réservations précédentes
     entities.Reservation.filter({ pro_email: proEmail }, "-created_at", 100)
       .then(reservations => {
+        console.log('[NouveauRdv] Loaded previous reservations for clients:', reservations?.length);
         const seen = {};
         reservations.forEach(r => {
           if (!seen[r.client_email]) {
@@ -249,10 +250,11 @@ function NouveauRdvModal({ onClose, proEmail, onCreated }) {
           }
         });
         setClients(Object.values(seen));
-      }).catch(() => {});
+      }).catch(e => console.error('[NouveauRdv] Error loading clients:', e));
     // Charger services du pro
     entities.Service.filter({ pro_email: proEmail, status: "actif" }, "title", 50)
-      .then(setServices).catch(() => {});
+      .then(s => { console.log('[NouveauRdv] Loaded services:', s?.length); setServices(s || []); })
+      .catch(e => console.error('[NouveauRdv] Error loading services:', e));
   }, [proEmail]);
 
   const filteredClients = clients.filter(c =>
@@ -266,7 +268,7 @@ function NouveauRdvModal({ onClose, proEmail, onCreated }) {
   const handleConfirm = async () => {
     if (!form.client || !form.service || !form.date || !form.time) return;
     setSaving(true);
-    const rdv = await entities.Reservation.create({
+    const payload = {
       pro_email: proEmail,
       pro_name: form.service.pro_email,
       client_email: form.client.email,
@@ -277,11 +279,31 @@ function NouveauRdvModal({ onClose, proEmail, onCreated }) {
       total_price: form.service.price,
       duration_min: form.service.duration || form.service.duration_min || 60,
       date: form.date,
+      time: form.time,
       time_slot: form.time,
       notes: form.notes,
-      status: "confirme",
+      status: "en_attente",
       payment_status: "non_paye",
-    });
+    };
+    const rdv = await entities.Reservation.create(payload);
+    // Auto-create Client entry if not exists
+    if (form.client.email) {
+      entities.Client.filter({ pro_email: proEmail, email: form.client.email }, "-created_at", 1)
+        .then(existing => {
+          if (existing.length === 0) {
+            entities.Client.create({
+              pro_email: proEmail,
+              name: form.client.name || form.client.email,
+              email: form.client.email,
+              phone: form.client.phone || "",
+              source: "rdv",
+              total_spent: form.service.price || 0,
+              total_rdv: 1,
+              last_rdv_date: form.date,
+            });
+          }
+        }).catch(() => {});
+    }
     setSaving(false);
     onCreated(rdv);
     onClose();
@@ -461,7 +483,7 @@ function PlanningTab({ proEmail, reservations, onSelectRdv }) {
 
   const dayRdvs = reservations.filter(r => {
     try { return isSameDay(parseISO(r.date), selectedDate); } catch { return false; }
-  }).sort((a, b) => (a.time_slot || "").localeCompare(b.time_slot || ""));
+  }).sort((a, b) => (a.time || a.time_slot || "").localeCompare(b.time || b.time_slot || ""));
 
   const statusColor = {
     en_attente: "bg-orange-100 border-l-4 border-orange-400",
@@ -528,7 +550,7 @@ function PlanningTab({ proEmail, reservations, onSelectRdv }) {
               className={`w-full flex items-center gap-3 p-4 rounded-2xl text-left active:scale-[0.99] transition-all shadow-sm ${statusColor[rdv.status] || "bg-white border border-gray-100"}`}
             >
               <div className="w-12 text-center shrink-0">
-                <p className="text-[13px] font-black text-gray-700">{rdv.time_slot}</p>
+                <p className="text-[13px] font-black text-gray-700">{rdv.time || rdv.time_slot}</p>
                 <p className="text-[9px] text-gray-400 font-medium">{rdv.duration_min}min</p>
               </div>
               <div className="flex-1">
@@ -550,12 +572,30 @@ function PlanningTab({ proEmail, reservations, onSelectRdv }) {
 function DemandesTab({ proEmail, reservations, setReservations }) {
   const [search, setSearch] = useState("");
   const [updating, setUpdating] = useState(null);
+  const [filterStatus, setFilterStatus] = useState("all");
 
-  const demandes = reservations.filter(r => r.status === "en_attente");
-  const filtered = demandes.filter(r =>
-    r.client_email?.toLowerCase().includes(search.toLowerCase()) ||
-    r.service_name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const statusLabels = {
+    en_attente: "En attente",
+    confirme: "Confirmé",
+    annule: "Annulé",
+    termine: "Terminé",
+    no_show: "No Show",
+  };
+  const statusBadgeColors = {
+    en_attente: "bg-orange-100 text-orange-600",
+    confirme: "bg-green-100 text-green-600",
+    annule: "bg-red-100 text-red-500",
+    termine: "bg-gray-100 text-gray-500",
+    no_show: "bg-red-50 text-red-400",
+  };
+
+  const filtered = reservations.filter(r => {
+    const matchSearch = r.client_email?.toLowerCase().includes(search.toLowerCase()) ||
+      r.service_name?.toLowerCase().includes(search.toLowerCase()) ||
+      r.date?.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filterStatus === "all" || r.status === filterStatus;
+    return matchSearch && matchStatus;
+  }).sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
   const handleAction = async (id, status) => {
     setUpdating(id);
@@ -571,15 +611,28 @@ function DemandesTab({ proEmail, reservations, setReservations }) {
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="Filtrer les demandes…"
+          placeholder="Filtrer par client, service, date…"
           className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none font-medium placeholder:text-gray-400"
         />
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {[{ id: "all", label: "Tous" }, { id: "en_attente", label: "En attente" }, { id: "confirme", label: "Confirmés" }, { id: "termine", label: "Terminés" }, { id: "annule", label: "Annulés" }].map(f => (
+          <button
+            key={f.id}
+            onClick={() => setFilterStatus(f.id)}
+            className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all ${filterStatus === f.id ? "bg-primary text-white" : "bg-gray-100 text-gray-400"}`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {filtered.length > 0 && (
         <div className="bg-orange-50 rounded-2xl px-4 py-3 border border-orange-100 text-center">
           <p className="text-[11px] font-black text-primary uppercase tracking-widest">
-            {filtered.length} demande{filtered.length > 1 ? "s" : ""} en attente
+            {filtered.length} rendez-vous
           </p>
         </div>
       )}
@@ -587,12 +640,16 @@ function DemandesTab({ proEmail, reservations, setReservations }) {
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center py-12 gap-2">
           <CheckCircle className="w-10 h-10 text-green-400" />
-          <p className="text-[13px] font-bold text-gray-400">Aucune demande en attente</p>
+          <p className="text-[13px] font-bold text-gray-400">
+            {reservations.length === 0 ? "Aucun rendez-vous pour le moment" : "Aucun résultat pour ce filtre"}
+          </p>
         </div>
       ) : (
         filtered.map(r => (
           <div key={r.id} className="bg-white rounded-3xl p-4 shadow-sm border border-gray-100 relative">
-            <span className="absolute top-4 right-4 bg-orange-100 text-primary text-[10px] font-black uppercase px-3 py-1 rounded-full">Nouveau</span>
+            <span className={`absolute top-4 right-4 text-[10px] font-black uppercase px-3 py-1 rounded-full ${statusBadgeColors[r.status] || "bg-gray-100 text-gray-500"}`}>
+              {statusLabels[r.status] || r.status}
+            </span>
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center shrink-0">
                 <span className="text-[18px] font-black text-primary">{(r.client_email || "?")[0].toUpperCase()}</span>
@@ -609,25 +666,45 @@ function DemandesTab({ proEmail, reservations, setReservations }) {
               </div>
               <div>
                 <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Durée & Prix</p>
-                <p className="text-[14px] font-black text-gray-900">{r.duration_min}min • {r.total_price || r.service_price}€</p>
+                <p className="text-[14px] font-black text-gray-900">{r.duration_min || 60}min • {r.total_price || r.service_price}€</p>
               </div>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => handleAction(r.id, "annule")}
-                disabled={updating === r.id}
-                className="flex-1 py-3 rounded-2xl text-[12px] font-black text-gray-500 uppercase tracking-widest border border-gray-200 active:scale-95 transition-all"
-              >
-                Refuser
-              </button>
-              <button
-                onClick={() => handleAction(r.id, "confirme")}
-                disabled={updating === r.id}
-                className="flex-1 bg-[#1a2035] text-white py-3 rounded-2xl text-[12px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
-              >
-                {updating === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Accepter"}
-              </button>
-            </div>
+            {r.status === "en_attente" && (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleAction(r.id, "annule")}
+                  disabled={updating === r.id}
+                  className="flex-1 py-3 rounded-2xl text-[12px] font-black text-gray-500 uppercase tracking-widest border border-gray-200 active:scale-95 transition-all"
+                >
+                  Refuser
+                </button>
+                <button
+                  onClick={() => handleAction(r.id, "confirme")}
+                  disabled={updating === r.id}
+                  className="flex-1 bg-[#1a2035] text-white py-3 rounded-2xl text-[12px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {updating === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Accepter"}
+                </button>
+              </div>
+            )}
+            {r.status === "confirme" && (
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleAction(r.id, "annule")}
+                  disabled={updating === r.id}
+                  className="flex-1 py-3 rounded-2xl text-[12px] font-black text-red-400 uppercase tracking-widest border border-red-100 active:scale-95 transition-all"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => handleAction(r.id, "termine")}
+                  disabled={updating === r.id}
+                  className="flex-1 bg-green-500 text-white py-3 rounded-2xl text-[12px] font-black uppercase tracking-widest active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {updating === r.id ? <Loader2 className="w-4 h-4 animate-spin" /> : "Terminé"}
+                </button>
+              </div>
+            )}
           </div>
         ))
       )}
@@ -978,15 +1055,24 @@ export default function GestionAgenda() {
   const horairesLabel = travailNuit ? "21h – 07h (Mode Nuit)" : "09h – 19h";
 
   const loadReservations = async () => {
-    if (!proEmail) return;
-    const [data, profils] = await Promise.all([
-      entities.Reservation.filter({ pro_email: proEmail }, "-date", 200).catch(() => []),
-      entities.ProfilPro.filter({ user_email: proEmail }, "-created_at", 1).catch(() => []),
-    ]);
-    setReservations(data);
-    if (profils.length > 0) {
-      setTravailNuit(profils[0].travail_nuit || false);
-      setProfilId(profils[0].id);
+    console.log('[GestionAgenda] loadReservations called, proEmail:', proEmail);
+    if (!proEmail) { setLoading(false); return; }
+    try {
+      const [data, profils] = await Promise.all([
+        entities.Reservation.filter({ pro_email: proEmail }, "-date", 200).catch(e => {
+          console.error('[GestionAgenda] Reservation filter error:', e);
+          return [];
+        }),
+        entities.ProfilPro.filter({ user_email: proEmail }, "-created_at", 1).catch(() => []),
+      ]);
+      console.log('[GestionAgenda] Loaded reservations:', data?.length, data);
+      setReservations(data || []);
+      if (profils.length > 0) {
+        setTravailNuit(profils[0].travail_nuit || false);
+        setProfilId(profils[0].id);
+      }
+    } catch (e) {
+      console.error('[GestionAgenda] loadReservations error:', e);
     }
     setLoading(false);
   };

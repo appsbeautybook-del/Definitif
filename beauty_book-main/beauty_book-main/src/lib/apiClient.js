@@ -448,6 +448,7 @@ export const apiClient = {
       service_price: payload.service_price || 0,
       date: payload.date || new Date().toISOString().slice(0, 10),
       time: payload.time_slot || payload.time || "00:00",
+      time_slot: payload.time_slot || payload.time || "00:00",
       end_time_slot: endSlot,
       duration_min: dur,
       persons: payload.persons || 1,
@@ -457,6 +458,7 @@ export const apiClient = {
       payment_type: payload.payment_type || "surplace",
       payment_status: "non_paye",
       crg_code: payload.crg_code || "",
+      notes: payload.notes || "",
       status: "en_attente",
     };
 
@@ -468,12 +470,15 @@ export const apiClient = {
     // Known columns that exist in the Reservation table (backend-validated)
     const KNOWN_COLUMNS = [
       "id", "created_at",
-      "client_email", "pro_email", "pro_name",
-      "service_name", "service_price", "date", "time", "end_time_slot",
+      "client_email", "pro_name", "pro_email",
+      "service_name", "service_price", "service_id",
+      "date", "time", "time_slot", "end_time_slot",
       "duration_min", "persons", "total_price",
       "salon_name", "salon_address", "seats_total",
-      "payment_type", "crg_code", "acompte_amount",
-      "status",
+      "payment_type", "payment_status", "crg_code", "acompte_amount",
+      "status", "notes", "addons",
+      "reminder_scheduled", "reminder_sent", "completed_at",
+      "review_requested", "created_by_id",
     ];
 
     // Discover actual columns if table has data, fallback to known list
