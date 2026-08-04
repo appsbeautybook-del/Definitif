@@ -675,36 +675,41 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
       if (!apiData) {
         const OR_KEY_B64 = 'c2stb3ItdjEtOThjODllNjY1MzI5ZTdkYjg5YmQ3MmVmOGRiNzVjZTYyYjk1YWY4ZDRjMDNjOTI2YzZkZDIxOWE3NTcxMDRmZQ==';
         const OR_KEY = atob(OR_KEY_B64);
+        const FREE_MODELS = [
+          'meta-llama/llama-4-scout:free',
+          'google/gemma-4-31b-it:free',
+          'nvidia/nemotron-3-ultra-550b-a55b:free',
+        ];
         console.log('[Maria] Calling OpenRouter directly...');
-        try {
-          const directRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${OR_KEY}`,
-              'HTTP-Referer': window.location.origin,
-              'X-Title': 'BeautyBook Maria AI',
-            },
-            body: JSON.stringify({
-              model: 'google/gemma-4-31b-it:free',
-              messages: [
-                { role: 'system', content: MARIA_SYSTEM_PROMPT },
-                ...historyMsgs,
-                { role: 'user', content: userContent },
-              ],
-              temperature: 0.7,
-              max_tokens: 512,
-            }),
-          });
-          console.log('[Maria] OpenRouter response:', directRes.status);
-          if (directRes.ok) {
-            apiData = await directRes.json();
-          } else {
-            const errBody = await directRes.text().catch(() => '');
-            console.log('[Maria] OpenRouter failed:', directRes.status, errBody.substring(0, 200));
+        for (const freeModel of FREE_MODELS) {
+          try {
+            const directRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OR_KEY}`,
+                'HTTP-Referer': window.location.origin,
+                'X-Title': 'BeautyBook Maria AI',
+              },
+              body: JSON.stringify({
+                model: freeModel,
+                messages: [
+                  { role: 'system', content: MARIA_SYSTEM_PROMPT },
+                  ...historyMsgs,
+                  { role: 'user', content: userContent },
+                ],
+                temperature: 0.7,
+                max_tokens: 512,
+              }),
+            });
+            console.log('[Maria]', freeModel, '→', directRes.status);
+            if (directRes.ok) {
+              apiData = await directRes.json();
+              break;
+            }
+          } catch (e) {
+            console.log('[Maria]', freeModel, 'error:', e.message);
           }
-        } catch (e) {
-          console.log('[Maria] OpenRouter error:', e.message);
         }
       }
 

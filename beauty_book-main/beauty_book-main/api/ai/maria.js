@@ -215,32 +215,40 @@ Retourne UNIQUEMENT ce JSON (sans markdown) :
     }
   }
 
-  // ── Default: chat completions via OpenRouter free model ─────────────────────
-  const FREE_MODEL = 'google/gemma-4-31b-it:free';
+  // ── Default: chat completions via OpenRouter free models (cascade) ─────────
+  const FREE_MODELS = [
+    'meta-llama/llama-4-scout:free',
+    'google/gemma-4-31b-it:free',
+    'nvidia/nemotron-3-ultra-550b-a55b:free',
+    'qwen/qwen3-coder:free',
+  ];
 
-  try {
-    const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENROUTER_KEY}`,
-        'HTTP-Referer': 'https://definitif-beta.vercel.app',
-        'X-Title': 'BeautyBook Maria AI',
-      },
-      body: JSON.stringify({ model: FREE_MODEL, messages, temperature: temperature || 0.7, max_tokens: max_tokens || 512 }),
-    });
+  for (const freeModel of FREE_MODELS) {
+    try {
+      const apiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENROUTER_KEY}`,
+          'HTTP-Referer': 'https://definitif-beta.vercel.app',
+          'X-Title': 'BeautyBook Maria AI',
+        },
+        body: JSON.stringify({ model: freeModel, messages, temperature: temperature || 0.7, max_tokens: max_tokens || 512 }),
+      });
 
-    if (!apiRes.ok) {
-      const errBody = await apiRes.text().catch(() => 'OpenRouter error');
-      console.error('[maria] OpenRouter error:', apiRes.status, errBody);
-      return res.status(500).json({ error: `OpenRouter error: ${errBody}` });
+      if (apiRes.ok) {
+        const data = await apiRes.json();
+        console.log('[maria] Success with model:', freeModel);
+        return res.status(200).json(data);
+      }
+
+      const errBody = await apiRes.text().catch(() => '');
+      console.log('[maria] Model', freeModel, 'failed:', apiRes.status, errBody.substring(0, 150));
+    } catch (err) {
+      console.log('[maria] Model', freeModel, 'error:', err.message);
     }
-
-    const data = await apiRes.json();
-    return res.status(200).json(data);
-  } catch (err) {
-    console.error('[api/ai/maria] API error:', err.message);
-    return res.status(500).json({ error: err.message });
   }
+
+  return res.status(500).json({ error: 'Tous les modèles IA sont temporairement indisponibles. Réessayez dans quelques secondes.' });
 }
 
