@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { apiClient } from '@/lib/apiClient';
+import { notifyPaymentConfirmed } from '@/lib/notificationService';
 import QRCode from "qrcode";
 
 // ── Formatage carte bancaire ──────────────────────────────────────────────────
@@ -644,6 +645,20 @@ export default function StepConfirmation({ booking, onConfirm, onBack }) {
       };
 
       setConfirmed(true);
+
+      // Notification paiement au client
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const amount = paymentMode === "acompte" ? Math.round(totalPrice * 0.3) : totalPrice;
+        await notifyPaymentConfirmed({
+          clientEmail: user?.email,
+          serviceName,
+          amount,
+          date: dateStr,
+        });
+      } catch (e) {
+        console.error("Payment notification error:", e);
+      }
     } catch (err) {
       const msg = err?.message || "Erreur lors de la réservation. Veuillez réessayer.";
       setError(msg);

@@ -1,12 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Bell, Check, X, Settings,
   MessageCircle, CalendarCheck, Tag, Star, ShoppingBag,
   ShieldCheck, Scissors, User, Megaphone
 } from "lucide-react";
-import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
+import {
+  loadNotifications,
+  markAsRead,
+  markAllAsRead as markAllAsReadService,
+} from '@/lib/notificationService';
 
 // Détermine le type d'icône selon le type de notif + metadata expéditeur
 function getNotifVisual(notif) {
@@ -50,7 +54,7 @@ function SenderBadge({ notif }) {
 
 function NotifItem({ notif, onRead, onNavigate, onDelete }) {
   const { Icon, bg, iconColor, border } = getNotifVisual(notif);
-  const date = new Date(notif.created_date);
+  const date = new Date(notif.created_at);
   const now = new Date();
   const diffMin = Math.floor((now - date) / 60000);
   let timeLabel;
@@ -74,28 +78,30 @@ function NotifItem({ notif, onRead, onNavigate, onDelete }) {
       } else {
         onNavigate("/messages");
       }
+    } else if (notif.action_url) {
+      onNavigate(notif.action_url);
     } else if (notif.link) {
       onNavigate(notif.link);
     }
   };
 
   return (
-    <div className={`flex items-start gap-3 px-4 py-4 border-b border-gray-50 transition-all ${!notif.read ? "bg-primary/[0.03]" : ""}`}>
+    <div className={`flex items-start gap-3 px-4 py-4 border-b border-gray-50 transition-all ${!notif.read && !notif.is_read ? "bg-primary/[0.03]" : ""}`}>
       <button onClick={handleClick} className="flex items-start gap-3 flex-1 text-left active:scale-[0.99] transition-all min-w-0">
         <div className={`w-11 h-11 ${bg} ${border} border rounded-2xl flex items-center justify-center shrink-0`}>
           <Icon className={`w-5 h-5 ${iconColor}`} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <p className={`text-[13px] leading-snug ${!notif.read ? "font-black text-gray-900" : "font-bold text-gray-700"}`}>
+            <p className={`text-[13px] leading-snug ${!notif.read && !notif.is_read ? "font-black text-gray-900" : "font-bold text-gray-700"}`}>
               {notif.title}
             </p>
             <span className="text-[10px] text-gray-400 shrink-0 mt-0.5 font-medium">{timeLabel}</span>
           </div>
-          <p className="text-[12px] text-gray-500 font-medium mt-0.5 leading-snug">{notif.body}</p>
+          <p className="text-[12px] text-gray-500 font-medium mt-0.5 leading-snug">{notif.body || notif.message}</p>
           <SenderBadge notif={notif} />
         </div>
-        {!notif.read && (
+        {!notif.read && !notif.is_read && (
           <div className="w-2 h-2 bg-primary rounded-full shrink-0 mt-1.5" />
         )}
       </button>
@@ -114,26 +120,57 @@ export default function Notifications() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const userEmailRef = useRef(null);
 
   useEffect(() => {
     loadNotifications();
   }, []);
 
+  // Realtime subscription for new notifications
+  useEffect(() => {
+    const channel = supabase
+      .channel("notifications-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "Notification" },
+        (payload) => {
+          const newNotif = payload.new;
+          if (userEmailRef.current && newNotif.user_email === userEmailRef.current) {
+            setNotifications(prev => [newNotif, ...prev]);
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const loadNotifications = async () => {
     setLoading(true);
-    const res = await /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("getNotifications", {});
-    setNotifications(res.data.notifications || []);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setLoading(false); return; }
+      userEmailRef.current = user.email;
+      const notifs = await loadNotifications(user.email, 50);
+      setNotifications(notifs);
+    } catch (e) {
+      console.error("Load notifications error:", e);
+    }
     setLoading(false);
   };
 
   const markRead = async (id) => {
-    await /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("markNotificationsRead", { notificationId: id });
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    await markAsRead(id);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true, is_read: true } : n));
   };
 
   const markAllRead = async () => {
-    await /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("markNotificationsRead", {});
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) await markAllAsReadService(user.email);
+    } catch (e) {
+      console.error("Mark all read error:", e);
+    }
+    setNotifications(prev => prev.map(n => ({ ...n, read: true, is_read: true })));
   };
 
   const deleteNotif = async (id) => {
@@ -141,7 +178,7 @@ export default function Notifications() {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.read && !n.is_read).length;
 
   return (
     <div className="font-display bg-white min-h-full">

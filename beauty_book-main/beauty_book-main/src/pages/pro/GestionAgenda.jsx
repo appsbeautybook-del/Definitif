@@ -3,6 +3,11 @@ import { useAuth } from "@/lib/AuthContext";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { apiClient } from '@/lib/apiClient';
+import {
+  notifyReservationConfirmed,
+  notifyReservationCancelled,
+  notifyNewReservation,
+} from '@/lib/notificationService';
 import { useState, useEffect, useRef } from "react";
 import {
   Plus, X, Search, ChevronRight, Lightbulb, Rocket,
@@ -22,6 +27,7 @@ function buildWeek(baseDate) {
 
 // ── RDV Detail Modal ──────────────────────────────────────────────────────────
 function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [codeInput, setCodeInput] = useState(["", "", "", ""]);
   const [codeError, setCodeError] = useState(false);
@@ -51,6 +57,30 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
     } else {
       await entities.Reservation.update(rdv.id, { status });
     }
+
+    // Envoyer notification au client
+    try {
+      const serviceName = rdv.service_name || rdv.service || "votre rendez-vous";
+      const date = rdv.date || "";
+      const time = rdv.time || rdv.time_slot || "";
+      const proDisplayName = rdv.pro_name || rdv.salon_name || proEmail;
+      if (status === "confirme") {
+        await notifyReservationConfirmed({
+          clientEmail: rdv.client_email,
+          serviceName, date, time,
+          proName: proDisplayName,
+        });
+      } else if (status === "annule") {
+        await notifyReservationCancelled({
+          clientEmail: rdv.client_email,
+          serviceName, date,
+          proName: proDisplayName,
+        });
+      }
+    } catch (e) {
+      console.error("Notification error:", e);
+    }
+
     onUpdateStatus(rdv.id, status);
     setLoading(false);
     onClose();
@@ -634,6 +664,30 @@ function DemandesTab({ proEmail, reservations, setReservations }) {
     setUpdating(id);
     await entities.Reservation.update(id, { status });
     setReservations(prev => prev.map(r => r.id === id ? { ...r, status } : r));
+
+    // Envoyer notification au client
+    try {
+      const rdv = reservations.find(r => r.id === id);
+      if (rdv) {
+        const serviceName = rdv.service_name || rdv.service || "votre rendez-vous";
+        const date = rdv.date || "";
+        const proDisplayName = rdv.pro_name || rdv.salon_name || proEmail;
+        if (status === "confirme") {
+          await notifyReservationConfirmed({
+            clientEmail: rdv.client_email, serviceName, date,
+            time: rdv.time || rdv.time_slot || "", proName: proDisplayName,
+          });
+        } else if (status === "annule") {
+          await notifyReservationCancelled({
+            clientEmail: rdv.client_email, serviceName, date,
+            proName: proDisplayName,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Notification error:", e);
+    }
+
     setUpdating(null);
   };
 

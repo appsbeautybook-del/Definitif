@@ -513,9 +513,11 @@ export const apiClient = {
       {
         user_email: user.email,
         type: "reservation",
-        title: "✅ Réservation confirmée !",
-        body: `Votre rendez-vous pour "${payload.service_name}" est confirmé le ${payload.date} à ${payload.time_slot}. À bientôt !`,
-        link: "/rendez-vous",
+        title: "✅ Réservation créée",
+        body: `Votre rendez-vous "${payload.service_name}" le ${payload.date} à ${payload.time_slot} est en attente de confirmation.`,
+        action_url: "/rendez-vous",
+        message: `Votre rendez-vous "${payload.service_name}" le ${payload.date} à ${payload.time_slot} est en attente de confirmation.`,
+        is_read: false,
         read: false,
         data: { reservation_id: reservation.id },
       },
@@ -523,8 +525,10 @@ export const apiClient = {
         user_email: payload.pro_email,
         type: "reservation",
         title: "📅 Nouvelle réservation",
-        body: `${user.email} a réservé : ${payload.service_name} le ${payload.date} à ${payload.time_slot || payload.time || "00:00"}`,
-        link: "/pro/gestion-agenda",
+        body: `${user.email} a réservé "${payload.service_name}" le ${payload.date} à ${payload.time_slot || payload.time || "00:00"}.`,
+        action_url: "/pro/gestion-agenda",
+        message: `${user.email} a réservé "${payload.service_name}" le ${payload.date} à ${payload.time_slot || payload.time || "00:00"}.`,
+        is_read: false,
         read: false,
       }
     ]);

@@ -1,8 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { MapPin, Radio, Compass, Users, ShoppingBag, Building2, Star } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
+import { getUnreadCount } from '@/lib/notificationService';
 import CityPickerModal from "@/components/layout/CityPickerModal";
 
 const topTabs = [
@@ -27,22 +28,85 @@ export default function MainHeader() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [notifRes, panierRes, msgRes] = await Promise.all([
-          /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("getNotifications", {}),
-          /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("getPanier", {}),
-          /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("getMessages", {}),
-        ]);
-        setUnreadNotifs(notifRes.data?.unread || 0);
-        const items = panierRes.data?.panier?.items || [];
-        setCartCount(items.reduce((s, i) => s + (i.quantity || 1), 0));
-        const convs = msgRes.data?.conversations || [];
-        setUnreadMessages(convs.reduce((s, c) => s + (c.unread || 0), 0));
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Notifications non lues
+        const notifCount = await getUnreadCount(user.email);
+        setUnreadNotifs(notifCount);
+
+        // Messages non lus
+        try {
+          const convIds = new Set();
+          const [sent, received] = await Promise.all([
+            entities.MessageChat.filter({ sender_email: user.email }, null, 200).catch(() => []),
+            entities.MessageChat.filter({ receiver_email: user.email }, null, 200).catch(() => []),
+          ]);
+          const allMsgs = [...sent, ...received];
+          for (const m of allMsgs) {
+            if (m.conversation_id) convIds.add(m.conversation_id);
+          }
+          let unread = 0;
+          for (const convId of convIds) {
+            const { count } = await supabase
+              .from("MessageChat")
+              .select("id", { count: "exact", head: true })
+              .eq("conversation_id", convId)
+              .eq("receiver_email", user.email)
+              .eq("read", false);
+            unread += count || 0;
+          }
+          setUnreadMessages(unread);
+        } catch {
+          // silently fail for messages
+        }
+
+        // Panier
+        try {
+          const { data: panier } = await entities.Panier.filter({ user_email: user.email }, "-created_at", 1);
+          if (panier && panier[0]?.items) {
+            setCartCount(panier[0].items.reduce((s, i) => s + (i.quantity || 1), 0));
+          }
+        } catch {
+          // silently fail
+        }
       } catch {
         // silently fail
       }
     };
     load();
   }, [location.pathname]);
+
+  // Realtime notification badge
+  useEffect(() => {
+    let userEmail = null;
+    supabase.auth.getUser().then(({ data }) => {
+      userEmail = data?.user?.email;
+      if (!userEmail) return;
+      const channel = supabase
+        .channel("header-notif-badge")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "Notification" },
+          (payload) => {
+            if (payload.new?.user_email === userEmail) {
+              setUnreadNotifs(prev => prev + 1);
+            }
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "Notification" },
+          (payload) => {
+            if (payload.new?.user_email === userEmail && (payload.new?.read || payload.new?.is_read)) {
+              setUnreadNotifs(prev => Math.max(0, prev - 1));
+            }
+          }
+        )
+        .subscribe();
+    });
+    return () => { supabase.removeAllChannels(); };
+  }, []);
 
   return (
     <>

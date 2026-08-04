@@ -6,6 +6,7 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from "@/lib/AuthContext";
 import usePullToRefresh from "@/hooks/usePullToRefresh";
 import { useCall } from "@/components/call/CallManager";
+import { notifyMessageReceived } from '@/lib/notificationService';
 
 // ── Maria AI Toggle ───────────────────────────────────────────────────────────
 const MARIA_AI_KEY = "bb_maria_ai_active";
@@ -347,6 +348,19 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     if (error) console.error("Send message error:", error);
     setSending(false);
     loadMessages();
+
+    // Notification au destinataire
+    try {
+      await notifyMessageReceived({
+        receiverEmail: conversation.other_email,
+        senderName: currentUser.user_metadata?.full_name || currentUser.email,
+        senderEmail: currentUser.email,
+        conversationId: convId,
+        preview: content || (fileUrl ? "📷 Image" : ""),
+      });
+    } catch (e) {
+      console.error("Message notification error:", e);
+    }
   };
 
   const isReadonly = conversation.readonly;
