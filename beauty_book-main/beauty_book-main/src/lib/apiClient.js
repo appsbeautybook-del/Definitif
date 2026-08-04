@@ -463,7 +463,6 @@ export const apiClient = {
         persons: payload.persons || 1,
         addons: payload.addons || [],
         total_price: payload.total_price || 0,
-        acompte_amount: payload.payment_type === "acompte" ? Math.round((payload.total_price || 0) * 0.3 * 100) / 100 : 0,
         notes: payload.notes || "",
         salon_name: payload.salon_name || "",
         salon_address: payload.salon_address || "",

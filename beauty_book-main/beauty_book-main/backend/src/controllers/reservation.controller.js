@@ -148,7 +148,6 @@ export const createReservation = async (req, res) => {
         persons,
         addons: addons || [],
         total_price,
-        acompte_amount: acompteAmount,
         notes,
         salon_name,
         salon_address,
