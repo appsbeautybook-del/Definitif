@@ -47,7 +47,7 @@ const DEFAULT_OUVERTURE = {
   dimanche: { open: false },
 };
 
-function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travailNuit = false) {
+function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travailNuit = false, minSlotMin = null) {
   const ov = (ouverture && Object.keys(ouverture).length > 0) ? ouverture : DEFAULT_OUVERTURE;
 
   const dow = getDay(date);
@@ -69,22 +69,23 @@ function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travai
   const openMin = timeToMin(dayConfig.start || "09:00");
   const closeMin = timeToMin(dayConfig.end || "18:00");
 
-  let cursor = openMin;
-  while (cursor + duration <= closeMin) {
-    const slotStr = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
-    const endStr = addMinutes(slotStr, duration);
-    const duringPause = (pauses || []).some(p => {
-      const pStart = timeToMin(p.start || "00:00");
-      const pEnd = timeToMin(p.end || "00:00");
-      return timeToMin(slotStr) < pEnd && timeToMin(endStr) > pStart;
-    });
-    if (!duringPause) {
-      if (cursor < 12 * 60) morning.push(slotStr);
-      else if (cursor < 18 * 60) afternoon.push(slotStr);
-      else evening.push(slotStr);
+    let cursor = openMin;
+    while (cursor + duration <= closeMin) {
+      const slotStr = `${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`;
+      const endStr = addMinutes(slotStr, duration);
+      const duringPause = (pauses || []).some(p => {
+        const pStart = timeToMin(p.start || "00:00");
+        const pEnd = timeToMin(p.end || "00:00");
+        return timeToMin(slotStr) < pEnd && timeToMin(endStr) > pStart;
+      });
+      const isPast = minSlotMin !== null && cursor < minSlotMin;
+      if (!duringPause && !isPast) {
+        if (cursor < 12 * 60) morning.push(slotStr);
+        else if (cursor < 18 * 60) afternoon.push(slotStr);
+        else evening.push(slotStr);
+      }
+      cursor += interval;
     }
-    cursor += interval;
-  }
 
   // Plage nocturne si activée : 21h00 → 07h00 (les minutes > 24h sont représentées mod 24h pour l'affichage)
   if (travailNuit) {
@@ -95,7 +96,9 @@ function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travai
       const h = Math.floor(nightCursor / 60) % 24;
       const m = nightCursor % 60;
       const slotStr = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-      night.push(slotStr);
+      const nightMinSlot = minSlotMin !== null ? (minSlotMin < nightStart ? nightStart : minSlotMin > 24*60 ? minSlotMin - 24*60 : minSlotMin) : null;
+      const isNightPast = nightMinSlot !== null && (h * 60 + m) < nightMinSlot;
+      if (!isNightPast) night.push(slotStr);
       nightCursor += interval;
     }
   }
@@ -224,7 +227,7 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
     const dateStr = format(selectedDate, "yyyy-MM-dd");
 
     // Générer tous les créneaux théoriques pour cette date
-    const slotsForDay = generateSlotsForDay(selectedDate, proOuverture, proPauses, dur, travailNuit);
+    const slotsForDay = generateSlotsForDay(selectedDate, proOuverture, proPauses, dur, travailNuit, isToday(selectedDate) ? (new Date().getHours() * 60 + new Date().getMinutes()) : null);
     const allSlots = slotsForDay.open !== false
       ? [...(slotsForDay.morning || []), ...(slotsForDay.afternoon || []), ...(slotsForDay.evening || []), ...(slotsForDay.night || [])]
       : [];
@@ -296,12 +299,12 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
   // Générer les créneaux pour le jour sélectionné
   // On génère dès que loadingPro est false (même si proOuverture est null)
   const slots = selectedDate && !loadingPro
-    ? generateSlotsForDay(selectedDate, proOuverture, proPauses, dur, travailNuit)
+    ? generateSlotsForDay(selectedDate, proOuverture, proPauses, dur, travailNuit, isToday(selectedDate) ? (new Date().getHours() * 60 + new Date().getMinutes()) : null)
     : null;
 
   // Déterminer si un jour du calendrier a des créneaux disponibles (pour l'indicateur visuel)
   const isDayAvailable = (day) => {
-    const s = generateSlotsForDay(day, proOuverture, proPauses, dur, travailNuit);
+    const s = generateSlotsForDay(day, proOuverture, proPauses, dur, travailNuit, null);
     return s.open !== false && (s.morning?.length > 0 || s.afternoon?.length > 0 || s.evening?.length > 0 || s.night?.length > 0);
   };
 
