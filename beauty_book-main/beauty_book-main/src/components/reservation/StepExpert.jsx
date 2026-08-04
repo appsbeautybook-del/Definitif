@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { entities } from "@/api/entities";
+import { supabase } from "@/api/supabaseClient";
 
 const PROFILE_IMG = "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=80";
 
@@ -12,29 +13,67 @@ const ANY_EXPERT = {
   isAny: true,
 };
 
+function mapMember(m) {
+  return {
+    id: m.id,
+    name: m.name || m.membre_name || "Membre",
+    subtitle: m.specialites || m.specialties || m.role || "Expert BeautyBook",
+    avatar: m.membre_avatar || m.avatar_url || null,
+    rating: null,
+    reviews: null,
+    memberEmail: m.membre_email || "",
+  };
+}
+
 export default function StepExpert({ selected, onSelect, onNext, onBack, proProfile, proEmail }) {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const current = selected ?? ANY_EXPERT;
 
   useEffect(() => {
-    if (!proEmail) { setLoading(false); return; }
-    entities.MembreEquipe.filter({ pro_email: proEmail }, "-created_at", 50)
-      .then(data => {
-        const mapped = (data || []).map(m => ({
-          id: m.id,
-          name: m.name || m.membre_name || "Membre",
-          subtitle: m.specialites || m.specialties || m.role || "Expert BeautyBook",
-          avatar: m.membre_avatar || m.avatar_url || null,
-          rating: null,
-          reviews: null,
-          memberEmail: m.membre_email || "",
-        }));
-        setMembers(mapped);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [proEmail]);
+    let cancelled = false;
+
+    const loadMembers = async () => {
+      setLoading(true);
+      try {
+        let results = [];
+
+        // Strategy 1: filter by pro_email if provided
+        if (proEmail) {
+          results = await entities.MembreEquipe.filter({ pro_email: proEmail }, "-created_at", 50).catch(() => []);
+        }
+
+        // Strategy 2: if no results, try logged-in user's email
+        if (results.length === 0) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user?.email && user.email !== proEmail) {
+            results = await entities.MembreEquipe.filter({ pro_email: user.email }, "-created_at", 50).catch(() => []);
+          }
+        }
+
+        // Strategy 3: if still no results, try to find via ProfilPro team_emails
+        if (results.length === 0 && proProfile?.team_emails?.length > 0) {
+          const allMembers = await Promise.all(
+            proProfile.team_emails.map(email =>
+              entities.MembreEquipe.filter({ pro_email: email }, "-created_at", 20).catch(() => [])
+            )
+          );
+          results = allMembers.flat();
+        }
+
+        if (!cancelled) {
+          setMembers(results.map(mapMember));
+        }
+      } catch {
+        if (!cancelled) setMembers([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadMembers();
+    return () => { cancelled = true; };
+  }, [proEmail, proProfile?.team_emails]);
 
   const experts = [ANY_EXPERT, ...members];
 
