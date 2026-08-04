@@ -2,6 +2,7 @@ import { ArrowLeft, MapPin, Clock, CheckCircle2, Loader, Users, Download, Credit
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { apiClient } from '@/lib/apiClient';
@@ -296,6 +297,17 @@ function QRCodeDisplay({ value, size = 200 }) {
 
 // ── Écran de confirmation avec QR Code ───────────────────────────────────────
 function ConfirmationSuccess({ totalPrice, icsData, crgCode, paymentMode, acompteAmount }) {
+  const navigate = useNavigate();
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    if (countdown <= 0) {
+      navigate("/rendez-vous", { replace: true });
+      return;
+    }
+    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, navigate]);
   const downloadICS = () => {
     if (!icsData) return;
     const blob = new Blob([decodeURIComponent(escape(atob(icsData)))], { type: "text/calendar" });
@@ -426,6 +438,16 @@ function ConfirmationSuccess({ totalPrice, icsData, crgCode, paymentMode, acompt
             Apple / Autre calendrier (.ics)
           </button>
         )}
+      </div>
+
+      {/* Redirection automatique vers /rendez-vous */}
+      <div className="w-full space-y-2">
+        <button
+          onClick={() => navigate("/rendez-vous", { replace: true })}
+          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary text-white rounded-2xl font-black text-[13px] uppercase tracking-widest active:scale-95 transition-all"
+        >
+          Voir mes rendez-vous ({countdown}s)
+        </button>
       </div>
     </div>
   );

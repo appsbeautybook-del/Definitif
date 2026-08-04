@@ -446,28 +446,55 @@ export const apiClient = {
     const endM = endMin % 60;
     const endSlot = `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
 
-    const { data: reservation, error } = await supabase
+    const fullPayload = {
+      client_email: user.email,
+      pro_email: payload.pro_email || "",
+      pro_name: payload.pro_name || "",
+      service_name: payload.service_name || "",
+      service_price: payload.service_price || 0,
+      date: payload.date,
+      time_slot: payload.time_slot,
+      end_time_slot: endSlot,
+      duration_min: dur,
+      persons: payload.persons || 1,
+      total_price: payload.total_price || 0,
+      salon_name: payload.salon_name || "",
+      salon_address: payload.salon_address || "",
+      status: "confirme",
+      crg_code: payload.crg_code || "",
+    };
+
+    let reservation = null;
+
+    const { data: result1, error: err1 } = await supabase
       .from('Reservation')
-      .insert({
+      .insert(fullPayload)
+      .select()
+      .single();
+
+    if (!err1) {
+      reservation = result1;
+    } else if (err1.message && err1.message.includes('column')) {
+      // Schema cache error: missing column. Retry with only safe columns.
+      const safePayload = {
         client_email: user.email,
         pro_email: payload.pro_email || "",
-        pro_name: payload.pro_name || "",
         service_name: payload.service_name || "",
         service_price: payload.service_price || 0,
         date: payload.date,
         time_slot: payload.time_slot,
-        end_time_slot: endSlot,
-        duration_min: dur,
-        persons: payload.persons || 1,
-        total_price: payload.total_price || 0,
-        salon_name: payload.salon_name || "",
-        salon_address: payload.salon_address || "",
         status: "confirme",
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
+      };
+      const { data: result2, error: err2 } = await supabase
+        .from('Reservation')
+        .insert(safePayload)
+        .select()
+        .single();
+      if (err2) throw err2;
+      reservation = result2;
+    } else {
+      throw err1;
+    }
 
     // Create notifications
     await supabase.from('Notification').insert([
