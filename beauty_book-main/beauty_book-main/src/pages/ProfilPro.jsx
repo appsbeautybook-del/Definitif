@@ -438,8 +438,9 @@ export default function ProfilPro() {
             onClick={async () => {
               const next = !nightMode;
               setNightMode(next);
-              if (proInfoCurrent?.id) {
-                await entities.ProfilPro.update(proInfoCurrent.id, { travail_nuit: next }).catch(() => {});
+              if (user?.email) {
+                const { error } = await supabase.from('ProfilPro').update({ travail_nuit: next }).eq('user_email', user.email);
+                if (error) console.error('[ProfilPro] Mode Nuit save error:', error.message);
               }
               window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { travail_nuit: next } }));
             }}

@@ -1281,7 +1281,10 @@ export default function GestionAgenda() {
             {activeTab === "gestion" && (
               <GestionTab onNavigate={navigate} travailNuit={travailNuit} profilId={profilId} onToggleNuit={async (val) => {
                 setTravailNuit(val);
-                if (profilId) await entities.ProfilPro.update(profilId, { travail_nuit: val }).catch(() => {});
+                if (proEmail) {
+                  const { error } = await supabase.from('ProfilPro').update({ travail_nuit: val }).eq('user_email', proEmail);
+                  if (error) console.error('[GestionAgenda] Mode Nuit save error:', error.message);
+                }
                 window.dispatchEvent(new CustomEvent('pro-profile-updated', { detail: { travail_nuit: val } }));
               }} />
             )}
