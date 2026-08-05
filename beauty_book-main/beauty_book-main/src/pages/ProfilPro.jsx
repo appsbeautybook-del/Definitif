@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
@@ -54,6 +54,7 @@ export default function ProfilPro() {
   const [stats, setStats] = useState({ rdvSemaine: 0, nouveauxClients: 0, caMonth: 0, caLastMonth: 0 });
   const [clientProfile, setClientProfile] = useState(null);
   const [demandeStatus, setDemandeStatus] = useState(null);
+  const nightModeTsRef = useRef(0);
 
   const loadProfil = () => {
     if (!user?.email) return;
@@ -97,7 +98,9 @@ export default function ProfilPro() {
         }
         if (p) {
           setProInfo(p);
-          setNightMode(p.travail_nuit || false);
+          if (Date.now() - nightModeTsRef.current > 2000) {
+            setNightMode(p.travail_nuit || false);
+          }
         }
         if (p?.status === 'actif') setDemandeStatus('approuvee');
       })
@@ -156,7 +159,7 @@ export default function ProfilPro() {
   useEffect(() => {
     const onUpdated = (e) => {
       const d = e.detail || {};
-      if (d.travail_nuit !== undefined) {
+      if (d.travail_nuit !== undefined && Date.now() - nightModeTsRef.current > 2000) {
         setNightMode(d.travail_nuit);
       }
       if (d.avatar_url || d.cover_url) {
@@ -437,6 +440,7 @@ export default function ProfilPro() {
           <button
             onClick={async () => {
               const next = !nightMode;
+              nightModeTsRef.current = Date.now();
               setNightMode(next);
               setProInfo(prev => prev ? { ...prev, travail_nuit: next } : prev);
               if (user?.email) {
