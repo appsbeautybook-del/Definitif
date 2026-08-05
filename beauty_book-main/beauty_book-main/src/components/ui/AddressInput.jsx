@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MapPin, Loader2, X } from "lucide-react";
 
-const DEBOUNCE_MS = 350;
+const DEBOUNCE_MS = 300;
 const MIN_CHARS = 3;
-const API_KEY = "AIzaSyCYUS4e9iOQzEEzCpGYYv9zM42PaCSz2uU";
+const BAN_URL = "https://api-adresse.data.gouv.fr/search/";
 
 export default function AddressInput({ value, onChange, onCityChange, onCoordinatesChange, placeholder, className }) {
   const [query, setQuery] = useState(value || "");
@@ -21,73 +21,33 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
     if (!q || q.length < MIN_CHARS) { setSuggestions([]); setOpen(false); return; }
     setLoading(true);
     try {
-      const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": API_KEY,
-        },
-        body: JSON.stringify({
-          input: q,
-          languageCode: "fr",
-          includedRegionCodes: ["fr", "be", "ch"],
-        }),
-      });
+      const res = await fetch(`${BAN_URL}?q=${encodeURIComponent(q)}&limit=6&lang=fr&type=housenumber,street,locality,municipality`);
       const data = await res.json();
-      const preds = data.suggestions || [];
-      setSuggestions(preds);
-      setOpen(preds.length > 0);
+      const feats = data.features || [];
+      setSuggestions(feats);
+      setOpen(feats.length > 0);
       setHighlightedIdx(-1);
     } catch (err) {
-      console.error("[AddressInput] autocomplete error:", err);
+      console.error("[AddressInput] BAN error:", err);
       setSuggestions([]);
       setOpen(false);
     }
     setLoading(false);
   }, []);
 
-  const fetchDetails = useCallback(async (prediction) => {
-    const placeId = prediction.placePrediction?.placeId;
-    if (!placeId) return;
-    try {
-      const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}?languageCode=fr`, {
-        method: "GET",
-        headers: { "X-Goog-Api-Key": API_KEY, "X-Goog-FieldMask": "formattedAddress,addressComponents,location" },
-      });
-      const place = await res.json();
-      if (place.error) {
-        console.error("[AddressInput] details error:", place.error);
-        const text = prediction.placePrediction?.text?.text || "";
-        setQuery(text);
-        setOpen(false);
-        onChange?.(text);
-        return;
-      }
-      let street = "", city = "", postalCode = "";
-      for (const c of place.addressComponents || []) {
-        const t = c.types || [];
-        if (t.includes("street_number")) street = (street ? street + " " : "") + c.longName;
-        if (t.includes("route")) street = (street ? street + " " : "") + c.longName;
-        if (t.includes("locality")) city = c.longName;
-        if (t.includes("postal_code")) postalCode = c.longName;
-      }
-      const display = street || place.formattedAddress?.split(",")[0] || prediction.placePrediction?.text?.text || "";
-      setQuery(display);
-      setOpen(false);
-      setSuggestions([]);
-      onChange?.(display);
-      if (city && onCityChange) onCityChange(city);
-      if (place.location && onCoordinatesChange) {
-        onCoordinatesChange({ latitude: place.location.latitude, longitude: place.location.longitude });
-      }
-    } catch (err) {
-      console.error("[AddressInput] fetchDetails error:", err);
-      const text = prediction.placePrediction?.text?.text || "";
-      setQuery(text);
-      setOpen(false);
-      onChange?.(text);
+  const handleSelect = (feature) => {
+    const p = feature.properties || {};
+    const g = feature.geometry?.coordinates || [];
+    const display = p.label || p.name || query;
+    setQuery(display);
+    setOpen(false);
+    setSuggestions([]);
+    onChange?.(display);
+    if (p.city && onCityChange) onCityChange(p.city);
+    if (g.length === 2 && onCoordinatesChange) {
+      onCoordinatesChange({ latitude: g[1], longitude: g[0] });
     }
-  }, [onChange, onCityChange, onCoordinatesChange]);
+  };
 
   const handleChange = (e) => {
     const val = e.target.value;
@@ -101,7 +61,7 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
     if (!open || suggestions.length === 0) return;
     if (e.key === "ArrowDown") { e.preventDefault(); setHighlightedIdx(i => (i + 1) % suggestions.length); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setHighlightedIdx(i => (i - 1 + suggestions.length) % suggestions.length); }
-    else if (e.key === "Enter" && highlightedIdx >= 0) { e.preventDefault(); fetchDetails(suggestions[highlightedIdx]); }
+    else if (e.key === "Enter" && highlightedIdx >= 0) { e.preventDefault(); handleSelect(suggestions[highlightedIdx]); }
     else if (e.key === "Escape") { setOpen(false); }
   };
 
@@ -143,13 +103,14 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
 
       {open && suggestions.length > 0 && (
         <div className="absolute z-[100] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-[260px] overflow-y-auto">
-          {suggestions.map((s, i) => {
-            const main = s.placePrediction?.text?.text || "";
-            const secondary = s.placePrediction?.structuredFormat?.secondaryText?.text || "";
+          {suggestions.map((feat, i) => {
+            const p = feat.properties || {};
+            const name = p.name || p.label || "";
+            const cityLine = [p.postcode, p.city].filter(Boolean).join(" ");
             return (
               <button
-                key={i}
-                onMouseDown={(e) => { e.preventDefault(); fetchDetails(s); }}
+                key={feat.geometry?.coordinates?.join(",") || i}
+                onMouseDown={(e) => { e.preventDefault(); handleSelect(feat); }}
                 onMouseEnter={() => setHighlightedIdx(i)}
                 className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0 ${
                   i === highlightedIdx ? "bg-orange-50" : "hover:bg-gray-50"
@@ -157,8 +118,8 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
               >
                 <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${i === highlightedIdx ? "text-[#E8732A]" : "text-gray-400"}`} />
                 <div className="min-w-0">
-                  <p className="text-[13px] font-semibold text-gray-800 truncate">{main}</p>
-                  {secondary && <p className="text-[11px] text-gray-400 truncate">{secondary}</p>}
+                  <p className="text-[13px] font-semibold text-gray-800 truncate">{name}</p>
+                  {cityLine && <p className="text-[11px] text-gray-400 truncate">{cityLine}</p>}
                 </div>
               </button>
             );
