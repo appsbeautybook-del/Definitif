@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { uploadFile } from '@/api/entities';
 import { adminApi } from "@/lib/adminApiClient";
-import { Plus, Trash2, Upload, Loader2, X, Home, Eye, EyeOff, MapPin, Ruler, Euro, Phone, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Upload, Loader2, X, Home, Eye, EyeOff, MapPin, Ruler, Euro, Phone, Mail, AlertCircle, CheckCircle2, FileText, Clock, Save, RotateCcw } from "lucide-react";
 import AddressInput from "@/components/ui/AddressInput";
 
 const inputCls = "w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary transition-colors";
 const labelCls = "text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1";
+const DRAFT_KEY = "bb_immobilier_draft";
+const DRAFTS_LIST_KEY = "bb_immobilier_drafts";
 
 const EMPTY_FORM = {
   title: "", description: "", type: "location",
@@ -17,22 +19,75 @@ const EMPTY_FORM = {
   contact_email: "", contact_phone: "", status: "actif",
 };
 
+function saveDraft(form) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify(form)); } catch {}
+}
+
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch { return null; }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch {}
+}
+
+function saveDraftToList(form) {
+  try {
+    const drafts = JSON.parse(localStorage.getItem(DRAFTS_LIST_KEY) || "[]");
+    const draft = { ...form, _draftId: Date.now(), _draftDate: new Date().toLocaleString("fr-FR") };
+    drafts.unshift(draft);
+    localStorage.setItem(DRAFTS_LIST_KEY, JSON.stringify(drafts.slice(0, 20)));
+  } catch {}
+}
+
+function loadDraftsList() {
+  try { return JSON.parse(localStorage.getItem(DRAFTS_LIST_KEY) || "[]"); } catch { return []; }
+}
+
+function deleteDraftFromList(draftId) {
+  try {
+    const drafts = JSON.parse(localStorage.getItem(DRAFTS_LIST_KEY) || "[]");
+    localStorage.setItem(DRAFTS_LIST_KEY, JSON.stringify(drafts.filter(d => d._draftId !== draftId)));
+  } catch {}
+}
+
 export default function AdminImmobilier() {
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [form, setForm] = useState(() => loadDraft() || { ...EMPTY_FORM });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [drafts, setDrafts] = useState(() => loadDraftsList());
+  const [activeTab, setActiveTab] = useState("all");
   const imgRef = useRef(null);
   const videoRef = useRef(null);
+  const autoSaveTimer = useRef(null);
 
   useEffect(() => {
     adminApi.listImmobilier()
       .then(res => setListings(Array.isArray(res) ? res : res?.data?.results || [])).catch(() => {}).finally(() => setLoading(false));
   }, []);
+
+  // Auto-save to localStorage on every form change
+  useEffect(() => {
+    if (creating && (form.title || form.description || form.price)) {
+      clearTimeout(autoSaveTimer.current);
+      autoSaveTimer.current = setTimeout(() => saveDraft(form), 1000);
+    }
+  }, [form, creating]);
+
+  // Restore draft on open
+  useEffect(() => {
+    if (creating) {
+      const draft = loadDraft();
+      if (draft && draft.title) {
+        setForm(draft);
+      }
+    }
+  }, [creating]);
 
   const handleFileUpload = async (e, isVideo = false) => {
     const file = e.target.files[0];
@@ -57,10 +112,7 @@ export default function AdminImmobilier() {
   const computePricePerM2 = (price, surface) => {
     const p = parseFloat(price);
     const s = parseFloat(surface);
-    if (p > 0 && s > 0) {
-      if (form.type === "location") return Math.round(p / s);
-      return Math.round(p / s);
-    }
+    if (p > 0 && s > 0) return Math.round(p / s);
     return "";
   };
 
@@ -85,11 +137,14 @@ export default function AdminImmobilier() {
       };
       delete payload._lat;
       delete payload._lng;
+      delete payload._draftId;
+      delete payload._draftDate;
       const result = await adminApi.createImmobilier(payload);
       const newItem = result?.data ? result.data : result;
       setListings(prev => [newItem, ...prev]);
       setCreating(false);
       setForm({ ...EMPTY_FORM });
+      clearDraft();
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2500);
     } catch (err) {
@@ -97,6 +152,23 @@ export default function AdminImmobilier() {
       setError("Erreur lors de la création : " + (err.message || "Erreur inconnue"));
     }
     setSaving(false);
+  };
+
+  const saveAsDraft = () => {
+    saveDraftToList(form);
+    setDrafts(loadDraftsList());
+    setSuccess(true);
+    setTimeout(() => setSuccess(false), 2000);
+  };
+
+  const loadDraftToForm = (draft) => {
+    setForm({ ...EMPTY_FORM, ...draft });
+    setCreating(true);
+  };
+
+  const removeDraft = (draftId) => {
+    deleteDraftFromList(draftId);
+    setDrafts(loadDraftsList());
   };
 
   const toggleStatus = async (listing) => {
@@ -121,6 +193,11 @@ export default function AdminImmobilier() {
 
   const isVente = form.type === "vente";
 
+  const filteredListings = activeTab === "all" ? listings
+    : activeTab === "vente" ? listings.filter(l => l.type === "vente")
+    : activeTab === "location" ? listings.filter(l => l.type === "location")
+    : listings;
+
   if (loading) return <div className="flex justify-center py-16"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
@@ -128,25 +205,32 @@ export default function AdminImmobilier() {
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 flex items-center gap-2">
           <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-          <p className="text-[12px] text-red-600 font-bold">{error}</p>
-          <button onClick={() => setError("")} className="ml-auto"><X className="w-4 h-4 text-red-400" /></button>
+          <p className="text-[12px] text-red-600 font-bold flex-1">{error}</p>
+          <button onClick={() => setError("")}><X className="w-4 h-4 text-red-400" /></button>
         </div>
       )}
       {success && (
         <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-          <p className="text-[12px] text-green-600 font-bold">Annonce créée avec succès !</p>
+          <p className="text-[12px] text-green-600 font-bold">Enregistré avec succès !</p>
         </div>
       )}
 
-      <button onClick={() => { setCreating(v => !v); setError(""); }}
-        className="flex items-center gap-2 bg-primary text-white px-4 py-3 rounded-xl text-[13px] font-black active:scale-95 transition-all shadow-lg shadow-primary/20">
-        <Plus className="w-4 h-4" /> Nouvelle annonce immobilière
-      </button>
+      <div className="flex gap-2">
+        <button onClick={() => { setCreating(v => !v); setError(""); }}
+          className="flex-1 flex items-center justify-center gap-2 bg-primary text-white px-4 py-3 rounded-xl text-[13px] font-black active:scale-95 transition-all shadow-lg shadow-primary/20">
+          <Plus className="w-4 h-4" /> Nouvelle annonce
+        </button>
+      </div>
 
       {creating && (
         <form onSubmit={createListing} className="bg-white rounded-2xl p-5 border border-gray-200 space-y-4 shadow-sm">
-          <h3 className="text-gray-900 text-[15px] font-black">Créer une annonce</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-gray-900 text-[15px] font-black">Créer une annonce</h3>
+            <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+              <Clock className="w-3 h-3" /> Sauvegarde auto
+            </div>
+          </div>
 
           {/* Type + Titre */}
           <div className="grid grid-cols-2 gap-3">
@@ -169,7 +253,7 @@ export default function AdminImmobilier() {
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
             placeholder="Description détaillée du bien" rows={3} className={`${inputCls} resize-none`} />
 
-          {/* ── Pricing Section ── */}
+          {/* Pricing */}
           <div className="bg-gray-50 rounded-2xl p-4 space-y-3 border border-gray-100">
             <h4 className="text-[11px] font-black text-gray-700 uppercase tracking-widest flex items-center gap-1.5">
               <Euro className="w-3.5 h-3.5" /> {isVente ? "Prix de vente" : "Loyer"}
@@ -208,7 +292,7 @@ export default function AdminImmobilier() {
             </div>
           </div>
 
-          {/* ── Property Details ── */}
+          {/* Property Details */}
           <div className="bg-gray-50 rounded-2xl p-4 space-y-3 border border-gray-100">
             <h4 className="text-[11px] font-black text-gray-700 uppercase tracking-widest flex items-center gap-1.5">
               <Home className="w-3.5 h-3.5" /> Détails du bien
@@ -230,7 +314,7 @@ export default function AdminImmobilier() {
             <input value={form.extra} onChange={e => setForm(f => ({ ...f, extra: e.target.value }))} placeholder="Extra (ex: Parking, Cave, Balcon)" className={inputCls} />
           </div>
 
-          {/* ── Location ── */}
+          {/* Location */}
           <div className="bg-gray-50 rounded-2xl p-4 space-y-3 border border-gray-100">
             <h4 className="text-[11px] font-black text-gray-700 uppercase tracking-widest flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5" /> Localisation
@@ -253,7 +337,7 @@ export default function AdminImmobilier() {
             </div>
           </div>
 
-          {/* ── Contact ── */}
+          {/* Contact */}
           <div className="bg-gray-50 rounded-2xl p-4 space-y-3 border border-gray-100">
             <h4 className="text-[11px] font-black text-gray-700 uppercase tracking-widest">Contact</h4>
             <div className="grid grid-cols-2 gap-3">
@@ -324,18 +408,61 @@ export default function AdminImmobilier() {
           <div className="flex gap-3">
             <button type="submit" disabled={saving}
               className="flex-1 bg-primary text-white py-3 rounded-xl text-[13px] font-black disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
-              {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Création...</> : "Créer l'annonce"}
+              {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Création...</> : "Publier l'annonce"}
             </button>
-            <button type="button" onClick={() => { setCreating(false); setError(""); }}
-              className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl text-[13px] font-black">Annuler</button>
+            <button type="button" onClick={saveAsDraft}
+              className="bg-gray-100 text-gray-600 px-4 py-3 rounded-xl text-[13px] font-black flex items-center gap-1.5 active:scale-95 transition-all">
+              <Save className="w-4 h-4" /> Brouillon
+            </button>
+            <button type="button" onClick={() => { setCreating(false); clearDraft(); setError(""); }}
+              className="bg-gray-100 text-gray-600 px-4 py-3 rounded-xl text-[13px] font-black">Annuler</button>
           </div>
         </form>
       )}
 
-      <p className="text-gray-500 text-[12px] font-bold">{listings.length} bien(s) immobilier(s)</p>
+      {/* ── Brouillons ── */}
+      {drafts.length > 0 && !creating && (
+        <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100 space-y-3">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-amber-600" />
+            <p className="text-[12px] font-black text-amber-700">{drafts.length} brouillon(s) sauvegardé(s)</p>
+          </div>
+          {drafts.map(d => (
+            <div key={d._draftId} className="bg-white rounded-xl p-3 flex items-center gap-3 border border-amber-100">
+              <div className="flex-1 min-w-0">
+                <p className="text-[12px] font-black text-gray-800 truncate">{d.title || "Sans titre"}</p>
+                <p className="text-[10px] text-gray-400">{d._draftDate} · {d.type === "vente" ? "Vente" : "Location"}{d.price ? ` · ${d.price}€` : ""}</p>
+              </div>
+              <button onClick={() => loadDraftToForm(d)} className="text-[10px] font-black text-primary px-2 py-1 bg-primary/10 rounded-lg active:scale-95">
+                Reprendre
+              </button>
+              <button onClick={() => removeDraft(d._draftId)} className="text-red-400 active:scale-95">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Tabs ── */}
+      <div className="flex gap-1 bg-gray-100 rounded-2xl p-1">
+        {[
+          { id: "all", label: "Tous", count: listings.length },
+          { id: "vente", label: "Vente", count: listings.filter(l => l.type === "vente").length },
+          { id: "location", label: "Location", count: listings.filter(l => l.type === "location").length },
+        ].map(tab => (
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1 ${activeTab === tab.id ? "bg-white text-primary shadow-sm" : "text-gray-400"}`}>
+            {tab.label}
+            <span className="text-[9px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">{tab.count}</span>
+          </button>
+        ))}
+      </div>
+
+      <p className="text-gray-500 text-[12px] font-bold">{filteredListings.length} bien(s) immobilier(s)</p>
 
       <div className="space-y-3">
-        {listings.map(l => {
+        {filteredListings.map(l => {
           const isVenteCard = l.type === "vente";
           return (
             <div key={l.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
