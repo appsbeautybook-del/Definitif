@@ -21,7 +21,7 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
     if (!q || q.length < MIN_CHARS) { setSuggestions([]); setOpen(false); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${BAN_URL}?q=${encodeURIComponent(q)}&limit=6&lang=fr&type=housenumber,street,locality,municipality`);
+      const res = await fetch(`${BAN_URL}?q=${encodeURIComponent(q)}&limit=6&lang=fr`);
       const data = await res.json();
       const feats = data.features || [];
       setSuggestions(feats);
