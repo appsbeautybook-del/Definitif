@@ -12,6 +12,7 @@ import SponsoredCard from "@/components/reels/SponsoredCard";
 import MapWithPricePins from "@/components/map/MapWithPricePins";
 import AdvancedFilterSheet from "@/components/filters/AdvancedFilterSheet";
 import FiltreAIModal from "@/components/modals/FiltreAIModal";
+import { useLocation } from '@/contexts/LocationContext';
 
 
 // ── Images ────────────────────────────────────────────────────────────────────
@@ -1393,6 +1394,7 @@ function isOpenNow(ouverture) {
 // ── Salons Tab ────────────────────────────────────────────────────────────────
 
 function SalonsTab({ activeCategory }) {
+  const { filterByRadius, hasLocation } = useLocation();
   const [liked, setLiked] = useState([]);
   const [selectedProfil, setSelectedProfil] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
@@ -1423,7 +1425,10 @@ function SalonsTab({ activeCategory }) {
   }, []);
 
   const { profils, minPricesMap } = data;
-  const filtered = activeCategory === "Tous" ? profils : profils.filter(p => p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase())));
+  let filtered = activeCategory === "Tous" ? profils : profils.filter(p => p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase())));
+  if (hasLocation) {
+    filtered = filterByRadius(filtered, 100);
+  }
 
   const mapItems = useMemo(() => filtered
     .filter(p => (p.latitude || p._lat) && (p.longitude || p._lng))
@@ -1497,6 +1502,7 @@ function SalonsTab({ activeCategory }) {
 // ── Particuliers Tab ──────────────────────────────────────────────────────────
 
 function ParticuliersTab({ activeCategory }) {
+  const { filterByRadius, hasLocation } = useLocation();
   const [liked, setLiked] = useState([]);
   const [selectedProfil, setSelectedProfil] = useState(null);
   const [highlightedId, setHighlightedId] = useState(null);
@@ -1527,7 +1533,10 @@ function ParticuliersTab({ activeCategory }) {
   }, []);
 
   const { profils, minPricesMap } = data;
-  const filtered = activeCategory === "Tous" ? profils : profils.filter(p => p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase())));
+  let filtered = activeCategory === "Tous" ? profils : profils.filter(p => p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase())));
+  if (hasLocation) {
+    filtered = filterByRadius(filtered, 100);
+  }
 
   const mapItems = useMemo(() => filtered
     .filter(p => (p.latitude || p._lat) && (p.longitude || p._lng))

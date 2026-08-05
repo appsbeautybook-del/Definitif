@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Star, X, Search, ChevronRight } from "lucide-react";
 import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
+import { useLocation } from '@/contexts/LocationContext';
 
 const CATEGORIES = ["Tous", "Coiffure", "Maquillage", "Ongles", "Soin", "Barbe", "Massage"];
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
@@ -45,6 +46,7 @@ function PriceMarker({ pro, price, isSelected, onClick }) {
 
 export default function Explorer() {
   const navigate = useNavigate();
+  const { filterByRadius, sortByDistance, hasLocation, latitude, longitude } = useLocation();
   const [profils, setProfils] = useState([]);
   const [minPricesMap, setMinPricesMap] = useState({});
   const [selected, setSelected] = useState(null);
@@ -73,11 +75,15 @@ export default function Explorer() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = profils.filter(p => {
+  let filtered = profils.filter(p => {
     const matchCat = activeCategory === "Tous" || p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase()));
     const matchSearch = !search || p.salon_name?.toLowerCase().includes(search.toLowerCase()) || p.city?.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
+
+  if (hasLocation) {
+    filtered = filterByRadius(filtered, 100);
+  }
 
   const allMapItems = filtered.map((p) => ({
     ...p,
@@ -88,8 +94,9 @@ export default function Explorer() {
   const selectedPro = allMapItems.find(p => p.id === selected);
   const mapCenter = useMemo(() => {
     if (selectedPro) return { lat: selectedPro.mapLat, lng: selectedPro.mapLng };
+    if (hasLocation) return { lat: latitude, lng: longitude };
     return { lat: 48.866, lng: 2.333 };
-  }, [selectedPro]);
+  }, [selectedPro, hasLocation, latitude, longitude]);
 
   const mapId = useMemo(() => "explorer-map-" + Date.now(), []);
 

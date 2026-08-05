@@ -7,6 +7,7 @@ import { GLOBAL_CATEGORIES } from "@/lib/categories";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import usePullToRefresh from "@/hooks/usePullToRefresh";
+import { useLocation } from '@/contexts/LocationContext';
 
 const SALON_IMG = "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=600";
 const PERSON_IMG1 = "https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?q=80&w=400";
@@ -28,6 +29,7 @@ const PARTICULIERS_DATA = [
 
 export default function Services() {
   const navigate = useNavigate();
+  const { filterByRadius, hasLocation } = useLocation();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({});
@@ -70,7 +72,7 @@ export default function Services() {
   }, [refreshKey]);
 
   // Map items = profils pro avec leur adresse réelle + prix depuis les services
-  const mapItems = useMemo(() => pros
+  let mapItems = useMemo(() => pros
     .filter(p => p.latitude && p.longitude)
     .slice(0, 15)
     .map(p => {
@@ -88,6 +90,9 @@ export default function Services() {
         city: p.city || "",
       };
     }), [pros, services]);
+  if (hasLocation) {
+    mapItems = filterByRadius(mapItems, 100);
+  }
 
   // Filtrer salons/particuliers statiques par catégorie
   const filteredSalons = activeCategory

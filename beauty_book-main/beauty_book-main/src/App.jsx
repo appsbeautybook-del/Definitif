@@ -10,6 +10,7 @@ import { entities } from '@/api/entities';
 import { VoiceAgentProvider } from '@/lib/VoiceAgentContext';
 import FloatingVoiceAgent from '@/components/voice/FloatingVoiceAgent';
 import { LocaleProvider } from '@/lib/LocaleContext.jsx';
+import { LocationProvider } from '@/contexts/LocationContext';
 
 // Appliquer la config apparence depuis la BDD au démarrage
 entities.AppConfig.filter({ key: "appearance_config" }, "-created_at", 50).then(rows => {
@@ -258,6 +259,7 @@ function App() {
   return (
     <AppErrorBoundary>
     <AuthProvider>
+      <LocationProvider>
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <LocaleProvider>
@@ -269,6 +271,7 @@ function App() {
         </Router>
         <Toaster />
       </QueryClientProvider>
+      </LocationProvider>
     </AuthProvider>
     </AppErrorBoundary>
   )
