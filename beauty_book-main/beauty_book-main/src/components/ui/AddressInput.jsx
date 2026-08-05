@@ -3,53 +3,7 @@ import { MapPin, Loader2, X } from "lucide-react";
 
 const DEBOUNCE_MS = 350;
 const MIN_CHARS = 3;
-const GOOGLE_MAPS_API_KEY = "AIzaSyCYUS4e9iOQzEEzCpGYYv9zM42PaCSz2uU";
-
-let gmapsLoaded = false;
-let gmapsPromise = null;
-
-function loadGoogleMaps() {
-  if (gmapsLoaded && window.google?.maps?.places) return Promise.resolve();
-  if (gmapsPromise) return gmapsPromise;
-  gmapsPromise = new Promise((resolve) => {
-    const existing = document.querySelector(`script[src*="maps.googleapis.com"]`);
-    if (existing) {
-      const check = () => {
-        if (window.google?.maps?.places) { gmapsLoaded = true; resolve(); }
-        else setTimeout(check, 100);
-      };
-      check();
-      return;
-    }
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places&language=fr`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      const check = () => {
-        if (window.google?.maps?.places) { gmapsLoaded = true; resolve(); }
-        else setTimeout(check, 100);
-      };
-      check();
-    };
-    document.head.appendChild(script);
-  });
-  return gmapsPromise;
-}
-
-function extractFromComponents(components) {
-  if (!components) return { street: "", city: "", postalCode: "" };
-  let street = "", number = "", city = "", postalCode = "", country = "";
-  for (const c of components) {
-    const types = c.types || [];
-    if (types.includes("street_number")) number = c.long_name;
-    if (types.includes("route")) street = c.long_name;
-    if (types.includes("locality")) city = c.long_name;
-    if (types.includes("postal_code")) postalCode = c.long_name;
-    if (types.includes("country")) country = c.short_name;
-  }
-  return { street: number ? `${number} ${street}` : street, city, postalCode, country };
-}
+const API_KEY = "AIzaSyCYUS4e9iOQzEEzCpGYYv9zM42PaCSz2uU";
 
 export default function AddressInput({ value, onChange, onCityChange, onCoordinatesChange, placeholder, className }) {
   const [query, setQuery] = useState(value || "");
@@ -60,88 +14,80 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
   const wrapperRef = useRef(null);
   const inputRef = useRef(null);
   const timerRef = useRef(null);
-  const autocompleteService = useRef(null);
-  const placesService = useRef(null);
-  const sessionToken = useRef(null);
 
-  useEffect(() => {
-    setQuery(value || "");
-  }, [value]);
+  useEffect(() => { setQuery(value || ""); }, [value]);
 
-  useEffect(() => {
-    loadGoogleMaps().then(() => {
-      autocompleteService.current = new window.google.maps.places.AutocompleteService();
-      const div = document.createElement("div");
-      placesService.current = new window.google.maps.places.PlacesService(div);
-    });
-  }, []);
-
-  const fetchSuggestions = useCallback((q) => {
-    if (!q || q.length < MIN_CHARS) {
+  const fetchSuggestions = useCallback(async (q) => {
+    if (!q || q.length < MIN_CHARS) { setSuggestions([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": API_KEY,
+        },
+        body: JSON.stringify({
+          input: q,
+          languageCode: "fr",
+          includedRegionCodes: ["fr", "be", "ch"],
+        }),
+      });
+      const data = await res.json();
+      const preds = data.suggestions || [];
+      setSuggestions(preds);
+      setOpen(preds.length > 0);
+      setHighlightedIdx(-1);
+    } catch (err) {
+      console.error("[AddressInput] autocomplete error:", err);
       setSuggestions([]);
       setOpen(false);
-      return;
     }
-    if (!autocompleteService.current) {
-      loadGoogleMaps().then(() => {
-        autocompleteService.current = new window.google.maps.places.AutocompleteService();
-        doFetch(q);
-      });
-      return;
-    }
-    doFetch(q);
+    setLoading(false);
   }, []);
 
-  const doFetch = (q) => {
-    setLoading(true);
-    const req = {
-      input: q,
-      componentRestrictions: { country: ["fr", "be", "ch"] },
-      types: ["address"],
-      sessionToken: sessionToken.current,
-    };
-    autocompleteService.current.getPlacePredictions(req, (preds, status) => {
-      if (status === window.google.maps.places.PlacesServiceStatus.OK && preds) {
-        setSuggestions(preds);
-        setOpen(true);
-        setHighlightedIdx(-1);
-        if (!sessionToken.current) {
-          sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
-        }
-      } else {
-        setSuggestions([]);
+  const fetchDetails = useCallback(async (prediction) => {
+    const placeId = prediction.placePrediction?.placeId;
+    if (!placeId) return;
+    try {
+      const res = await fetch(`https://places.googleapis.com/v1/places/${placeId}?languageCode=fr`, {
+        method: "GET",
+        headers: { "X-Goog-Api-Key": API_KEY, "X-Goog-FieldMask": "formattedAddress,addressComponents,location" },
+      });
+      const place = await res.json();
+      if (place.error) {
+        console.error("[AddressInput] details error:", place.error);
+        const text = prediction.placePrediction?.text?.text || "";
+        setQuery(text);
         setOpen(false);
+        onChange?.(text);
+        return;
       }
-      setLoading(false);
-    });
-  };
-
-  const handleSelect = (prediction) => {
-    if (!placesService.current) return;
-    const req = { placeId: prediction.place_id, fields: ["formatted_address", "address_components", "geometry"] };
-    placesService.current.getDetails(req, (place, status) => {
-      if (status === window.google.maps.places.PlacesServiceStatus.OK && place) {
-        const { street, city, postalCode } = extractFromComponents(place.address_components);
-        const displayAddr = street || place.formatted_address?.split(",")[0] || prediction.description;
-        setQuery(displayAddr);
-        setOpen(false);
-        setSuggestions([]);
-        sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
-        onChange?.(displayAddr);
-        if (city && onCityChange) onCityChange(city);
-        if (place.geometry?.location && onCoordinatesChange) {
-          onCoordinatesChange({
-            latitude: place.geometry.location.lat(),
-            longitude: place.geometry.location.lng(),
-          });
-        }
-      } else {
-        setQuery(prediction.description);
-        setOpen(false);
-        onChange?.(prediction.description);
+      let street = "", city = "", postalCode = "";
+      for (const c of place.addressComponents || []) {
+        const t = c.types || [];
+        if (t.includes("street_number")) street = (street ? street + " " : "") + c.longName;
+        if (t.includes("route")) street = (street ? street + " " : "") + c.longName;
+        if (t.includes("locality")) city = c.longName;
+        if (t.includes("postal_code")) postalCode = c.longName;
       }
-    });
-  };
+      const display = street || place.formattedAddress?.split(",")[0] || prediction.placePrediction?.text?.text || "";
+      setQuery(display);
+      setOpen(false);
+      setSuggestions([]);
+      onChange?.(display);
+      if (city && onCityChange) onCityChange(city);
+      if (place.location && onCoordinatesChange) {
+        onCoordinatesChange({ latitude: place.location.latitude, longitude: place.location.longitude });
+      }
+    } catch (err) {
+      console.error("[AddressInput] fetchDetails error:", err);
+      const text = prediction.placePrediction?.text?.text || "";
+      setQuery(text);
+      setOpen(false);
+      onChange?.(text);
+    }
+  }, [onChange, onCityChange, onCoordinatesChange]);
 
   const handleChange = (e) => {
     const val = e.target.value;
@@ -153,26 +99,14 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
 
   const handleKeyDown = (e) => {
     if (!open || suggestions.length === 0) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHighlightedIdx(i => (i + 1) % suggestions.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlightedIdx(i => (i - 1 + suggestions.length) % suggestions.length);
-    } else if (e.key === "Enter" && highlightedIdx >= 0) {
-      e.preventDefault();
-      handleSelect(suggestions[highlightedIdx]);
-    } else if (e.key === "Escape") {
-      setOpen(false);
-    }
+    if (e.key === "ArrowDown") { e.preventDefault(); setHighlightedIdx(i => (i + 1) % suggestions.length); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHighlightedIdx(i => (i - 1 + suggestions.length) % suggestions.length); }
+    else if (e.key === "Enter" && highlightedIdx >= 0) { e.preventDefault(); fetchDetails(suggestions[highlightedIdx]); }
+    else if (e.key === "Escape") { setOpen(false); }
   };
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    };
+    const handleClickOutside = (e) => { if (wrapperRef.current && !wrapperRef.current.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -209,22 +143,26 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
 
       {open && suggestions.length > 0 && (
         <div className="absolute z-[100] left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-[260px] overflow-y-auto">
-          {suggestions.map((s, i) => (
-            <button
-              key={s.place_id}
-              onMouseDown={(e) => { e.preventDefault(); handleSelect(s); }}
-              onMouseEnter={() => setHighlightedIdx(i)}
-              className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0 ${
-                i === highlightedIdx ? "bg-orange-50" : "hover:bg-gray-50"
-              }`}
-            >
-              <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${i === highlightedIdx ? "text-[#E8732A]" : "text-gray-400"}`} />
-              <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-gray-800 truncate">{s.structured_formatting?.main_text || s.description}</p>
-                <p className="text-[11px] text-gray-400 truncate">{s.structured_formatting?.secondary_text || ""}</p>
-              </div>
-            </button>
-          ))}
+          {suggestions.map((s, i) => {
+            const main = s.placePrediction?.text?.text || "";
+            const secondary = s.placePrediction?.structuredFormat?.secondaryText?.text || "";
+            return (
+              <button
+                key={i}
+                onMouseDown={(e) => { e.preventDefault(); fetchDetails(s); }}
+                onMouseEnter={() => setHighlightedIdx(i)}
+                className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors border-b border-gray-50 last:border-0 ${
+                  i === highlightedIdx ? "bg-orange-50" : "hover:bg-gray-50"
+                }`}
+              >
+                <MapPin className={`w-4 h-4 mt-0.5 shrink-0 ${i === highlightedIdx ? "text-[#E8732A]" : "text-gray-400"}`} />
+                <div className="min-w-0">
+                  <p className="text-[13px] font-semibold text-gray-800 truncate">{main}</p>
+                  {secondary && <p className="text-[11px] text-gray-400 truncate">{secondary}</p>}
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
