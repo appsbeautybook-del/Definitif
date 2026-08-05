@@ -241,6 +241,7 @@ export default function AdminImmobilier() {
                 value={form.location}
                 onChange={(v) => setForm(f => ({ ...f, location: v }))}
                 onCityChange={(city) => setForm(f => ({ ...f, area: f.area || city }))}
+                onPostalCodeChange={(pc) => setForm(f => ({ ...f, postal_code: pc }))}
                 onCoordinatesChange={(c) => setForm(f => ({ ...f, _lat: c.latitude, _lng: c.longitude }))}
                 placeholder="Ex: 12 rue de la Paix, Paris"
                 className={inputCls}

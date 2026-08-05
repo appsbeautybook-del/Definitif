@@ -5,7 +5,7 @@ const DEBOUNCE_MS = 300;
 const MIN_CHARS = 3;
 const BAN_URL = "https://api-adresse.data.gouv.fr/search/";
 
-export default function AddressInput({ value, onChange, onCityChange, onCoordinatesChange, placeholder, className }) {
+export default function AddressInput({ value, onChange, onCityChange, onPostalCodeChange, onCoordinatesChange, placeholder, className }) {
   const [query, setQuery] = useState(value || "");
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -44,6 +44,7 @@ export default function AddressInput({ value, onChange, onCityChange, onCoordina
     setSuggestions([]);
     onChange?.(display);
     if (p.city && onCityChange) onCityChange(p.city);
+    if (p.postcode && onPostalCodeChange) onPostalCodeChange(p.postcode);
     if (g.length === 2 && onCoordinatesChange) {
       onCoordinatesChange({ latitude: g[1], longitude: g[0] });
     }
