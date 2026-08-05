@@ -199,7 +199,7 @@ export default function HorairesConges() {
   const [profil, setProfil] = useState(null);
   const [horaires, setHoraires] = useState({});
   const [conges, setConges] = useState([]);
-  const [travailNuit, setTravailNuit] = useState(false);
+  const [travailNuit, setTravailNuit] = useState(() => localStorage.getItem("bb_night_mode") === "true");
 
   useEffect(() => {
     if (!user?.email) return;
@@ -208,30 +208,25 @@ export default function HorairesConges() {
         if (rows[0]) {
           setProfil(rows[0]);
           const ouv = rows[0].ouverture || {};
-          // Initialize horaires with defaults for each day
           const init = {};
           DAYS.forEach(d => {
             init[d] = ouv[d] || { ...DEFAULT_DAY };
           });
           setHoraires(init);
           setConges(ouv.conges || []);
-          setTravailNuit(rows[0].travail_nuit || false);
+          const dbNight = !!rows[0].travail_nuit;
+          const localNight = localStorage.getItem("bb_night_mode") === "true";
+          if (dbNight !== localNight) {
+            localStorage.setItem("bb_night_mode", String(dbNight));
+          }
+          setTravailNuit(dbNight);
         }
         setLoading(false);
       })
       .catch(() => setLoading(false));
   }, [user?.email]);
 
-  useEffect(() => {
-    const onUpdated = (e) => {
-      const d = e.detail || {};
-      if (d.travail_nuit !== undefined) {
-        setTravailNuit(d.travail_nuit);
-      }
-    };
-    window.addEventListener('pro-profile-updated', onUpdated);
-    return () => window.removeEventListener('pro-profile-updated', onUpdated);
-  }, []);
+  useEffect(() => {}, []);
 
   const handleDayChange = (day, value) => {
     setHoraires(prev => ({ ...prev, [day]: value }));
@@ -251,7 +246,7 @@ export default function HorairesConges() {
 
   const handleToggleNuit = (val) => {
     setTravailNuit(val);
-    // Auto-set night hours when enabling
+    localStorage.setItem("bb_night_mode", String(val));
     const newHoraires = {};
     DAYS.forEach(d => {
       const prev = horaires[d] || DEFAULT_DAY;

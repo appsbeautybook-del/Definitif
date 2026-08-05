@@ -1155,7 +1155,12 @@ export default function GestionAgenda() {
       console.log('[GestionAgenda] Loaded reservations:', data?.length, data);
       setReservations(data || []);
       if (profils.length > 0) {
-        setTravailNuit(profils[0].travail_nuit || false);
+        const dbNight = !!profils[0].travail_nuit;
+        const localNight = localStorage.getItem("bb_night_mode") === "true";
+        if (dbNight !== localNight) {
+          localStorage.setItem("bb_night_mode", String(dbNight));
+        }
+        setTravailNuit(dbNight);
         setProfilId(profils[0].id);
       }
     } catch (e) {
@@ -1185,9 +1190,6 @@ export default function GestionAgenda() {
     // Listen for pro-profile-updated events (from ProfilPro page)
     const onProfileUpdated = (e) => {
       const d = e.detail || {};
-      if (d.travail_nuit !== undefined) {
-        setTravailNuit(d.travail_nuit);
-      }
     };
     window.addEventListener('pro-profile-updated', onProfileUpdated);
     return () => { unsub(); unsubProfil(); window.removeEventListener('pro-profile-updated', onProfileUpdated); };
@@ -1281,11 +1283,11 @@ export default function GestionAgenda() {
             {activeTab === "gestion" && (
               <GestionTab onNavigate={navigate} travailNuit={travailNuit} profilId={profilId} onToggleNuit={async (val) => {
                 setTravailNuit(val);
+                localStorage.setItem("bb_night_mode", String(val));
                 if (proEmail) {
                   const { error } = await supabase.from('ProfilPro').update({ travail_nuit: val }).eq('user_email', proEmail);
                   if (error) {
                     console.error('[GestionAgenda] Mode Nuit save error:', error.message);
-                    setTravailNuit(!val);
                   }
                 }
               }} />

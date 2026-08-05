@@ -10,6 +10,8 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 
+const NIGHT_STORAGE_KEY = "bb_night_mode";
+
 function getBannerGradient(theme) {
   if (theme === "night") return "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 60%, #000000 100%)";
   if (theme === "dark")  return "linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(26,26,46,0.75) 60%, #1a1a2e 100%)";
@@ -47,14 +49,14 @@ export default function ProfilPro() {
   const location = useLocation();
   const { theme } = useTheme();
   const [activeTab, setActiveTab] = useState("gestion");
-  const [nightMode, setNightMode] = useState(false);
+  const [nightMode, setNightMode] = useState(() => localStorage.getItem(NIGHT_STORAGE_KEY) === "true");
   const [proInfo, setProInfo] = useState(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [stats, setStats] = useState({ rdvSemaine: 0, nouveauxClients: 0, caMonth: 0, caLastMonth: 0 });
   const [clientProfile, setClientProfile] = useState(null);
   const [demandeStatus, setDemandeStatus] = useState(null);
-  const nightModeTsRef = useRef(0);
+  const nightModeSyncedRef = useRef(false);
 
   const loadProfil = () => {
     if (!user?.email) return;
@@ -98,8 +100,11 @@ export default function ProfilPro() {
         }
         if (p) {
           setProInfo(p);
-          if (Date.now() - nightModeTsRef.current > 2000) {
-            setNightMode(p.travail_nuit || false);
+          if (!nightModeSyncedRef.current) {
+            const dbVal = !!p.travail_nuit;
+            setNightMode(dbVal);
+            localStorage.setItem(NIGHT_STORAGE_KEY, String(dbVal));
+            nightModeSyncedRef.current = true;
           }
         }
         if (p?.status === 'actif') setDemandeStatus('approuvee');
@@ -159,9 +164,6 @@ export default function ProfilPro() {
   useEffect(() => {
     const onUpdated = (e) => {
       const d = e.detail || {};
-      if (d.travail_nuit !== undefined && Date.now() - nightModeTsRef.current > 2000) {
-        setNightMode(d.travail_nuit);
-      }
       if (d.avatar_url || d.cover_url) {
         setProInfo(prev => prev ? { ...prev, avatar_url: d.avatar_url || prev.avatar_url, cover_url: d.cover_url || prev.cover_url } : prev);
       }
@@ -440,15 +442,13 @@ export default function ProfilPro() {
           <button
             onClick={async () => {
               const next = !nightMode;
-              nightModeTsRef.current = Date.now();
               setNightMode(next);
+              localStorage.setItem(NIGHT_STORAGE_KEY, String(next));
               setProInfo(prev => prev ? { ...prev, travail_nuit: next } : prev);
               if (user?.email) {
                 const { error } = await supabase.from('ProfilPro').update({ travail_nuit: next }).eq('user_email', user.email);
                 if (error) {
                   console.error('[ProfilPro] Mode Nuit save error:', error.message);
-                  setNightMode(!next);
-                  setProInfo(prev => prev ? { ...prev, travail_nuit: !next } : prev);
                 }
               }
             }}
