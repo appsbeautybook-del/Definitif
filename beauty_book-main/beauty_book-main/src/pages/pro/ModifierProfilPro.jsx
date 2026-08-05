@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/api/supabaseClient";
 import { uploadFile } from "@/api/entities";
 import { useTheme, useThemeBg } from "@/hooks/useTheme";
+import AddressInput from "@/components/ui/AddressInput";
 
 const SPECIALITES_LIST = [
   "Coiffure afro", "Coiffure lisse", "Balayage", "Colorations", "Tresses",
@@ -49,6 +50,7 @@ export default function ModifierProfilPro() {
     menu_items: [], additional_services: [],
     galerie_urls: [],
   });
+  const [coords, setCoords] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState({ infos: true });
@@ -162,6 +164,7 @@ export default function ModifierProfilPro() {
   };
 
   const geocodeAndSave = async (address, city) => {
+    if (coords) return coords;
     const addr = [address, city].filter(Boolean).join(", ");
     if (!addr) return { latitude: null, longitude: null };
     try {
@@ -370,7 +373,14 @@ export default function ModifierProfilPro() {
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                   <MapPin className="w-3 h-3" /> Adresse
                 </p>
-                <input value={data.address} onChange={e => setData(d => ({ ...d, address: e.target.value }))} placeholder="Ex: 12 rue de la Paix, Paris" className={inputCls} />
+                <AddressInput
+                  value={data.address}
+                  onChange={(v) => setData(d => ({ ...d, address: v }))}
+                  onCityChange={(city) => setData(d => ({ ...d, city }))}
+                  onCoordinatesChange={(c) => setCoords(c)}
+                  placeholder="Ex: 12 rue de la Paix, Paris"
+                  className={inputCls}
+                />
               </div>
               <div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
