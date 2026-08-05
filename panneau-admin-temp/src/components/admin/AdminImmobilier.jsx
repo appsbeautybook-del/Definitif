@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { uploadFile } from '@/api/entities';
 import { adminApi } from "@/lib/adminApiClient";
 import { Plus, Trash2, Upload, Loader2, X, Home, Eye, EyeOff, MapPin, Ruler, Euro, Phone, Mail, AlertCircle, CheckCircle2 } from "lucide-react";
+import AddressInput from "@/components/ui/AddressInput";
 
 const inputCls = "w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary transition-colors";
 const labelCls = "text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1";
@@ -79,7 +80,11 @@ export default function AdminImmobilier() {
         surface: parseFloat(form.surface) || 0,
         rooms: parseInt(form.rooms) || 0,
         floor: form.floor || "",
+        latitude: form._lat || null,
+        longitude: form._lng || null,
       };
+      delete payload._lat;
+      delete payload._lng;
       const result = await adminApi.createImmobilier(payload);
       const newItem = result?.data ? result.data : result;
       setListings(prev => [newItem, ...prev]);
@@ -230,11 +235,21 @@ export default function AdminImmobilier() {
             <h4 className="text-[11px] font-black text-gray-700 uppercase tracking-widest flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5" /> Localisation
             </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Ville / Arrondissement" className={inputCls} />
-              <input value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))} placeholder="Quartier / Zone" className={inputCls} />
+            <div>
+              <label className={labelCls}>Adresse complète *</label>
+              <AddressInput
+                value={form.location}
+                onChange={(v) => setForm(f => ({ ...f, location: v }))}
+                onCityChange={(city) => setForm(f => ({ ...f, area: f.area || city }))}
+                onCoordinatesChange={(c) => setForm(f => ({ ...f, _lat: c.latitude, _lng: c.longitude }))}
+                placeholder="Ex: 12 rue de la Paix, Paris"
+                className={inputCls}
+              />
             </div>
-            <input value={form.postal_code} onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))} placeholder="Code postal" className={inputCls} />
+            <div className="grid grid-cols-2 gap-3">
+              <input value={form.area} onChange={e => setForm(f => ({ ...f, area: e.target.value }))} placeholder="Quartier / Zone" className={inputCls} />
+              <input value={form.postal_code} onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))} placeholder="Code postal" className={inputCls} />
+            </div>
           </div>
 
           {/* ── Contact ── */}
