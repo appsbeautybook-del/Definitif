@@ -672,26 +672,31 @@ function RelatedServices({ productId, productName }) {
     (async () => {
       try {
         // 1) Charger tous les styles
-        const styles = await entities.Style.list("-created_at", 200);
-        // 2) Trouver les styles qui utilisent ce produit (par id ou nom)
-        const matchingStyles = (styles || []).filter(s => {
+        const styles = await entities.Style.list("-created_at", 500);
+        if (!styles || styles.length === 0) return;
+        // 2) Trouver les styles qui utilisent ce produit (par id, name, ou label)
+        const needle = (productName || "").toLowerCase().trim();
+        const needleId = String(productId || "");
+        const matchingStyles = styles.filter(s => {
           const produits = s.produits_utilises || [];
-          return produits.some(p =>
-            String(p.id) === String(productId) ||
-            (p.name || "").toLowerCase().trim() === (productName || "").toLowerCase().trim()
-          );
+          return produits.some(p => {
+            const pid = String(p.id || "");
+            const pname = (p.name || p.label || "").toLowerCase().trim();
+            return pid === needleId || pname === needle || pname.includes(needle) || needle.includes(pname);
+          });
         });
         if (matchingStyles.length === 0) return;
-        // 3) Charger tous les services actifs
-        const allServices = await entities.Service.list("-created_at", 100);
-        // 4) Trouver les services dont le champ style correspond à un des styles trouvés
+        // 3) Charger tous les services
+        const allServices = await entities.Service.list("-created_at", 200);
+        if (!allServices || allServices.length === 0) return;
+        // 4) Trouver les services liés à ces styles
         const styleTitles = new Set(matchingStyles.map(s => (s.title || "").toLowerCase().trim()));
-        const matchedServices = (allServices || []).filter(s => {
+        const matchedServices = allServices.filter(s => {
           const svcStyle = (s.style || "").toLowerCase().trim();
-          return svcStyle && styleTitles.has(svcStyle);
+          return svcStyle && (styleTitles.has(svcStyle) || [...styleTitles].some(t => t.includes(svcStyle) || svcStyle.includes(t)));
         });
         setServices(matchedServices.slice(0, 4));
-      } catch (e) { console.error("[RelatedServices]", e); }
+      } catch (e) { console.error("[RelatedServices] error:", e); }
     })();
   }, [productId, productName]);
 

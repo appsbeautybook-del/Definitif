@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Send, Search, MessageSquare, Trash2, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Scissors, Clock, ChevronRight, PhoneCall, Sparkles, Zap } from "lucide-react";
+import { ArrowLeft, Send, Search, MessageSquare, Trash2, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Scissors, Clock, ChevronRight, PhoneCall, Sparkles, Zap, Image, Smile } from "lucide-react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from "@/lib/AuthContext";
@@ -195,106 +195,89 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const myTypingRef = useRef(null);
+  const msgIdsRef = useRef(new Set());
+  const fileInputRef = useRef(null);
 
   const convId = conversation.conversation_id;
 
-  // Charger les messages — on charge uniquement les messages où l'utilisateur est sender ou receiver
+  // Charger les messages
   const loadMessages = useCallback(async () => {
-    const [sent, received] = await Promise.all([
-      entities.MessageChat.filter({ conversation_id: convId, sender_email: currentUser.email }, "created_at", 200),
-      entities.MessageChat.filter({ conversation_id: convId, receiver_email: currentUser.email }, "created_at", 200),
-    ]);
-    // Fusionner et dédoublonner
-    const allById = {};
-    for (const m of [...(sent || []), ...(received || [])]) allById[m.id] = m;
-    const res = Object.values(allById)
-      .filter(m => m.type !== "typing")
-      .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
-    setMessages(res);
-    // Marquer comme lus
-    for (const m of res) {
-      if (!m.read && m.receiver_email === currentUser.email) {
-        entities.MessageChat.update(m.id, { read: true }).catch(() => {});
+    try {
+      const [sent, received] = await Promise.all([
+        supabase.from("MessageChat").select("*").eq("conversation_id", convId).eq("sender_email", currentUser.email).order("created_at", { ascending: true }),
+        supabase.from("MessageChat").select("*").eq("conversation_id", convId).eq("receiver_email", currentUser.email).order("created_at", { ascending: true }),
+      ]);
+      const allById = {};
+      for (const m of [...(sent.data || []), ...(received.data || [])]) {
+        if (m.type !== "typing") allById[m.id] = m;
       }
-    }
+      const res = Object.values(allById).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+      msgIdsRef.current = new Set(res.map(m => m.id));
+      setMessages(res);
+      // Marquer comme lus
+      for (const m of res) {
+        if (!m.read && m.receiver_email === currentUser.email) {
+          supabase.from("MessageChat").update({ read: true }).eq("id", m.id).catch(() => {});
+        }
+      }
+    } catch (e) { console.error("[Chat] loadMessages:", e); }
     setLoading(false);
   }, [convId, currentUser.email]);
 
+  useEffect(() => { loadMessages(); }, [loadMessages]);
+
+  // Auto-send service card
   useEffect(() => {
-    loadMessages().then(() => {
-      // Envoyer la carte service automatiquement si on vient d'un service et pas encore envoyée
-      if (conversation.service && !serviceCardSent) {
-        setServiceCardSent(true);
-        const serviceJson = JSON.stringify({
-          type: "service_card",
-          id: conversation.service.id,
-          title: conversation.service.title,
-          price: conversation.service.price,
-          image_url: conversation.service.image_url,
-          duration: conversation.service.duration,
-        });
-        supabase.from("MessageChat").insert({
-          conversation_id: convId,
-          sender_email: currentUser.email,
-          receiver_email: conversation.other_email,
-          content: serviceJson,
-          type: "text",
-          read: false,
-        }).catch(() => {});
-      }
-    });
+    if (!conversation.service || serviceCardSent) return;
+    setServiceCardSent(true);
+    supabase.from("MessageChat").insert({
+      conversation_id: convId, sender_email: currentUser.email,
+      sender_name: currentUser.user_metadata?.full_name || currentUser.email,
+      receiver_email: conversation.other_email,
+      content: JSON.stringify({ type: "service_card", ...conversation.service }),
+      type: "text", read: false,
+    }).catch(() => {});
   }, []);
 
-  // Temps réel via subscription — vérifier que l'utilisateur appartient à la conversation
+  // Realtime subscription
   useEffect(() => {
-    const unsub = entities.MessageChat.subscribe((event) => {
-      if (event.data?.conversation_id !== convId) return;
-      const m = event.data;
-      if (m.sender_email !== currentUser.email && m.receiver_email !== currentUser.email) return;
-
-      // Typing indicator
-      if (m.type === "typing" && m.sender_email !== currentUser.email) {
-        setOtherTyping(true);
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 3000);
-        // Supprimer le signal typing côté BDD silencieusement
-        entities.MessageChat.delete(event.id).catch(() => {});
-        return;
-      }
-
-      if (event.type === "create" && m.type !== "typing") {
-        setMessages(prev => {
-          if (prev.find(msg => msg.id === event.id)) return prev;
-          return [...prev, m];
-        });
-        if (m.receiver_email === currentUser.email) {
-          entities.MessageChat.update(event.id, { read: true }).catch(() => {});
+    const channel = supabase
+      .channel(`chat_${convId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "MessageChat", filter: `conversation_id=eq.${convId}` }, (payload) => {
+        const m = payload.new;
+        if (!m) return;
+        if (m.sender_email !== currentUser.email && m.receiver_email !== currentUser.email) return;
+        if (m.type === "typing" && m.sender_email !== currentUser.email) {
+          setOtherTyping(true);
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 3000);
+          supabase.from("MessageChat").delete().eq("id", m.id).catch(() => {});
+          return;
         }
-        setOtherTyping(false);
-      }
-
-      // Mise à jour du statut "lu" sur mes propres messages
-      if (event.type === "update" && m.sender_email === currentUser.email) {
-        setMessages(prev => prev.map(msg => msg.id === event.id ? { ...msg, read: m.read } : msg));
-      }
-    });
-    return () => { unsub(); clearTimeout(typingTimeoutRef.current); };
+        if (payload.eventType === "INSERT" && m.type !== "typing") {
+          if (msgIdsRef.current.has(m.id)) return;
+          msgIdsRef.current.add(m.id);
+          setMessages(prev => [...prev, m]);
+          if (m.receiver_email === currentUser.email) {
+            supabase.from("MessageChat").update({ read: true }).eq("id", m.id).catch(() => {});
+          }
+          setOtherTyping(false);
+        }
+        if (payload.eventType === "UPDATE" && m.sender_email === currentUser.email) {
+          setMessages(prev => prev.map(msg => msg.id === m.id ? { ...msg, read: m.read } : msg));
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); clearTimeout(typingTimeoutRef.current); };
   }, [convId, currentUser.email]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  // Envoyer signal "typing" à l'autre utilisateur
   const sendTypingSignal = () => {
     clearTimeout(myTypingRef.current);
     supabase.from("MessageChat").insert({
-      conversation_id: convId,
-      sender_email: currentUser.email,
-      receiver_email: conversation.other_email,
-      content: "",
-      type: "typing",
-      read: false,
+      conversation_id: convId, sender_email: currentUser.email,
+      receiver_email: conversation.other_email, content: "", type: "typing", read: false,
     }).catch(() => {});
     myTypingRef.current = setTimeout(() => {}, 2500);
   };
@@ -309,47 +292,46 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     let fileUrl = "";
     if (imageFile) {
       try {
-        const fileName = `chat/${convId}/${Date.now()}_${imageFile.name}`;
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from("media")
-          .upload(fileName, imageFile, { contentType: imageFile.type });
+        const ext = imageFile.name.split(".").pop() || "jpg";
+        const fileName = `chat/${convId}/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("media").upload(fileName, imageFile);
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
         fileUrl = urlData?.publicUrl || "";
       } catch (e) {
-        console.error("Image upload error:", e);
-        setSending(false);
-        return;
+        console.error("Upload error:", e);
+        // Fallback : convertir en base64
+        try {
+          const reader = new FileReader();
+          fileUrl = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(imageFile);
+          });
+        } catch (e2) { console.error("Base64 fallback error:", e2); }
       }
     }
 
-    const messagePayload = {
+    const payload = {
       conversation_id: convId,
       sender_email: currentUser.email,
       sender_name: currentUser.user_metadata?.full_name || currentUser.email,
       receiver_email: conversation.other_email,
-      content: content || "",
+      content: content || (fileUrl ? "📷 Image" : ""),
       type: fileUrl ? "image" : "text",
       file_url: fileUrl || "",
-      is_read: false,
-      read: false,
-      created_at: new Date().toISOString(),
+      is_read: false, read: false,
     };
 
-    // Optimistic
-    const optimistic = {
-      id: `tmp_${Date.now()}`,
-      ...messagePayload,
-      created_date: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, optimistic]);
-
-    const { error } = await supabase.from("MessageChat").insert(messagePayload);
-    if (error) console.error("Send message error:", error);
+    const { data, error } = await supabase.from("MessageChat").insert(payload).select().single();
+    if (error) {
+      console.error("Send error:", error);
+      // Optimistic fallback
+      const optimistic = { id: `tmp_${Date.now()}`, ...payload, created_at: new Date().toISOString() };
+      setMessages(prev => [...prev, optimistic]);
+    }
     setSending(false);
-    loadMessages();
 
-    // Notification au destinataire
     try {
       await notifyMessageReceived({
         receiverEmail: conversation.other_email,
@@ -358,161 +340,125 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
         conversationId: convId,
         preview: content || (fileUrl ? "📷 Image" : ""),
       });
-    } catch (e) {
-      console.error("Message notification error:", e);
-    }
+    } catch {}
   };
 
   const isReadonly = conversation.readonly;
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="fixed inset-0 flex flex-col bg-gray-50 z-50">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white shrink-0">
         <button onClick={onBack} className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center active:scale-95 transition-all">
           <ArrowLeft className="w-4 h-4 text-gray-700" />
         </button>
         {conversation.other_avatar ? (
-          <img src={conversation.other_avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+          <img src={conversation.other_avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
         ) : (
-          <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center">
-            <span className="text-[13px] font-black text-primary">{(conversation.other_name || "?")[0]}</span>
+          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+            <span className="text-[14px] font-black text-primary">{(conversation.other_name || "?")[0]}</span>
           </div>
         )}
         <div className="flex-1 min-w-0">
           <p className="text-[14px] font-black text-gray-900 truncate">{conversation.other_name || conversation.other_email}</p>
           {otherTyping ? (
-            <p className="text-[10px] text-primary font-bold flex items-center gap-1">
-              <span>en train d'écrire</span>
-              <span className="flex gap-0.5">
-                <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-              </span>
-            </p>
+            <p className="text-[10px] text-primary font-bold">en train d'écrire...</p>
           ) : (
             <p className="text-[10px] text-green-500 font-bold">● En ligne</p>
           )}
         </div>
         {onStartCall && !isReadonly && (
-          <button
-            onClick={() => onStartCall({ targetEmail: conversation.other_email, targetName: conversation.other_name || conversation.other_email, targetAvatar: conversation.other_avatar })}
-            className="w-9 h-9 bg-orange-50 rounded-full flex items-center justify-center active:scale-95 transition-all border border-orange-100"
-          >
+          <button onClick={() => onStartCall({ targetEmail: conversation.other_email, targetName: conversation.other_name, targetAvatar: conversation.other_avatar })}
+            className="w-9 h-9 bg-orange-50 rounded-full flex items-center justify-center border border-orange-100 active:scale-95">
             <PhoneCall className="w-4 h-4 text-primary" />
           </button>
         )}
-        {isReadonly && (
-          <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full uppercase tracking-widest">Admin</span>
-        )}
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 hide-scrollbar">
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ minHeight: 0 }}>
         {loading ? (
-          <div className="flex justify-center pt-10">
-            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <div className="flex justify-center pt-20"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 py-12">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
+                <MessageSquare className="w-10 h-10 text-primary/40" />
+              </div>
+              <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center border border-orange-100">
+                <Sparkles className="w-4 h-4 text-primary" />
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-[16px] font-black text-gray-800">Démarrez la conversation</p>
+              <p className="text-[12px] text-gray-400 font-medium mt-1 px-6">Envoyez un message à {conversation.other_name || "cette personne"}</p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {["Bonjour ! 👋", "Disponible ?", "Merci"].map(g => (
+                <button key={g} onClick={() => { setInput(g); }}
+                  className="px-4 py-2 bg-white border border-orange-200 rounded-full text-[12px] font-bold text-primary active:scale-95 transition-all shadow-sm">
+                  {g}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : messages.map((m) => {
-          const isMe = m.sender_email === currentUser.email;
-          // Détecter une carte service
-          let serviceData = null;
-          try {
-            const parsed = JSON.parse(m.content);
-            if (parsed?.type === "service_card") serviceData = parsed;
-          } catch {}
-
-          return (
-            <div key={m.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-              {serviceData ? (
-                <div className="max-w-[80%]">
-                  <p className={`text-[11px] font-medium mb-1.5 ${isMe ? "text-right text-gray-400" : "text-gray-400"}`}>
-                    {isMe ? "Vous avez partagé un service" : "Service partagé"}
-                  </p>
-                  <ServiceCard service={serviceData} navigate={navigate} />
-                </div>
-              ) : m.type === "image" && m.file_url ? (
-                <div className="max-w-[75%]">
-                  <img src={m.file_url} alt="image" className="rounded-2xl max-w-full shadow-sm" loading="lazy" />
-                  {m.content && (
-                    <div className={`mt-1 px-3 py-2 rounded-2xl text-[13px] font-medium ${
-                      isMe ? "bg-primary text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                    }`}>
+        ) : (
+          messages.map((m) => {
+            const isMe = m.sender_email === currentUser.email;
+            let serviceData = null;
+            try { const p = JSON.parse(m.content); if (p?.type === "service_card") serviceData = p; } catch {}
+            return (
+              <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[78%] ${isMe ? "items-end" : "items-start"} flex flex-col`}>
+                  {serviceData ? (
+                    <div className="w-56"><ServiceCard service={serviceData} navigate={navigate} /></div>
+                  ) : m.type === "image" && m.file_url ? (
+                    <div>
+                      <img src={m.file_url} alt="image" className="rounded-2xl max-w-full shadow-sm max-h-64 object-cover" loading="lazy" onClick={() => window.open(m.file_url, "_blank")} />
+                      {m.content && m.content !== "📷 Image" && (
+                        <div className={`mt-1 px-3 py-2 rounded-2xl text-[13px] font-medium ${isMe ? "bg-primary text-white rounded-br-sm" : "bg-white text-gray-900 rounded-bl-sm shadow-sm"}`}>{m.content}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className={`px-4 py-2.5 rounded-2xl text-[13px] font-medium leading-snug ${isMe ? "bg-primary text-white rounded-br-sm" : "bg-white text-gray-900 rounded-bl-sm shadow-sm"}`}>
                       {cleanMarkdown(m.content)}
                     </div>
                   )}
+                  <div className={`flex items-center gap-1 mt-0.5 px-1 ${isMe ? "flex-row-reverse" : ""}`}>
+                    <span className="text-[9px] text-gray-400">{timeAgo(m.created_at || m.created_date)}</span>
+                    {isMe && <span className={`text-[10px] ${m.read ? "text-primary" : "text-gray-300"}`}>{m.read ? "✓✓" : "✓"}</span>}
+                  </div>
                 </div>
-              ) : (
-                <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-[13px] font-medium leading-snug ${
-                  isMe ? "bg-primary text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                }`}>
-                  {cleanMarkdown(m.content)}
-                </div>
-              )}
-              {/* Heure + statut de lecture */}
-              <div className={`flex items-center gap-1 mt-0.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                <span className="text-[9px] text-gray-400 font-medium">{timeAgo(m.created_date)}</span>
-                {isMe && (
-                  <span className={`text-[11px] font-black ${m.read ? "text-primary" : "text-gray-300"}`}>
-                    {m.read ? "✓✓" : "✓"}
-                  </span>
-                )}
               </div>
-            </div>
-          );
-        })}
-        {/* Indicateur "en train d'écrire" style Snapchat */}
+            );
+          })
+        )}
         {otherTyping && (
-          <div className="flex items-start gap-2">
-            <div className="flex items-center gap-1 bg-gray-100 px-4 py-3 rounded-2xl rounded-bl-sm">
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-            </div>
-          </div>
+          <div className="flex justify-start"><div className="bg-white px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm flex gap-1">
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div></div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Input — masqué en mode readonly (admin) */}
+      {/* Input bar — always at bottom */}
       {isReadonly ? (
-        <div className="px-4 pb-5 pt-3 border-t border-gray-100 bg-gray-50">
-          <p className="text-center text-[12px] text-gray-400 font-medium py-2">
-            🔒 Vous ne pouvez pas répondre à ce message administrateur
-          </p>
-        </div>
+        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 shrink-0"><p className="text-center text-[12px] text-gray-400">🔒 Messages administrateur en lecture seule</p></div>
       ) : (
-        <div className="px-4 pb-5 pt-3 border-t border-gray-100 flex items-center gap-2 bg-white">
-          <input
-            type="file"
-            accept="image/*"
-            id={`img-upload-${convId}`}
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (file) { await send(file); e.target.value = ""; }
-            }}
-          />
-          <button
-            onClick={() => document.getElementById(`img-upload-${convId}`)?.click()}
-            className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0 active:scale-95 transition-all"
-          >
-            <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        <div className="px-3 py-3 border-t border-gray-100 bg-white flex items-end gap-2 shrink-0" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { await send(f); e.target.value = ""; } }} />
+          <button onClick={() => fileInputRef.current?.click()} className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0 active:scale-95">
+            <Image className="w-5 h-5 text-gray-500" />
           </button>
-          <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-full px-4 py-3">
-            <input
-              value={input}
-              onChange={e => { setInput(e.target.value); if (e.target.value) sendTypingSignal(); }}
-              onKeyDown={e => e.key === "Enter" && send()}
-              placeholder="Écrire un message..."
-              className="flex-1 bg-transparent text-[13px] text-gray-800 outline-none placeholder:text-gray-400"
-            />
+          <div className="flex-1 flex items-center bg-gray-100 rounded-2xl px-4 py-2.5">
+            <input value={input} onChange={e => { setInput(e.target.value); if (e.target.value) sendTypingSignal(); }}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
+              placeholder="Écrire un message..." className="flex-1 bg-transparent text-[13px] text-gray-800 outline-none" />
           </div>
-          <button
-            onClick={() => send()}
-            disabled={(!input.trim() && !sending) || sending}
-            className="w-11 h-11 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-all disabled:opacity-40"
-          >
+          <button onClick={() => send()} disabled={(!input.trim() && !sending) || sending}
+            className="w-11 h-11 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-all disabled:opacity-40 shrink-0">
             <Send className="w-4 h-4 text-white" />
           </button>
         </div>
