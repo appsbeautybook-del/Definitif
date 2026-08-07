@@ -6,7 +6,7 @@ import { supabase } from '@/api/supabaseClient';
 import {
   ArrowLeft, Share2, Heart, ShoppingCart, Star, ChevronRight,
   Truck, Shield, RotateCcw, ChevronDown, ChevronUp, Check, ZoomIn, CreditCard, Lock, X, Wand2,
-  MapPin, MessageCircle, Phone, Clock, Headphones, Package, RefreshCw, ArrowUp
+  MapPin, MessageCircle, Phone, Clock, Headphones, Package, RefreshCw, ArrowUp, Store
 } from "lucide-react";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useLikedProducts } from "@/hooks/useLikedProducts";
