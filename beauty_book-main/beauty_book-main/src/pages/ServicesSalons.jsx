@@ -1203,7 +1203,7 @@ function ServicesTab({ activeCategory }) {
                  });
                }}
                className="absolute top-3 right-3 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow z-10">
-               <Heart className={`w-4 h-4 ${!unliked.includes(item.id) ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
+               <Heart className={`w-4 h-4 transition-all ${unliked.includes(item.id) ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
               </button>
             </div>
             <div className="px-4 pt-3 pb-4 cursor-pointer active:opacity-80" onClick={() => navigate(`/service/${item.id}`, { state: { id: item.id } })}>
@@ -1283,7 +1283,7 @@ function ServicesTab({ activeCategory }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 bg-gray-100 rounded-full px-3 py-1.5">
                   <Clock className="w-3.5 h-3.5 text-gray-400" />
-                  <span className="text-[12px] font-black text-gray-600">{item.duration_min} min</span>
+                  <span className="text-[12px] font-black text-gray-600">{item.duration || item.duration_min || 60} min</span>
                 </div>
                 <span className="text-[22px] font-black text-primary">{item.price} €</span>
               </div>
