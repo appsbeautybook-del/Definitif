@@ -554,7 +554,7 @@ export default function ProduitDetail() {
       </div>
 
       <div className="h-2 bg-gray-50" />
-      <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="Tu pourrais aimer" />
+      <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="Vous aimerez aussi" />
 
       {/* Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3 z-30" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
