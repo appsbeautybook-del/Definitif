@@ -220,12 +220,31 @@ export default function Home() {
     ? homeConfig.hero_banners
     : [{ title: "Éclat d'été :\n-20% sur les forfaits", subtitle: "Réservez avant le 30 juillet", cta: "EN PROFITER", cta_link: "/boutique", image: MASSAGE_IMAGE }];
 
-  const servicesTendance = homeConfig.services_tendance?.length > 0
+  const servicesTendanceRaw = homeConfig.services_tendance?.length > 0
     ? homeConfig.services_tendance
     : [
         { id: "lifting-cils", title: "Lifting de cils", price: 45, image_url: LIFTING_IMAGE, tag: "POPULAIRE" },
         { id: "manucure-russe", title: "Manucure Russe", price: 35, image_url: MANI_IMAGE, tag: "TOP VENTES" },
       ];
+  const [servicesTendance, setServicesTendance] = useState(servicesTendanceRaw);
+
+  useEffect(() => {
+    if (!servicesTendanceRaw.length) return;
+    const ids = servicesTendanceRaw.map(s => s.id).filter(Boolean);
+    if (!ids.length) { setServicesTendance(servicesTendanceRaw); return; }
+    entities.Service.filter({ status: "actif" }, "-created_at", 100)
+      .then(all => {
+        const byId = {};
+        all.forEach(s => { byId[s.id] = s; });
+        setServicesTendance(servicesTendanceRaw.map(s => {
+          const real = byId[s.id];
+          if (!real) return s;
+          const img = real.image_url || (real.images && real.images[0]) || s.image_url;
+          return { ...s, image_url: img, price: real.price || s.price, title: real.title || s.title };
+        }));
+      })
+      .catch(() => setServicesTendance(servicesTendanceRaw));
+  }, [homeConfig.services_tendance]);
 
   const salonDuMois = homeConfig.salon_du_mois;
   const expertiseDuMois = homeConfig.expertise_du_mois;
