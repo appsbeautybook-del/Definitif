@@ -1188,19 +1188,27 @@ function ServicesTab({ activeCategory }) {
               )}
               <button onClick={(e) => {
                  e.stopPropagation();
+                 const isLiked = unliked.includes(item.id);
+                 // Update local state + localStorage
                  setUnliked(prev => {
                    const next = prev.includes(item.id) ? prev.filter(x => x !== item.id) : [...prev, item.id];
                    localStorage.setItem("bb_unliked_services", JSON.stringify(next));
-                   // Mettre à jour bb_liked_services pour la page Profil favoris
                    const allLikedStr = localStorage.getItem("bb_liked_services") || "[]";
                    const allLiked = JSON.parse(allLikedStr);
-                   const isNowUnliked = next.includes(item.id);
-                   const updatedLiked = isNowUnliked
+                   const updatedLiked = isLiked
                      ? allLiked.filter(x => x !== item.id)
                      : [...new Set([...allLiked, item.id])];
                    localStorage.setItem("bb_liked_services", JSON.stringify(updatedLiked));
                    return next;
                  });
+                 // Persist to Supabase
+                 if (user?.email) {
+                   if (isLiked) {
+                     likesApi.removeLike(user.email, item.id, 'service').catch(() => {});
+                   } else {
+                     likesApi.addLike(user.email, item.id, 'service', user?.full_name || '', user?.avatar_url || '').catch(() => {});
+                   }
+                 }
                }}
                className="absolute top-3 right-3 w-9 h-9 bg-white/90 rounded-full flex items-center justify-center shadow z-10">
                <Heart className={`w-4 h-4 transition-all ${unliked.includes(item.id) ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
