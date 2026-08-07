@@ -1,6 +1,6 @@
 import { fetchShopifyProducts } from "@/api/shopifyClient";
-import { useState, useCallback, useEffect, useRef } from "react";
-import { Star, MapPin, Award, Users, Flame, ChevronRight, Sparkles, ShoppingBag, Scissors, Play } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { Star, MapPin, Award, Users, Flame, ChevronRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import usePullToRefresh from "@/hooks/usePullToRefresh";
@@ -18,6 +18,7 @@ function getSectionBg() {
 }
 
 
+
 // Images
 const MASSAGE_IMAGE = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=800";
 const SALON_BW = "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=800";
@@ -33,14 +34,6 @@ const LIVE_2 = "https://images.unsplash.com/photo-1519699047748-de8e457a634e?q=8
 const SPACE_IMAGE = "https://images.unsplash.com/photo-1604881991720-f91add269bed?q=80&w=400";
 const HERO_IMG = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=800";
 
-// Tab definitions
-const HOME_TABS = [
-  { id: "accueil", label: "Accueil", icon: Sparkles },
-  { id: "tendance", label: "Tendance", icon: Flame },
-  { id: "salons", label: "Salons", icon: Scissors },
-  { id: "directs", label: "Lives", icon: Play },
-];
-
 // ── Hero Banner ──────────────────────────────────────────────────────────────
 function HeroSlider({ banners, user, navigate }) {
   const [idx, setIdx] = useState(0);
@@ -53,12 +46,14 @@ function HeroSlider({ banners, user, navigate }) {
 
   return (
     <div className="px-4 pt-5 pb-3">
+      {/* Hero Card */}
       <div className="relative rounded-[28px] overflow-hidden h-[200px] shadow-xl shadow-primary/20">
         <img src={banner.image || HERO_IMG} alt="Banner" className="w-full h-full object-cover" />
+        {/* Overlay opacité configurable */}
         <div className="absolute inset-0" style={{ background: `rgba(0,0,0,${banner.overlay_opacity ?? 0.55})` }} />
         <div className="absolute inset-0 p-5 flex flex-col justify-between">
           <span className="self-start bg-white/25 backdrop-blur-sm text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full border border-white/30">
-            Offre exclusive
+            ✦ Offre exclusive
           </span>
           <div>
             <h2 className="text-white text-[24px] font-black leading-tight whitespace-pre-line drop-shadow-sm">{banner.title || "Éclat d'été :\n-20% sur tout"}</h2>
@@ -111,10 +106,9 @@ export default function Home() {
   const [produitsRecommandes, setProduitsRecommandes] = useState([]);
   const [offresImmoLive, setOffresImmoLive] = useState(null);
   const [offresSpeciales, setOffresSpeciales] = useState([]);
-  const [activeTab, setActiveTab] = useState("accueil");
-  const tabRef = useRef(null);
 
   useEffect(() => {
+    // Reset immédiat pour éviter un flash des données précédentes
     setHomeConfig({});
     setOffresSpeciales([]);
     setOffresImmoLive(null);
@@ -122,6 +116,7 @@ export default function Home() {
     setPartenairesDiplomes([]);
     setProduitsTendanceLive([]);
 
+    // Charger config depuis AppConfig
     entities.AppConfig.filter({ key: "home_config" }, "-created_at", 50)
       .then(async rows => {
         if (rows[0]?.value) {
@@ -129,6 +124,7 @@ export default function Home() {
           setHomeConfig(cfg);
           setOffresSpeciales(cfg.offres_speciales || []);
 
+          // Sync immo : charger le vrai listing depuis la BDD par son ID
           const immoConfig = Array.isArray(cfg.offres_immobilier)
             ? cfg.offres_immobilier[0]
             : cfg.offres_immobilier;
@@ -146,10 +142,12 @@ export default function Home() {
 
     entities.LiveSession.filter({ status: "live" }, "-created_at", 5).then(setLiveSessions).catch(() => {});
 
+    // Partenaires certifiés
     entities.ProfilPro.filter({ status: "actif" }, "-created_at", 50)
       .then(pros => setPartenairesDiplomes(pros.filter(p => p.type_activite === "Particulier" && p.has_diplome)))
       .catch(() => setPartenairesDiplomes([]));
 
+    // Produits tendance : BDD + Shopify
     Promise.allSettled([
       entities.Produit.filter({ status: "actif" }, "-created_at", 4).then(items => items.map(p => ({ ...p, source: "db" }))),
       fetchShopifyProducts({}).then(r => (r.data?.products || []).slice(0, 4).map(p => ({ id: p.id, name: p.name, price: p.price, image_url: p.img, brand: p.brand, source: "shopify" }))),
@@ -159,6 +157,7 @@ export default function Home() {
       setProduitsTendanceLive([...db, ...shopify].slice(0, 4));
     }).catch(() => setProduitsTendanceLive([]));
 
+    // Produits recommandés : Shopify + vendeurs
     (async () => {
       const shopifyProds = [];
       const vendeurProds = [];
@@ -199,6 +198,7 @@ export default function Home() {
       setProduitsRecommandes([...shopifyProds, ...vendeurProds].slice(0, 8));
     })();
 
+    // Fallback : charger la première offre dispo si aucune config admin
     entities.ImmobilierListing.filter({ status: "actif" }, "-created_at", 1)
       .then(rows => { if (rows[0]) setOffresImmoLive(prev => prev || rows[0]); })
       .catch(() => {});
@@ -229,6 +229,7 @@ export default function Home() {
 
   const salonDuMois = homeConfig.salon_du_mois;
   const expertiseDuMois = homeConfig.expertise_du_mois;
+  // Produits tendance : produits admin sélectionnés + produits Shopify live, fusionnés (max 4)
   const adminProduits = homeConfig.produits_tendance || [];
   const shopifyOnly = produitsTendanceLive.filter(p => p.source === "shopify");
   const merged = [...adminProduits, ...shopifyOnly];
@@ -239,6 +240,7 @@ export default function Home() {
         { id: "huile-barbe", name: "Huile Barbe Bio", price: 18.50, image_url: BARBE_IMAGE },
       ];
 
+  // Offre immo : toujours préférer offresImmoLive (vrai ID BDD), sinon fallback config admin
   const offresImmo = offresImmoLive || (Array.isArray(homeConfig.offres_immobilier)
     ? homeConfig.offres_immobilier[0]
     : homeConfig.offres_immobilier) || null;
@@ -255,358 +257,288 @@ export default function Home() {
       {/* ── Hero ── */}
       <HeroSlider banners={heroBanners} user={user} navigate={navigate} />
 
-      {/* ── Horizontal Tabs ── */}
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100">
-        <div ref={tabRef} className="flex overflow-x-auto hide-scrollbar px-4 gap-1">
-          {HOME_TABS.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
+      {/* ── Catégories — fond nude ── */}
+      <div className="mx-4 rounded-3xl px-4 py-5 mb-2" style={{ background: sectionBg }}>
+        <SectionTitle title="Catégories" />
+        <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-1">
+          {GLOBAL_CATEGORIES.map((cat) => {
+            const Icon = cat.Icon;
             return (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3.5 shrink-0 transition-all relative ${
-                  isActive ? "text-primary" : "text-gray-400"
-                }`}
+                key={cat.id}
+                onClick={() => navigate(`/services-salons?cat=${encodeURIComponent(cat.id)}`)}
+                className="flex flex-col items-center gap-2 shrink-0 active:scale-95 transition-all"
               >
-                <Icon className={`w-4 h-4 ${isActive ? "text-primary" : ""}`} />
-                <span className={`text-[12px] font-black uppercase tracking-wider ${isActive ? "text-primary" : ""}`}>
-                  {tab.label}
-                </span>
-                {isActive && (
-                  <div className="absolute bottom-0 left-2 right-2 h-[3px] bg-primary rounded-full" />
-                )}
+                <div className="w-[60px] h-[60px] flex items-center justify-center">
+                  <Icon className={`w-7 h-7 ${cat.color}`} strokeWidth={1.6} />
+                </div>
+                <span className="text-[10px] font-bold text-gray-600 tracking-tight text-center">{cat.label}</span>
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* ── Tab Content ── */}
-      <div className="min-h-[60vh]">
-        {/* TAB: ACCUEIL */}
-        {activeTab === "accueil" && (
-          <div className="animate-fadeIn">
-            {/* Catégories */}
-            <div className="mx-4 mt-4 rounded-3xl px-4 py-5" style={{ background: sectionBg }}>
-              <SectionTitle title="Catégories" />
-              <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-1">
-                {GLOBAL_CATEGORIES.map((cat) => {
-                  const Icon = cat.Icon;
-                  return (
-                    <button
-                      key={cat.id}
-                      onClick={() => navigate(`/services-salons?cat=${encodeURIComponent(cat.id)}`)}
-                      className="flex flex-col items-center gap-2 shrink-0 active:scale-95 transition-all"
-                    >
-                      <div className="w-[60px] h-[60px] flex items-center justify-center">
-                        <Icon className={`w-7 h-7 ${cat.color}`} strokeWidth={1.6} />
-                      </div>
-                      <span className="text-[10px] font-bold text-gray-600 tracking-tight text-center">{cat.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Offres Spéciales */}
-            {offresSpeciales.length > 0 && (
-              <div className="mx-4 mt-4 rounded-3xl px-4 py-5" style={{ background: sectionBg }}>
-                <SectionTitle title="Offres Spéciales" action="Tout voir" onAction={() => navigate("/services-salons")} />
-                <div className="flex flex-col gap-3">
-                  {offresSpeciales.map((o, i) => (
-                    <button
-                      key={i}
-                      onClick={() => navigate(o.cta_link || "/services-salons")}
-                      className="w-full bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-[0.99] transition-all border border-orange-100"
-                    >
-                      <div className="relative h-[180px]">
-                        <img src={o.image || SALON_BW} alt={o.salon_name} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                        {o.rating && (
-                          <div className="absolute top-3 right-3 bg-white/95 rounded-full px-3 py-1.5 flex items-center gap-1 shadow">
-                            <Star className="w-3.5 h-3.5 text-primary fill-primary" />
-                            <span className="text-[12px] font-black text-gray-900">{o.rating}</span>
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between gap-3">
-                          <div className="flex-1">
-                            <h3 className="text-[18px] font-black text-white leading-tight">{o.salon_name}</h3>
-                            {(o.distance || o.city) && (
-                              <div className="flex items-center gap-1.5 mt-1">
-                                <MapPin className="w-3 h-3 text-white/70" />
-                                <span className="text-[11px] font-bold text-white/70">{[o.distance, o.city].filter(Boolean).join(" • ")}</span>
-                              </div>
-                            )}
-                          </div>
-                          <span className="text-white text-[11px] font-black px-4 py-2.5 rounded-xl uppercase tracking-widest shrink-0 shadow-md" style={{ background: "#E8732A" }}>
-                            RÉSERVER
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Offres Immobilières */}
-            {offresImmo && (
-              <div className="mx-4 mt-4 rounded-3xl px-4 py-5" style={{ background: sectionBg }}>
-                <SectionTitle title="Offres Immobilières" action="Voir tout" onAction={() => navigate("/immobilier")} />
-                <button
-                  onClick={() => {
-                    const immoId = offresImmo?.id || offresImmo?.listing_id;
-                    navigate(immoId ? `/immobilier/${immoId}` : "/immobilier");
-                  }}
-                  className="w-full bg-white rounded-[24px] p-4 shadow-sm flex gap-4 items-start active:scale-[0.99] transition-all text-left border border-orange-100">
-                  <div className="w-[100px] h-[100px] rounded-[18px] overflow-hidden shrink-0">
-                    <img src={offresImmo?.images?.[0] || SPACE_IMAGE} alt="Espace" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-start gap-2">
-                      <h3 className="text-[15px] font-black text-gray-900 leading-tight flex-1">{offresImmo?.title || "Fauteuil Luxe – Paris 8e"}</h3>
-                      <span className="bg-green-100 text-green-600 text-[9px] font-black uppercase px-2.5 py-1 rounded-full shrink-0">DISPO</span>
-                    </div>
-                    <p className="text-[12px] text-gray-400 font-medium mt-1.5 leading-snug">{offresImmo?.location || "Accès complet services, parking inclus"}</p>
-                    <p className="text-[20px] font-black text-gray-900 mt-2">{formatPrice(offresImmo?.price || 800)}<span className="text-[12px] font-bold text-gray-500">/{offresImmo?.unit || "mois"}</span></p>
-                  </div>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB: TENDANCE */}
-        {activeTab === "tendance" && (
-          <div className="animate-fadeIn">
-            {/* Services Tendance */}
-            <div className="px-4 pt-4">
-              <SectionTitle title="Services Tendance" action="Voir tout" onAction={() => navigate("/services-salons")} />
-              <div className="grid grid-cols-2 gap-3">
-                {servicesTendance.slice(0, 4).map((s) => (
-                  <button key={s.id || s.title}
-                    onClick={() => navigate(`/service/${s.id}`, { state: { title: s.title, price: s.price, cover: s.image_url } })}
-                    className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-orange-50">
-                    <div className="relative h-[150px]">
-                      <img src={s.image_url || LIFTING_IMAGE} alt={s.title} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                      <span className="absolute top-2.5 left-2.5 bg-primary text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
-                        <Flame className="w-2.5 h-2.5" /> {s.tag || "TENDANCE"}
-                      </span>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-[13px] font-black text-gray-900 leading-tight">{s.title}</p>
-                      <p className="text-[12px] font-bold text-primary mt-1">À partir de {formatPrice(s.price)}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Produits Tendance */}
-            <div className="px-4 py-4">
-              <SectionTitle title="Produits Tendance" action="Boutique" onAction={() => navigate("/boutique")} />
-              <div className="grid grid-cols-2 gap-3">
-                {produitsTendance.slice(0, 4).map((p) => (
-                  <button key={p.id || p.name}
-                    onClick={() => navigate(`/produit?id=${p.id}`)}
-                    className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-orange-50">
-                    <div className="relative h-[140px]">
-                      <img src={p.image_url || SERUM_IMAGE} alt={p.name || p.title} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                    </div>
-                    <div className="p-3">
-                      <p className="text-[13px] font-black text-gray-900 leading-tight">{p.name || p.title}</p>
-                      <p className="text-[13px] font-black text-primary mt-1">{formatPrice(p.price)}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Recommandé pour vous */}
-            {produitsRecommandes.length > 0 && (
-              <div className="px-4 py-4">
-                <SectionTitle title="Recommandé pour vous" action="Boutique" onAction={() => navigate("/boutique")} />
-                <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
-                  {produitsRecommandes.map((p) => (
-                    <button key={p.id}
-                      onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)}
-                      className="min-w-[160px] max-w-[160px] bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-gray-100 snap-start shrink-0">
-                      <div className="relative h-[140px]">
-                        <img src={p.image_url || ""} alt={p.name} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                      </div>
-                      <div className="p-3">
-                        {p.brand && <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
-                        <p className="text-[12px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
-                        <p className="text-[13px] font-black text-primary mt-1">{formatPrice(p.price)}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB: SALONS */}
-        {activeTab === "salons" && (
-          <div className="animate-fadeIn">
-            {/* Salon du Mois */}
-            <div className="mx-4 mt-4 rounded-3xl px-4 py-5" style={{ background: sectionBg }}>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[18px] font-black text-gray-900">Salon du Mois</h2>
-                <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-primary/30" style={{ background: "#E8732A" }}>
-                  <Award className="w-3 h-3" /> À l'honneur
+      {/* ── Services Tendance ── */}
+      <div className="px-4 py-4">
+        <SectionTitle title="Services Tendance" action="Voir tout" onAction={() => navigate("/services-salons")} />
+        <div className="grid grid-cols-2 gap-3">
+          {servicesTendance.slice(0, 4).map((s) => (
+            <button key={s.id || s.title}
+              onClick={() => navigate(`/service/${s.id}`, { state: { title: s.title, price: s.price, cover: s.image_url } })}
+              className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-orange-50">
+              <div className="relative h-[150px]">
+                <img src={s.image_url || LIFTING_IMAGE} alt={s.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                <span className="absolute top-2.5 left-2.5 bg-primary text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <Flame className="w-2.5 h-2.5" /> {s.tag || "TENDANCE"}
                 </span>
               </div>
-              <button onClick={() => navigate("/pro/vue-client", { state: { proEmail: salonDuMois?.user_email } })} className="w-full relative rounded-[24px] overflow-hidden shadow-lg active:scale-[0.99] transition-all">
-                <img src={salonDuMois?.cover_url || salonDuMois?.avatar_url || SALON_BW} alt="Salon du Mois" className="w-full h-52 object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-4 text-left">
-                  <h3 className="text-white text-[22px] font-black leading-tight">{salonDuMois?.salon_name || "L'Atelier de Beauté"}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <MapPin className="w-3.5 h-3.5 text-white/70" />
-                    <p className="text-white/70 text-[12px] font-bold">{salonDuMois?.city || "Paris 8ème"} • ★ {salonDuMois?.rating || "4.9"}</p>
-                  </div>
-                </div>
-              </button>
-            </div>
-
-            {/* Expertise du Mois */}
-            <div className="px-4 py-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[18px] font-black text-gray-900">Expertise du Mois</h2>
-                <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 rounded-full text-white text-[10px] font-black uppercase tracking-widest">
-                  <Users className="w-3 h-3" /> PARTICULIER
-                </span>
+              <div className="p-3">
+                <p className="text-[13px] font-black text-gray-900 leading-tight">{s.title}</p>
+                <p className="text-[12px] font-bold text-primary mt-1">À partir de {formatPrice(s.price)}</p>
               </div>
-              <button onClick={() => navigate("/pro/vue-client", { state: { proEmail: expertiseDuMois?.user_email } })}
-                className="w-full bg-white rounded-[24px] p-4 border border-orange-50 shadow-sm flex items-center gap-4 active:scale-[0.99] transition-all text-left">
-                <div className="relative shrink-0">
-                  <div className="w-[68px] h-[68px] rounded-full overflow-hidden border-[3px] border-primary">
-                    <img src={expertiseDuMois?.avatar_url || EXPERT_3} alt="Expert" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-white" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-[16px] font-black text-gray-900">{expertiseDuMois?.salon_name || "Expert Partenaire"}</h3>
-                  <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5">{expertiseDuMois?.bio?.substring(0, 40) || "SPÉCIALISTE COLORISTE"}</p>
-                  <p className="text-[12px] text-gray-500 font-medium mt-1 leading-snug">{expertiseDuMois?.city || "Expertise en balayage signature et soins profonds."}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-              </button>
-            </div>
-
-            {/* Partenaires Certifiés */}
-            {partenairesDiplomes.length > 0 && (
-              <div className="mx-4 rounded-3xl px-4 py-5 mb-2" style={{ background: sectionBg }}>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-[18px] font-black text-gray-900">Partenaires Certifiés</h2>
-                    <span className="text-[14px]">🎓</span>
-                  </div>
-                  <button onClick={() => navigate("/services-salons")} className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-0.5">
-                    Voir tout <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-                <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
-                  {partenairesDiplomes.map((p, i) => (
-                    <button
-                      key={p.id || i}
-                      onClick={() => navigate("/pro/vue-client", { state: { proEmail: p.user_email } })}
-                      className="min-w-[180px] bg-white rounded-[24px] p-4 shadow-sm shrink-0 flex flex-col items-center text-center gap-3 active:scale-95 transition-all border border-orange-100"
-                    >
-                      <div className="relative">
-                        <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-[3px] border-primary/40">
-                          <img src={p.avatar_url || EXPERT_1} alt={p.salon_name} className="w-full h-full object-cover" />
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center border-2 border-white">
-                          <span className="text-[11px]">🎓</span>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-[13px] font-black text-gray-900 line-clamp-1 w-full">{p.salon_name}</p>
-                        <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">{p.type_activite || (p.specialites || [])[0] || "PRO CERTIFIÉ"}</p>
-                        {p.rating > 0 && (
-                          <div className="flex items-center justify-center gap-1 mt-1.5">
-                            <Star className="w-3.5 h-3.5 text-primary fill-primary" />
-                            <span className="text-[13px] font-black text-gray-800">{p.rating}</span>
-                            <span className="text-[11px] text-gray-400 font-medium">({p.reviews_count || 0})</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="w-full text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-2xl" style={{ background: "#E8732A" }}>
-                        VOIR LE PROFIL
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB: DIRECTS */}
-        {activeTab === "directs" && (
-          <div className="animate-fadeIn">
-            <div className="px-4 pt-4">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-[18px] font-black text-gray-900">Directs en cours</h2>
-                  {liveSessions.length > 0 && <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />}
-                </div>
-                <button onClick={() => navigate("/live")} className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-0.5">
-                  Explorer <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
-                {(liveSessions.length > 0 ? liveSessions : [
-                  { id: "1", thumbnail_url: LIVE_1, title: "Masterclass Contouring", host_name: "Expert Partenaire" },
-                  { id: "2", thumbnail_url: LIVE_2, title: "Démo Balayage", host_name: "Skin Expert" },
-                ]).map((v) => (
-                  <button key={v.id} onClick={() => navigate(`/live-detail/${v.id}`)}
-                    className="min-w-[185px] shrink-0 active:scale-95 transition-all text-left">
-                    <div className="relative h-[200px] rounded-[24px] overflow-hidden">
-                      <img src={v.thumbnail_url || LIVE_1} alt={v.title} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-black uppercase px-2.5 py-1.5 rounded-full flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> LIVE
-                      </span>
-                      <div className="absolute bottom-0 left-0 right-0 p-3">
-                        <p className="text-[13px] font-black text-white leading-tight">{v.title}</p>
-                        <p className="text-[11px] font-medium text-white/70 mt-0.5">par <span className="text-orange-300 font-bold">{v.host_name}</span></p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Reels preview */}
-            <div className="px-4 py-4">
-              <SectionTitle title="Reels populaires" action="Voir tout" onAction={() => navigate("/reseau-social")} />
-              <div className="grid grid-cols-3 gap-2">
-                {[1,2,3].map(i => (
-                  <button key={i} onClick={() => navigate("/reseau-social")}
-                    className="aspect-[9/16] bg-gray-100 rounded-2xl overflow-hidden active:scale-95 transition-all relative">
-                    <img src={LIVE_1} alt="" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <div className="flex items-center gap-1">
-                        <Play className="w-3 h-3 text-white fill-white" />
-                        <span className="text-white text-[10px] font-black">2.4k</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {/* ── Salon du Mois — fond nude ── */}
+      <div className="mx-4 rounded-3xl px-4 py-5 mb-2" style={{ background: sectionBg }}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[18px] font-black text-gray-900">Salon du Mois</h2>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-[10px] font-black uppercase tracking-widest shadow-md shadow-primary/30" style={{ background: "#E8732A" }}>
+            <Award className="w-3 h-3" /> À l'honneur
+          </span>
+        </div>
+        <button onClick={() => navigate("/pro/vue-client", { state: { proEmail: salonDuMois?.user_email } })} className="w-full relative rounded-[24px] overflow-hidden shadow-lg active:scale-[0.99] transition-all">
+          <img src={salonDuMois?.cover_url || salonDuMois?.avatar_url || SALON_BW} alt="Salon du Mois" className="w-full h-52 object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 p-4 text-left">
+            <h3 className="text-white text-[22px] font-black leading-tight">{salonDuMois?.salon_name || "L'Atelier de Beauté"}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              <MapPin className="w-3.5 h-3.5 text-white/70" />
+              <p className="text-white/70 text-[12px] font-bold">{salonDuMois?.city || "Paris 8ème"} • ★ {salonDuMois?.rating || "4.9"}</p>
+            </div>
+          </div>
+        </button>
+      </div>
+
+      {/* ── Produits Tendance ── */}
+      <div className="px-4 py-4">
+        <SectionTitle title="Produits Tendance" action="Boutique" onAction={() => navigate("/boutique")} />
+        <div className="grid grid-cols-2 gap-3">
+          {produitsTendance.slice(0, 4).map((p) => (
+            <button key={p.id || p.name}
+              onClick={() => navigate(`/produit?id=${p.id}`)}
+              className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-orange-50">
+              <div className="relative h-[140px]">
+                <img src={p.image_url || SERUM_IMAGE} alt={p.name || p.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              </div>
+              <div className="p-3">
+                <p className="text-[13px] font-black text-gray-900 leading-tight">{p.name || p.title}</p>
+                <p className="text-[13px] font-black text-primary mt-1">{formatPrice(p.price)}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Recommandé pour vous ── */}
+      {produitsRecommandes.length > 0 && (
+        <div className="px-4 py-4">
+          <SectionTitle title="Recommandé pour vous" action="Boutique" onAction={() => navigate("/boutique")} />
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 snap-x snap-mandatory scrollbar-hide">
+            {produitsRecommandes.map((p) => (
+              <button key={p.id}
+                onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)}
+                className="min-w-[160px] max-w-[160px] bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-gray-100 snap-start shrink-0">
+                <div className="relative h-[140px]">
+                  <img src={p.image_url || ""} alt={p.name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                </div>
+                <div className="p-3">
+                  {p.brand && <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
+                  <p className="text-[12px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
+                  <p className="text-[13px] font-black text-primary mt-1">{formatPrice(p.price)}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Offres Spéciales — fond nude ── */}
+      {offresSpeciales.length > 0 && (
+        <div className="mx-4 rounded-3xl px-4 py-5 mb-2" style={{ background: sectionBg }}>
+          <SectionTitle title="Offres Spéciales" action="Tout voir" onAction={() => navigate("/services-salons")} />
+          <div className="flex flex-col gap-3">
+            {offresSpeciales.map((o, i) => (
+              <button
+                key={i}
+                onClick={() => navigate(o.cta_link || "/services-salons")}
+                className="w-full bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-[0.99] transition-all border border-orange-100"
+              >
+                <div className="relative h-[180px]">
+                  <img src={o.image || SALON_BW} alt={o.salon_name} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  {o.rating && (
+                    <div className="absolute top-3 right-3 bg-white/95 rounded-full px-3 py-1.5 flex items-center gap-1 shadow">
+                      <Star className="w-3.5 h-3.5 text-primary fill-primary" />
+                      <span className="text-[12px] font-black text-gray-900">{o.rating}</span>
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between gap-3">
+                    <div className="flex-1">
+                      <h3 className="text-[18px] font-black text-white leading-tight">{o.salon_name}</h3>
+                      {(o.distance || o.city) && (
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <MapPin className="w-3 h-3 text-white/70" />
+                          <span className="text-[11px] font-bold text-white/70">{[o.distance, o.city].filter(Boolean).join(" • ")}</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-white text-[11px] font-black px-4 py-2.5 rounded-xl uppercase tracking-widest shrink-0 shadow-md" style={{ background: "#E8732A" }}>
+                      RÉSERVER
+                    </span>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Expertise du Mois ── */}
+      <div className="px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[18px] font-black text-gray-900">Expertise du Mois</h2>
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-900 rounded-full text-white text-[10px] font-black uppercase tracking-widest">
+            <Users className="w-3 h-3" /> PARTICULIER
+          </span>
+        </div>
+        <button onClick={() => navigate("/pro/vue-client", { state: { proEmail: expertiseDuMois?.user_email } })}
+          className="w-full bg-white rounded-[24px] p-4 border border-orange-50 shadow-sm flex items-center gap-4 active:scale-[0.99] transition-all text-left">
+          <div className="relative shrink-0">
+            <div className="w-[68px] h-[68px] rounded-full overflow-hidden border-[3px] border-primary">
+              <img src={expertiseDuMois?.avatar_url || EXPERT_3} alt="Expert" className="w-full h-full object-cover" />
+            </div>
+            <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-2 border-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-[16px] font-black text-gray-900">{expertiseDuMois?.salon_name || "Expert Partenaire"}</h3>
+            <p className="text-[10px] font-black text-primary uppercase tracking-widest mt-0.5">{expertiseDuMois?.bio?.substring(0, 40) || "SPÉCIALISTE COLORISTE"}</p>
+            <p className="text-[12px] text-gray-500 font-medium mt-1 leading-snug">{expertiseDuMois?.city || "Expertise en balayage signature et soins profonds."}</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+        </button>
+      </div>
+
+      {/* ── Partenaires Certifiés (diplômés) — fond nude ── */}
+      {partenairesDiplomes.length > 0 && (
+        <div className="mx-4 rounded-3xl px-4 py-5 mb-2" style={{ background: sectionBg }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <h2 className="text-[18px] font-black text-gray-900">Partenaires Certifiés</h2>
+              <span className="text-[14px]">🎓</span>
+            </div>
+            <button onClick={() => navigate("/services-salons")} className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-0.5">
+              Voir tout <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
+            {partenairesDiplomes.map((p, i) => (
+              <button
+                key={p.id || i}
+                onClick={() => navigate("/pro/vue-client", { state: { proEmail: p.user_email } })}
+                className="min-w-[180px] bg-white rounded-[24px] p-4 shadow-sm shrink-0 flex flex-col items-center text-center gap-3 active:scale-95 transition-all border border-orange-100"
+              >
+                <div className="relative">
+                  <div className="w-[72px] h-[72px] rounded-full overflow-hidden border-[3px] border-primary/40">
+                    <img src={p.avatar_url || EXPERT_1} alt={p.salon_name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center border-2 border-white">
+                    <span className="text-[11px]">🎓</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[13px] font-black text-gray-900 line-clamp-1 w-full">{p.salon_name}</p>
+                  <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mt-0.5">{p.type_activite || (p.specialites || [])[0] || "PRO CERTIFIÉ"}</p>
+                  {p.rating > 0 && (
+                    <div className="flex items-center justify-center gap-1 mt-1.5">
+                      <Star className="w-3.5 h-3.5 text-primary fill-primary" />
+                      <span className="text-[13px] font-black text-gray-800">{p.rating}</span>
+                      <span className="text-[11px] text-gray-400 font-medium">({p.reviews_count || 0})</span>
+                    </div>
+                  )}
+                </div>
+                <div className="w-full text-white text-[10px] font-black uppercase tracking-widest py-2.5 rounded-2xl" style={{ background: "#E8732A" }}>
+                  VOIR LE PROFIL
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Directs ── */}
+      <div className="px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-[18px] font-black text-gray-900">Directs</h2>
+            {liveSessions.length > 0 && <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />}
+          </div>
+          <button onClick={() => navigate("/live")} className="text-[11px] font-black text-primary uppercase tracking-widest flex items-center gap-0.5">
+            Explorer <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
+          {(liveSessions.length > 0 ? liveSessions : [
+            { id: "1", thumbnail_url: LIVE_1, title: "Masterclass Contouring", host_name: "Expert Partenaire" },
+            { id: "2", thumbnail_url: LIVE_2, title: "Démo Balayage", host_name: "Skin Expert" },
+          ]).map((v) => (
+            <button key={v.id} onClick={() => navigate(`/live-detail/${v.id}`)}
+              className="min-w-[185px] shrink-0 active:scale-95 transition-all text-left">
+              <div className="relative h-[200px] rounded-[24px] overflow-hidden">
+                <img src={v.thumbnail_url || LIVE_1} alt={v.title} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] font-black uppercase px-2.5 py-1.5 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> LIVE
+                </span>
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <p className="text-[13px] font-black text-white leading-tight">{v.title}</p>
+                  <p className="text-[11px] font-medium text-white/70 mt-0.5">par <span className="text-orange-300 font-bold">{v.host_name}</span></p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Offres Immobilières — fond nude ── */}
+      <div className="mx-4 rounded-3xl px-4 py-5 mb-2" style={{ background: sectionBg }}>
+        <SectionTitle title="Offres Immobilières" action="Voir tout" onAction={() => navigate("/immobilier")} />
+        <button
+          onClick={() => {
+            const immoId = offresImmo?.id || offresImmo?.listing_id;
+            navigate(immoId ? `/immobilier/${immoId}` : "/immobilier");
+          }}
+          className="w-full bg-white rounded-[24px] p-4 shadow-sm flex gap-4 items-start active:scale-[0.99] transition-all text-left border border-orange-100">
+          <div className="w-[100px] h-[100px] rounded-[18px] overflow-hidden shrink-0">
+            <img src={offresImmo?.images?.[0] || SPACE_IMAGE} alt="Espace" className="w-full h-full object-cover" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-start gap-2">
+              <h3 className="text-[15px] font-black text-gray-900 leading-tight flex-1">{offresImmo?.title || "Fauteuil Luxe – Paris 8e"}</h3>
+              <span className="bg-green-100 text-green-600 text-[9px] font-black uppercase px-2.5 py-1 rounded-full shrink-0">DISPO</span>
+            </div>
+            <p className="text-[12px] text-gray-400 font-medium mt-1.5 leading-snug">{offresImmo?.location || "Accès complet services, parking inclus"}</p>
+            <p className="text-[20px] font-black text-gray-900 mt-2">{formatPrice(offresImmo?.price || 800)}<span className="text-[12px] font-bold text-gray-500">/{offresImmo?.unit || "mois"}</span></p>
+          </div>
+        </button>
+      </div>
+
     </div>
   );
 }
