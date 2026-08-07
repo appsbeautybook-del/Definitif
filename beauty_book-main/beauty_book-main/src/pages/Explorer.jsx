@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, X, Search, ChevronRight } from "lucide-react";
-import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
+import { ArrowLeft, MapPin, Star, X, Search, ChevronRight, Navigation } from "lucide-react";
+import { APIProvider, Map, AdvancedMarker, useMap } from "@vis.gl/react-google-maps";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { useLocation } from '@/contexts/LocationContext';
@@ -42,6 +42,40 @@ function PriceMarker({ pro, price, isSelected, onClick }) {
       </div>
     </AdvancedMarker>
   );
+}
+
+function UserMarker({ lat, lng }) {
+  return (
+    <AdvancedMarker position={{ lat, lng }}>
+      <div style={{ position: "relative" }}>
+        <div style={{
+          width: 20, height: 20, borderRadius: "50%", background: "#4285F4",
+          border: "3px solid white", boxShadow: "0 0 0 2px rgba(66,133,244,0.3), 0 2px 8px rgba(0,0,0,0.3)",
+          position: "relative", zIndex: 2,
+        }} />
+        <div style={{
+          position: "absolute", top: -6, left: -6, width: 32, height: 32,
+          borderRadius: "50%", background: "rgba(66,133,244,0.15)",
+          animation: "pulse 2s ease-in-out infinite",
+        }} />
+      </div>
+    </AdvancedMarker>
+  );
+}
+
+function MapController({ center, zoom }) {
+  const map = useMap();
+  const didCenter = useRef(false);
+  useEffect(() => {
+    if (map && center) {
+      if (!didCenter.current) {
+        map.panTo(center);
+        if (zoom) map.setZoom(zoom);
+        didCenter.current = true;
+      }
+    }
+  }, [map, center, zoom]);
+  return null;
 }
 
 export default function Explorer() {

@@ -219,7 +219,18 @@ const createEntity = (tableName) => ({
       const { result } = await res.json();
       return result;
     } catch (e) {
-      throw e;
+      try {
+        const cleanPayload = await stripUnknownColumns(tableName, payload);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+          throw new Error('Vous devez être connecté pour effectuer cette action.');
+        }
+        const { data: result, error } = await supabase.from(tableName).insert(cleanPayload).select().single();
+        if (error) throw error;
+        return result;
+      } catch (e2) {
+        throw e2;
+      }
     }
   },
 
