@@ -616,8 +616,14 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Tu po
         if (dead) return;
         let filtered = (items || []).filter(p => p.id !== currentProductId);
         if (cat) {
-          const sameCat = filtered.filter(p => (p.category || "").toLowerCase().includes(cat));
-          const otherCat = filtered.filter(p => !(p.category || "").toLowerCase().includes(cat));
+          const sameCat = filtered.filter(p => {
+            const pc = (p.category || "").toLowerCase();
+            return pc.includes(cat) || cat.includes(pc);
+          });
+          const otherCat = filtered.filter(p => {
+            const pc = (p.category || "").toLowerCase();
+            return !pc.includes(cat) && !cat.includes(pc);
+          });
           filtered = [...sameCat, ...otherCat];
         }
         setProducts(filtered.slice(0, 8).map(p => ({
