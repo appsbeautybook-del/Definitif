@@ -35,7 +35,7 @@ const COMMODITES_LIST = [
   { name: "Musique live", Icon: Music },
 ];
 
-const DAYS = ["Lundi", "Mardi", "Mercredi", "Vendredi", "Samedi", "Dimanche"];
+const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
 export default function ModifierProfilPro() {
   const navigate = useNavigate();

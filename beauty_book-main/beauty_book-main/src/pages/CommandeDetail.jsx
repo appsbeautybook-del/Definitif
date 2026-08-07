@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Package, Clock, CheckCircle, XCircle, MapPin, CreditCard, Truck, Calendar, User, Scissors } from "lucide-react";
+import { ArrowLeft, Package, Clock, CheckCircle, XCircle, MapPin, CreditCard, Truck, Calendar, User, Scissors, Crown, Sparkles, Smartphone } from "lucide-react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 
@@ -19,6 +19,18 @@ const STEPS_RDV = [
   { key: "confirme", label: "Confirmé" },
   { key: "termine", label: "Terminé" },
 ];
+
+// ── Statuts Abonnement ──
+const STEPS_ABONNEMENT = [
+  { key: "pending", label: "En attente" },
+  { key: "active", label: "Actif" },
+];
+
+const PAYMENT_LABELS = {
+  mobile_money: "Mobile Money",
+  carte: "Carte bancaire",
+  paypal: "PayPal",
+};
 
 const STATUS_COLORS = {
   en_attente: "text-orange-500",
@@ -55,7 +67,10 @@ export default function CommandeDetail() {
 
   useEffect(() => {
     if (!id) return;
-    const entity = type === "rdv" ? entities.Reservation : entities.Commande;
+    let entity;
+    if (type === "rdv") entity = entities.Reservation;
+    else if (type === "abonnement") entity = entities.UserSubscription;
+    else entity = entities.Commande;
     entity.filter({}, "-created_at", 200)
       .then(list => {
         const found = list.find(i => i.id === id);
@@ -79,7 +94,7 @@ export default function CommandeDetail() {
 
   const getStepIndex = (steps, status) => steps.findIndex(s => s.key === status);
 
-  const steps = type === "rdv" ? STEPS_RDV : STEPS_BOUTIQUE;
+  const steps = type === "rdv" ? STEPS_RDV : type === "abonnement" ? STEPS_ABONNEMENT : STEPS_BOUTIQUE;
   const currentStepIdx = item ? getStepIndex(steps, item.status) : -1;
 
   return (
@@ -91,7 +106,7 @@ export default function CommandeDetail() {
             <ArrowLeft className="w-4 h-4 text-primary" />
           </button>
           <h1 className="text-[18px] font-black text-gray-900 flex-1 text-center">
-            {type === "rdv" ? "Détail RDV" : "Détail commande"}
+            {type === "rdv" ? "Détail RDV" : type === "abonnement" ? "Détail abonnement" : "Détail commande"}
           </h1>
           <div className="w-9" />
         </div>
@@ -122,7 +137,7 @@ export default function CommandeDetail() {
                 )}
               </div>
               <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isCancelled ? "bg-red-50" : "bg-primary/10"}`}>
-                {isCancelled ? <XCircle className="w-6 h-6 text-red-400" /> : type === "rdv" ? <Calendar className="w-6 h-6 text-primary" /> : <Package className="w-6 h-6 text-primary" />}
+                {isCancelled ? <XCircle className="w-6 h-6 text-red-400" /> : type === "rdv" ? <Calendar className="w-6 h-6 text-primary" /> : type === "abonnement" ? <Crown className="w-6 h-6 text-primary" /> : <Package className="w-6 h-6 text-primary" />}
               </div>
             </div>
 
