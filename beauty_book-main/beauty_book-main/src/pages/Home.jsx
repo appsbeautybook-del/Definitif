@@ -1,5 +1,5 @@
 import { fetchShopifyProducts } from "@/api/shopifyClient";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Star, MapPin, Award, Users, Flame, ChevronRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
@@ -98,6 +98,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [refreshKey, setRefreshKey] = useState(0);
   const [sectionBg, setSectionBg] = useState(getSectionBg);
+  const adminRecommandesSet = useRef(false);
   const [homeConfig, setHomeConfig] = useState({});
   const { formatPrice } = useLocale();
   const [liveSessions, setLiveSessions] = useState([]);
@@ -136,6 +137,13 @@ export default function Home() {
               })
               .catch(() => {});
           }
+
+          // Recommandé pour vous : utiliser la config admin si dispo
+          const adminRecommandes = cfg.recommande_pour_vous || [];
+          if (adminRecommandes.length > 0) {
+            setProduitsRecommandes(adminRecommandes.slice(0, 8));
+            adminRecommandesSet.current = true;
+          }
         }
       })
       .catch(() => {});
@@ -157,8 +165,9 @@ export default function Home() {
       setProduitsTendanceLive([...db, ...shopify].slice(0, 4));
     }).catch(() => setProduitsTendanceLive([]));
 
-    // Produits recommandés : Shopify + vendeurs
+    // Produits recommandés : fallback Shopify + vendeurs si pas de config admin
     (async () => {
+      if (adminRecommandesSet.current) return;
       const shopifyProds = [];
       const vendeurProds = [];
 
