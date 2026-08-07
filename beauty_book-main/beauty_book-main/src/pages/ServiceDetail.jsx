@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, Share2, Heart, MapPin, Clock, Star, CheckCircle, ShoppingCart, Play, Calendar, ChevronRight, Scissors, Sparkles, Wand2, X, ChevronLeft } from "lucide-react";
+import { ArrowLeft, Share2, Heart, MapPin, Clock, Star, CheckCircle, ShoppingCart, Play, Calendar, ChevronRight, Scissors, Sparkles, Wand2, X, ChevronLeft, ArrowUp } from "lucide-react";
 import VTCSection from "@/components/service/VTCSection";
 import CommandeModal from "@/components/restaurant/CommandeModal";
 import PostServiceReview from "@/components/reservation/PostServiceReview";
@@ -71,6 +71,24 @@ function MediaSlider({ media, onImageClick }) {
         </div>
       )}
     </div>
+  );
+}
+
+/* ── Scroll to Top Button ─────────────────────────────────────── */
+function ScrollToTopButton({ containerRef }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = containerRef?.current || window;
+    const onScroll = () => { const y = el === window ? window.scrollY : el.scrollTop; setVisible(y > 400); };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [containerRef]);
+  if (!visible) return null;
+  return (
+    <button onClick={() => { const el = containerRef?.current || window; el === window ? window.scrollTo({ top: 0, behavior: "smooth" }) : el.scrollTo({ top: 0, behavior: "smooth" }); }}
+      className="fixed bottom-24 right-4 z-40 w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-xl shadow-primary/40 active:scale-90 transition-all">
+      <ArrowUp className="w-5 h-5 text-white" />
+    </button>
   );
 }
 
@@ -196,6 +214,7 @@ export default function ServiceDetail() {
   const [reviewReservation, setReviewReservation] = useState(null);
   const [showFiltreAI, setShowFiltreAI] = useState(false);
   const [lightboxIdx, setLightboxIdx] = useState(null);
+  const scrollRef = useRef(null);
   const { formatPrice } = useLocale();
 
   // Ouvrir automatiquement la modale d'avis si ?avis=1
@@ -325,7 +344,7 @@ export default function ServiceDetail() {
   }
 
   return (
-    <div className="font-display bg-white min-h-full pb-28">
+    <div ref={scrollRef} className="font-display bg-white min-h-full pb-28">
 
       {/* ── Sticky top bar ── */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
@@ -954,6 +973,7 @@ export default function ServiceDetail() {
         </button>
       </div>
 
+      {/* Scroll to top */}
+      <ScrollToTopButton containerRef={scrollRef} />
+
     </div>
-  );
-}

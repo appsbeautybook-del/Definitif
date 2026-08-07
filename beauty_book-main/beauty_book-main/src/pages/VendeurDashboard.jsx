@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 const inputCls = "w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary";
 
 const CATEGORIES = ["Beauté", "Soins Visage", "Cheveux", "Maquillage", "Parfums", "Ongles", "Corps", "Accessoires", "Vêtements", "Chaussures", "Alimentaire", "Hygiène", "Divers", "Grossiste"];
-const EMPTY_PRODUCT = { name: "", description: "", price: "", old_price: "", stock: "", category: "Beauté", image_url: "", images: [], status: "actif", vente_type: "detail", min_qty: "" };
+const EMPTY_PRODUCT = { name: "", description: "", price: "", old_price: "", stock: "", category: "Beauté", image_url: "", images: [], status: "actif", vente_type: "detail", min_qty: "", brand: "", delivery_time: "5-10 jours", free_shipping: true, return_policy: "Retour gratuit sous 30 jours. Satisfait ou remboursé." };
 const DELIVERY_STATUSES = ["en_attente", "confirme", "en_preparation", "expedie", "livre", "annule"];
 const STATUS_LABELS = { en_attente: "En attente", confirme: "Confirmé", en_preparation: "En préparation", expedie: "Expédié", livre: "Livré", annule: "Annulé" };
 
@@ -84,6 +84,8 @@ function ProductsTab({ vendeurEmail }) {
         external_url: form.external_url, status: form.status,
         tags, pro_email: vendeurEmail,
         min_qty: isGrossiste && form.min_qty ? parseInt(form.min_qty) : null,
+        brand: form.brand, delivery_time: form.delivery_time,
+        free_shipping: form.free_shipping, return_policy: form.return_policy,
       };
       if (editId) await entities.Produit.update(editId, data);
       else await entities.Produit.create(data);
@@ -97,7 +99,7 @@ function ProductsTab({ vendeurEmail }) {
   };
 
   const handleEdit = (p) => {
-    setForm({ name: p.name, description: p.description || "", price: p.price?.toString(), old_price: p.old_price?.toString() || "", stock: p.stock?.toString(), category: p.category, image_url: p.image_url || "", images: p.images || [], external_url: p.external_url || "", status: p.status, vente_type: p.tags?.includes("grossiste") ? "grossiste" : "detail", min_qty: p.min_qty?.toString() || "" });
+    setForm({ name: p.name, description: p.description || "", price: p.price?.toString(), old_price: p.old_price?.toString() || "", stock: p.stock?.toString(), category: p.category, image_url: p.image_url || "", images: p.images || [], external_url: p.external_url || "", status: p.status, vente_type: p.tags?.includes("grossiste") ? "grossiste" : "detail", min_qty: p.min_qty?.toString() || "", brand: p.brand || "", delivery_time: p.delivery_time || "5-10 jours", free_shipping: p.free_shipping !== false, return_policy: p.return_policy || "Retour gratuit sous 30 jours. Satisfait ou remboursé." });
     setEditId(p.id); setShowForm(true);
   };
 
@@ -144,6 +146,31 @@ function ProductsTab({ vendeurEmail }) {
           </div>
           <div><label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1">Description</label>
             <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} className={`${inputCls} resize-none`} /></div>
+          {/* Infos livraison & boutique */}
+          <div className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Livraison & Boutique</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1">Marque / Boutique</label>
+                <input value={form.brand} onChange={e => setForm(f => ({ ...f, brand: e.target.value }))} className={inputCls} placeholder="Ex: MORE FACE HairBeauty" />
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1">Délai de livraison</label>
+                <input value={form.delivery_time} onChange={e => setForm(f => ({ ...f, delivery_time: e.target.value }))} className={inputCls} placeholder="Ex: 5-10 jours" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-[12px] font-bold text-gray-700">Livraison gratuite</label>
+              <button type="button" onClick={() => setForm(f => ({ ...f, free_shipping: !f.free_shipping }))}
+                className={`w-11 h-6 rounded-full transition-all ${form.free_shipping ? "bg-primary" : "bg-gray-300"}`}>
+                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-all ${form.free_shipping ? "translate-x-5.5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+            <div>
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-1">Politique de retour</label>
+              <textarea value={form.return_policy} onChange={e => setForm(f => ({ ...f, return_policy: e.target.value }))} rows={2} className={`${inputCls} resize-none`} placeholder="Ex: Retour gratuit sous 30 jours..." />
+            </div>
+          </div>
           {/* Type de vente */}
           <div>
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Type de vente</label>
