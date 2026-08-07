@@ -554,6 +554,7 @@ export default function ProduitDetail() {
       </div>
 
       <div className="h-2 bg-gray-50" />
+      <RelatedService productName={product.title || product.name} productCategory={product.category} />
       <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="Tu pourrais aimer" />
 
       {/* Bottom CTA */}
@@ -581,55 +582,87 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Tu po
     let dead = false;
     const cat = (currentCategory || "").toLowerCase();
     (async () => {
-      const shopifyProds = []; const vendeurProds = [];
-      try {
-        const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN || 'hwqnwb-hi.myshopify.com';
-        const SHOPIFY_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '46a6de1eb3a2686abcae91039944762d';
-        const r = await fetch(`https://${SHOPIFY_DOMAIN}/api/2024-10/graphql.json`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN }, body: JSON.stringify({ query: `{ products(first: 50, sortKey: BEST_SELLING) { edges { node { id title handle vendor productType images(first: 1) { edges { node { url } } } variants(first: 1) { edges { node { id price { amount } availableForSale } } } } } }` }) });
-        const json = await r.json();
-        for (const { node } of (json.data?.products?.edges || [])) {
-          if (node.id === currentProductId) continue;
-          const v = node.variants?.edges?.[0]?.node; const img = node.images?.edges?.[0]?.node;
-          shopifyProds.push({ id: node.id, img: img?.url || '', name: node.title, brand: node.vendor || '', price: parseFloat(v?.price?.amount || '0'), category: (node.productType || '').toLowerCase(), _shopify: true });
-        }
-      } catch (e) { console.error("[Recos] Shopify:", e); }
+      // 1) Produits BDD même catégorie d'abord
+      let vendeurProds = [];
       try {
         const items = await entities.Produit.filter({ status: "actif" }, "-created_at", 50);
-        for (const p of items) { if (p.id === currentProductId) continue; vendeurProds.push({ id: p.id, img: p.image_url || (p.images && p.images[0]) || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), category: (p.category || '').toLowerCase(), _shopify: false }); }
+        for (const p of items) {
+          if (p.id === currentProductId) continue;
+          vendeurProds.push({ id: p.id, img: p.image_url || (p.images && p.images[0]) || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), category: (p.category || '').toLowerCase(), _shopify: false });
+        }
       } catch (e) { console.error("[Recos] DB:", e); }
       if (dead) return;
-      let all = [...shopifyProds, ...vendeurProds];
-      if (cat) all.sort((a, b) => { const am = a.category.includes(cat) || cat.includes(a.category) ? 1 : 0; const bm = b.category.includes(cat) || cat.includes(b.category) ? 1 : 0; return bm - am; });
-      if (all.length > 0) setProducts(all.slice(0, 8));
-      else {
-        try {
-          const fallback = await entities.Produit.list("-created_at", 8);
-          if (!dead) setProducts((fallback || []).filter(p => p.id !== currentProductId).slice(0, 8).map(p => ({ id: p.id, img: p.image_url || (p.images && p.images[0]) || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), _shopify: false })));
-        } catch (e) { console.error("[Recos] Fallback:", e); }
+      if (vendeurProds.length > 0) {
+        // Prioriser même catégorie
+        if (cat) vendeurProds.sort((a, b) => {
+          const am = a.category.includes(cat) || cat.includes(a.category) ? 1 : 0;
+          const bm = b.category.includes(cat) || cat.includes(b.category) ? 1 : 0;
+          return bm - am;
+        });
+        setProducts(vendeurProds.slice(0, 8));
       }
     })();
     return () => { dead = true; };
   }, [currentProductId, currentCategory]);
 
+  if (products.length === 0) return null;
   return (
     <div className="px-4 py-5">
       <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">{title}</h2>
-      {products.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3">
-          {products.map(p => (
-            <div key={p.id} onClick={() => p._shopify ? navigate(`/produit?id=${encodeURIComponent(p.id)}`) : navigate(`/produit?id=${encodeURIComponent(p.id)}`)} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all">
-              <div className="aspect-square overflow-hidden bg-gray-50">{p.img ? <img src={p.img} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ShoppingCart className="w-8 h-8" /></div>}</div>
-              <div className="p-3">
-                {p.brand && <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
-                <p className="text-[12px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
-                <p className="text-[14px] font-black text-gray-900 mt-1">{p.price.toFixed(2)} €</p>
-              </div>
+      <div className="flex gap-3 overflow-x-auto hide-scrollbar -mx-4 px-4 pb-2">
+        {products.map(p => (
+          <div key={p.id} onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)} className="min-w-[140px] max-w-[140px] bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all shrink-0">
+            <div className="aspect-square overflow-hidden bg-gray-50">{p.img ? <img src={p.img} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ShoppingCart className="w-8 h-8" /></div>}</div>
+            <div className="p-2.5">
+              {p.brand && <p className="text-[9px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
+              <p className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
+              <p className="text-[13px] font-black text-gray-900 mt-1">Dès {p.price.toFixed(2)} €</p>
             </div>
-          ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Service associé ──────────────────────────────────────────────────────────
+function RelatedService({ productName, productCategory }) {
+  const navigate = useNavigate();
+  const [service, setService] = useState(null);
+
+  useEffect(() => {
+    if (!productName) return;
+    const needle = productName.toLowerCase().trim();
+    entities.Service.filter({ status: "actif" }, "-created_at", 100)
+      .then(services => {
+        const match = services.find(s => {
+          const t = (s.title || "").toLowerCase().trim();
+          const st = (s.style || "").toLowerCase().trim();
+          return t === needle || t.includes(needle) || needle.includes(t) || st === needle || st.includes(needle) || needle.includes(st);
+        }) || (productCategory ? services.find(s => (s.category || "").toLowerCase() === productCategory.toLowerCase()) : null);
+        if (match) setService(match);
+      }).catch(() => {});
+  }, [productName, productCategory]);
+
+  if (!service) return null;
+  return (
+    <div className="px-4 py-5">
+      <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">Service associé</h2>
+      <button onClick={() => navigate(`/service/${service.id}`, { state: { id: service.id } })}
+        className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex items-center gap-3 p-3 active:scale-[0.98] transition-all">
+        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+          {service.image_url ? <img src={service.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Scissors className="w-6 h-6 text-gray-300" /></div>}
         </div>
-      ) : (
-        <div className="flex justify-center py-6"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
-      )}
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-black text-gray-900 truncate">{service.title}</p>
+          {service.category && <p className="text-[10px] text-primary font-bold">{service.category}</p>}
+          <div className="flex items-center gap-2 mt-1">
+            {service.duration && <span className="text-[10px] text-gray-400 font-medium flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{service.duration} min</span>}
+            <span className="text-[13px] font-black text-primary">{service.price}€</span>
+          </div>
+        </div>
+        <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+      </button>
     </div>
   );
 }
