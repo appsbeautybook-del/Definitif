@@ -48,6 +48,7 @@ import Maria from '@/pages/Maria';
 import ProfilPro from '@/pages/ProfilPro';
 import DevenirPro from '@/pages/DevenirPro';
 import BeautyPay from '@/pages/pro/BeautyPay';
+import PaiementFacturation from '@/pages/pro/PaiementFacturation';
 import CatalogueServices from '@/pages/pro/CatalogueServices';
 import AjouterService from '@/pages/pro/AjouterService';
 import AvisClients from '@/pages/pro/AvisClients.jsx';
@@ -181,6 +182,7 @@ const AuthenticatedApp = () => {
         <Route path="/profil-pro" element={<ProfilPro />} />
         <Route path="/devenir-pro" element={<DevenirPro />} />
         <Route path="/pro/beauty-pay" element={<BeautyPay />} />
+        <Route path="/pro/paiement-facturation" element={<PaiementFacturation />} />
         <Route path="/pro/catalogue-services" element={<CatalogueServices />} />
         <Route path="/pro/ajouter-service" element={<AjouterService />} />
         <Route path="/pro/avis-clients" element={<AvisClients />} />

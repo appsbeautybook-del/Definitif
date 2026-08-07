@@ -127,8 +127,8 @@ export default function ParametresPro() {
             badge="Upgrade"
             onClick={() => navigate("/pro/abonnements")} />
           <SettingRow icon={CreditCard} iconBg="bg-blue-50" iconColor="text-blue-500"
-            label="Paiement & Facturation" sublabel="BeautyPay, commissions, virements"
-            onClick={() => navigate("/pro/beauty-pay")} />
+            label="Paiement & Facturation" sublabel="Carte enregistrée, facturation, historique"
+            onClick={() => navigate("/pro/paiement-facturation")} />
         </div>
 
         {/* THÈME */}
