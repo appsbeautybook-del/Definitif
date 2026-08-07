@@ -574,7 +574,7 @@ export default function ProduitDetail() {
 }
 
 // ── Produits recommandés ──────────────────────────────────────────────────────
-function RecommendedProducts({ currentProductId, currentCategory, title = "Recommandé pour vous" }) {
+function RecommendedProducts({ currentProductId, currentCategory, title = "Tu pourrais aimer" }) {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   useEffect(() => {
@@ -592,41 +592,44 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
           const v = node.variants?.edges?.[0]?.node; const img = node.images?.edges?.[0]?.node;
           shopifyProds.push({ id: node.id, img: img?.url || '', name: node.title, brand: node.vendor || '', price: parseFloat(v?.price?.amount || '0'), category: (node.productType || '').toLowerCase(), _shopify: true });
         }
-      } catch {}
+      } catch (e) { console.error("[Recos] Shopify:", e); }
       try {
         const items = await entities.Produit.filter({ status: "actif" }, "-created_at", 50);
-        for (const p of items) { if (p.id === currentProductId) continue; vendeurProds.push({ id: p.id, img: p.image_url || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), category: (p.category || '').toLowerCase(), _shopify: false }); }
-      } catch {}
+        for (const p of items) { if (p.id === currentProductId) continue; vendeurProds.push({ id: p.id, img: p.image_url || (p.images && p.images[0]) || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), category: (p.category || '').toLowerCase(), _shopify: false }); }
+      } catch (e) { console.error("[Recos] DB:", e); }
       if (dead) return;
-      const all = [...shopifyProds, ...vendeurProds];
+      let all = [...shopifyProds, ...vendeurProds];
       if (cat) all.sort((a, b) => { const am = a.category.includes(cat) || cat.includes(a.category) ? 1 : 0; const bm = b.category.includes(cat) || cat.includes(b.category) ? 1 : 0; return bm - am; });
       if (all.length > 0) setProducts(all.slice(0, 8));
       else {
-        // Fallback : charger tous les produits BDD sans filtre catégorie
         try {
-          const fallback = await entities.Produit.filter({ status: "actif" }, "-created_at", 8);
-          if (!dead && fallback.length > 0) setProducts(fallback.filter(p => p.id !== currentProductId).slice(0, 8).map(p => ({ id: p.id, img: p.image_url || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), category: (p.category || '').toLowerCase(), _shopify: false })));
-        } catch {}
+          const fallback = await entities.Produit.list("-created_at", 8);
+          if (!dead) setProducts((fallback || []).filter(p => p.id !== currentProductId).slice(0, 8).map(p => ({ id: p.id, img: p.image_url || (p.images && p.images[0]) || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), _shopify: false })));
+        } catch (e) { console.error("[Recos] Fallback:", e); }
       }
     })();
     return () => { dead = true; };
   }, [currentProductId, currentCategory]);
-  if (products.length === 0) return null;
+
   return (
     <div className="px-4 py-5">
       <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">{title}</h2>
-      <div className="grid grid-cols-2 gap-3">
-        {products.map(p => (
-          <div key={p.id} onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all">
-            <div className="aspect-square overflow-hidden bg-gray-50"><img src={p.img} alt={p.name} className="w-full h-full object-cover" /></div>
-            <div className="p-3">
-              <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>
-              <p className="text-[12px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
-              <p className="text-[14px] font-black text-gray-900 mt-1">{p.price.toFixed(2)} €</p>
+      {products.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3">
+          {products.map(p => (
+            <div key={p.id} onClick={() => p._shopify ? navigate(`/produit?id=${encodeURIComponent(p.id)}`) : navigate(`/produit?id=${encodeURIComponent(p.id)}`)} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all">
+              <div className="aspect-square overflow-hidden bg-gray-50">{p.img ? <img src={p.img} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ShoppingCart className="w-8 h-8" /></div>}</div>
+              <div className="p-3">
+                {p.brand && <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
+                <p className="text-[12px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
+                <p className="text-[14px] font-black text-gray-900 mt-1">{p.price.toFixed(2)} €</p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex justify-center py-6"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+      )}
     </div>
   );
 }
