@@ -19,7 +19,7 @@ const TABS = [
 
 const DIFFICULTY_LEVELS = ["Débutant", "Intermédiaire", "Avancé", "Expert"];
 
-const HAIR_TYPES = ["Afro", "Européenne", Asiatique: "Asiatique", "Crépus", "Bouclés", "Ondulés", "Lisses", "Tresses", "Locks"];
+const HAIR_TYPES = ["Afro", "Européenne", "Asiatique", "Crépus", "Bouclés", "Ondulés", "Lisses", "Tresses", "Locks"];
 const SKIN_TYPES = ["Normale", "Sèche", "Grasse", "Mixte", "Sensible", "Mature"];
 
 export default function AdminStyles() {
