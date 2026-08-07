@@ -136,6 +136,10 @@ export default function AdminStyles() {
   }, []);
 
   useEffect(() => {
+    if (activeTab === "styles") refreshList();
+  }, [activeTab]);
+
+  useEffect(() => {
     if (form.category_id) loadSubcategories(form.category_id);
     else loadSubcategories();
   }, [form.category_id]);
