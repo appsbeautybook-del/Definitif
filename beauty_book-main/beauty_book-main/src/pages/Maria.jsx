@@ -597,7 +597,7 @@ Quand l'utilisateur veut réserver un service ( RDV, prestation, brushing, coupe
 ═══════════════════════════════════════════════════════════
 AUTRES ACTIONS DISPONIBLES
 ═══════════════════════════════════════════════════════════
-- NAVIGATE: {"type": "NAVIGATE", "path": "/boutique"} | "/rendez-vous" | "/profil" | "/messages" | "/services" | "/mon-solde" | "/parametres" | "/notifications" | "/live" | "/reels" | "/scan-capillaire" | "/immobilier" | "/mes-commandes" | "/programme-fidelite" | "/abonnements" | "/profil-pro" | "/pro/equipe" | "/pro/catalogue-services" | "/pro/analytics" | "/devenir-pro"
+- NAVIGATE: {"type": "NAVIGATE", "path": "/boutique"} | "/rendez-vous" | "/profil" | "/messages" | "/services" | "/mon-solde" | "/parametres" | "/notifications" | "/live" | "/reels" | "/scan-capillaire" | "/immobilier" | "/mes-commandes" | "/programme-fidelite" | "/abonnements" | "/pro/abonnements" | "/profil-pro" | "/pro/equipe" | "/pro/catalogue-services" | "/pro/analytics" | "/devenir-pro"
 - SEARCH_PRODUCTS: {"type": "SEARCH_PRODUCTS", "query": "terme de recherche"}
 - SERVICE_RECAP: {"type": "SERVICE_RECAP", "data": {"service_name": "...", "date": "...", "time_slot": "...", "duration_min": ..., "price": "...", "salon_name": "...", "pro_name": "...", "notes": "..."}}
 
@@ -1125,7 +1125,7 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
           <p className={`text-[17px] font-black leading-tight ${homeHeaderText}`}>Maria AI</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => navigate("/abonnements")} className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-2 active:scale-95 transition-all">
+          <button onClick={() => navigate(isPro ? "/pro/abonnements" : "/abonnements")} className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-2 active:scale-95 transition-all">
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             <p className="text-[9px] font-black text-primary uppercase tracking-wider leading-none">Abonnement</p>
           </button>

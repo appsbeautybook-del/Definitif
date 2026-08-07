@@ -108,8 +108,12 @@ export default function BottomNav() {
       {/* Central AI button */}
       <div className="flex-1 flex flex-col justify-center items-center relative -mt-5 gap-1">
         <button onClick={() => handleTabPress("maria", "/maria")} className="group">
-          <div className="w-14 h-14 bg-gradient-to-br from-primary to-orange-600 rounded-full flex items-center justify-center shadow-xl shadow-primary/40 border-4 border-white active:scale-95 transition-all">
-            <Bot className="w-7 h-7 text-white" strokeWidth={1.8} />
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center active:scale-95 transition-all ${
+            currentTab === "maria"
+              ? "bg-white border-[3px] border-primary shadow-xl shadow-primary/30"
+              : "bg-gradient-to-br from-primary to-orange-600 border-4 border-white shadow-xl shadow-primary/40"
+          }`}>
+            <Bot className={`w-7 h-7 ${currentTab === "maria" ? "text-primary" : "text-white"}`} strokeWidth={1.8} />
           </div>
         </button>
         <span className={labelClass(currentTab === "maria")}>Maria</span>
