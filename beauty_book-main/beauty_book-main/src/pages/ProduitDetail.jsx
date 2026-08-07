@@ -606,49 +606,52 @@ export default function ProduitDetail() {
 function RecommendedProducts({ currentProductId, currentCategory, title = "Tu pourrais aimer" }) {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let dead = false;
     const cat = (currentCategory || "").toLowerCase();
     (async () => {
-      // 1) Produits BDD même catégorie d'abord
-      let vendeurProds = [];
       try {
-        const items = await entities.Produit.filter({ status: "actif" }, "-created_at", 50);
-        for (const p of items) {
-          if (p.id === currentProductId) continue;
-          vendeurProds.push({ id: p.id, img: p.image_url || (p.images && p.images[0]) || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), category: (p.category || '').toLowerCase(), _shopify: false });
+        const items = await entities.Produit.list("-created_at", 50);
+        if (dead) return;
+        let filtered = (items || []).filter(p => p.id !== currentProductId);
+        if (cat) {
+          const sameCat = filtered.filter(p => (p.category || "").toLowerCase().includes(cat));
+          const otherCat = filtered.filter(p => !(p.category || "").toLowerCase().includes(cat));
+          filtered = [...sameCat, ...otherCat];
         }
-      } catch (e) { console.error("[Recos] DB:", e); }
-      if (dead) return;
-      if (vendeurProds.length > 0) {
-        // Prioriser même catégorie
-        if (cat) vendeurProds.sort((a, b) => {
-          const am = a.category.includes(cat) || cat.includes(a.category) ? 1 : 0;
-          const bm = b.category.includes(cat) || cat.includes(b.category) ? 1 : 0;
-          return bm - am;
-        });
-        setProducts(vendeurProds.slice(0, 8));
-      }
+        setProducts(filtered.slice(0, 8).map(p => ({
+          id: p.id, img: p.image_url || (p.images && p.images[0]) || '',
+          name: p.name || '', brand: p.brand || '',
+          price: parseFloat(p.price || 0),
+        })));
+      } catch (e) { console.error("[Recos] error:", e); }
+      if (!dead) setLoading(false);
     })();
     return () => { dead = true; };
   }, [currentProductId, currentCategory]);
 
-  if (products.length === 0) return null;
   return (
     <div className="px-4 py-5">
       <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">{title}</h2>
-      <div className="flex gap-3 overflow-x-auto hide-scrollbar -mx-4 px-4 pb-2">
-        {products.map(p => (
-          <div key={p.id} onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)} className="min-w-[140px] max-w-[140px] bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all shrink-0">
-            <div className="aspect-square overflow-hidden bg-gray-50">{p.img ? <img src={p.img} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ShoppingCart className="w-8 h-8" /></div>}</div>
-            <div className="p-2.5">
-              {p.brand && <p className="text-[9px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
-              <p className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
-              <p className="text-[13px] font-black text-gray-900 mt-1">Dès {p.price.toFixed(2)} €</p>
+      {loading ? (
+        <div className="flex gap-3 overflow-x-auto hide-scrollbar -mx-4 px-4 pb-2">
+          {[1,2,3].map(i => <div key={i} className="min-w-[140px] h-[180px] bg-gray-100 rounded-2xl animate-pulse shrink-0" />)}
+        </div>
+      ) : products.length > 0 ? (
+        <div className="flex gap-3 overflow-x-auto hide-scrollbar -mx-4 px-4 pb-2">
+          {products.map(p => (
+            <div key={p.id} onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)} className="min-w-[140px] max-w-[140px] bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all shrink-0">
+              <div className="aspect-square overflow-hidden bg-gray-50">{p.img ? <img src={p.img} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ShoppingCart className="w-8 h-8" /></div>}</div>
+              <div className="p-2.5">
+                {p.brand && <p className="text-[9px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
+                <p className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
+                <p className="text-[13px] font-black text-gray-900 mt-1">Dès {p.price.toFixed(2)} €</p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
