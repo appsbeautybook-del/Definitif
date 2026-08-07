@@ -17,6 +17,7 @@ export function CallManager({ children }) {
   const callStartedAtRef = useRef(null);
   const pollRef = useRef(null);
   const ringTimeoutRef = useRef(null);
+  const incomingCallRef = useRef(null);
 
   const onRemoteStream = useCallback((stream) => {
     if (remoteAudioRef.current) remoteAudioRef.current.srcObject = stream;
@@ -55,28 +56,22 @@ export function CallManager({ children }) {
     } catch (e) { console.error("saveCallLog:", e); }
   }, []);
 
-  const sendNotification = useCallback(async (toEmail, title, body) => {
-    try {
-      await entities.Notification.create({ user_email: toEmail, type: "call", title, body, icon: "📞", link: `/messages?to=${user?.email || ""}`, read: false, data: {} });
-    } catch {}
-  }, [user]);
-
-  // Polling pour recevoir les signaux d'appel
-  const startPolling = useCallback((callId, onSignal) => {
+  // Polling pour les signaux d'appel
+  const startPolling = useCallback((callId, targetEmail, onSignal) => {
     clearInterval(pollRef.current);
     const seen = new Set();
     pollRef.current = setInterval(async () => {
       try {
         const { data } = await supabase.from("call_signals")
-          .select("*").eq("call_id", callId).gt("created_at", new Date(Date.now() - 5000).toISOString())
+          .select("*").eq("call_id", callId)
           .order("created_at", { ascending: true });
         for (const sig of (data || [])) {
           if (seen.has(sig.id)) continue;
           seen.add(sig.id);
           onSignal(sig);
         }
-      } catch {}
-    }, 1500);
+      } catch (e) { console.error("poll error:", e); }
+    }, 2000);
   }, []);
 
   // ── Initier un appel ────────────────────────────────────────────────────────
@@ -92,15 +87,25 @@ export function CallManager({ children }) {
     const offer = await createOffer(stream);
 
     // Envoyer l'offre via call_signals
-    await supabase.from("call_signals").insert({
-      call_id: callId, caller_email: user.email, callee_email: targetEmail,
-      signal_type: "offer", payload: JSON.stringify(offer), status: "ringing",
+    const { error: insertError } = await supabase.from("call_signals").insert({
+      call_id: callId, caller_email: user.email, caller_name: user.full_name || user.email,
+      callee_email: targetEmail, signal_type: "offer", payload: JSON.stringify(offer), status: "ringing",
     });
+    if (insertError) console.error("Insert offer error:", insertError);
 
-    await sendNotification(targetEmail, `📞 Appel de ${user.full_name || user.email}`, "Appel entrant...");
+    // Envoyer une notification push
+    try {
+      await entities.Notification.create({
+        user_email: targetEmail, type: "call", title: `📞 Appel de ${user.full_name || user.email}`,
+        body: "Appel entrant - touchez pour répondre", icon: "📞",
+        link: `/messages?to=${user.email}&name=${encodeURIComponent(user.full_name || user.email)}&call_id=${callId}`,
+        read: false, data: { call_id: callId, caller_email: user.email, caller_name: user.full_name },
+      });
+    } catch (e) { console.error("notif error:", e); }
 
     // Polling pour les réponses
-    startPolling(callId, async (sig) => {
+    startPolling(callId, targetEmail, async (sig) => {
+      if (sig.call_id !== callId) return;
       if (sig.signal_type === "answer") {
         await setRemoteAnswer(JSON.parse(sig.payload));
         callStartedAtRef.current = new Date().toISOString();
@@ -118,36 +123,38 @@ export function CallManager({ children }) {
       setCallState(s => {
         if (s?.callId === callId && s?.mode === "calling") {
           saveCallLog(callId, user.email, user.full_name, user.avatar_url, targetEmail, targetName, targetAvatar, "missed", null, new Date().toISOString());
-          sendNotification(targetEmail, `📵 Appel manqué`, `Appel manqué de ${user.full_name || user.email}`);
           cleanup();
         }
         return s;
       });
     }, 30000);
-  }, [user, createOffer, setRemoteAnswer, addIceCandidate, cleanup, saveCallLog, sendNotification, startPolling]);
+  }, [user, createOffer, setRemoteAnswer, addIceCandidate, cleanup, saveCallLog, startPolling]);
 
   // ── Écouter les appels entrants (polling) ───────────────────────────────────
   useEffect(() => {
-    if (!user) return;
+    if (!user || callState) return;
     const seen = new Set();
     const check = setInterval(async () => {
-      if (callState) return; // déjà en appel
       try {
-        const { data } = await supabase.from("call_signals")
+        const { data, error } = await supabase.from("call_signals")
           .select("*").eq("callee_email", user.email).eq("signal_type", "offer").eq("status", "ringing")
-          .gt("created_at", new Date(Date.now() - 30000).toISOString())
-          .order("created_at", { ascending: false }).limit(1);
-        if (data?.[0] && !seen.has(data[0].id)) {
-          seen.add(data[0].id);
-          const sig = data[0];
+          .order("created_at", { ascending: false }).limit(5);
+        if (error) { console.error("Poll incoming error:", error); return; }
+        for (const sig of (data || [])) {
+          if (seen.has(sig.id)) continue;
+          // Vérifier que l'appel n'est pas trop vieux (> 30s)
+          const age = Date.now() - new Date(sig.created_at).getTime();
+          if (age > 35000) { seen.add(sig.id); continue; }
+          seen.add(sig.id);
           callIdRef.current = sig.call_id;
           setCallState({
             callId: sig.call_id, mode: "ringing",
             targetEmail: sig.caller_email, targetName: sig.caller_name || sig.caller_email, targetAvatar: null,
             isCaller: false, offerSDP: JSON.parse(sig.payload),
           });
+          break;
         }
-      } catch {}
+      } catch (e) { console.error("Poll error:", e); }
     }, 2000);
     return () => clearInterval(check);
   }, [user?.email, callState?.mode]);
@@ -167,8 +174,7 @@ export function CallManager({ children }) {
 
     callStartedAtRef.current = new Date().toISOString();
 
-    // Poller pour ICE + end
-    startPolling(callState.callId, async (sig) => {
+    startPolling(callState.callId, callState.targetEmail, async (sig) => {
       if (sig.signal_type === "ice-candidate") {
         await addIceCandidate(JSON.parse(sig.payload).candidate);
       } else if (sig.signal_type === "end") {
@@ -207,13 +213,26 @@ export function CallManager({ children }) {
     cleanup();
   }, [callState, user, cleanup, saveCallLog]);
 
+  // ── Messages rapides (pour celui qui REÇOIT l'appel) ────────────────────────
+  const sendQuickMessage = useCallback(async (msg) => {
+    if (!callState || callState.isCaller) return;
+    const convId = [user?.email, callState.targetEmail].sort().join("_");
+    await supabase.from("MessageChat").insert({
+      conversation_id: convId, sender_email: user?.email,
+      sender_name: "📞 Appel", receiver_email: callState.targetEmail,
+      content: msg, type: "text", read: false,
+    }).catch(() => {});
+    await rejectCall();
+  }, [callState, user, rejectCall]);
+
   return (
-    <CallContext.Provider value={{ startCall, hangup, inCall: !!callState }}>
+    <CallContext.Provider value={{ startCall, hangup, inCall: !!callState, sendQuickMessage }}>
       {children}
       {callState && (
         <CallScreen mode={callState.mode} targetName={callState.targetName} targetAvatar={callState.targetAvatar}
           onHangup={hangup} onAccept={acceptCall} onReject={rejectCall} remoteAudioRef={remoteAudioRef}
-          targetEmail={callState.targetEmail} currentUserEmail={user?.email} />
+          targetEmail={callState.targetEmail} currentUserEmail={user?.email}
+          isCallee={!callState.isCaller} sendQuickMessage={sendQuickMessage} />
       )}
     </CallContext.Provider>
   );

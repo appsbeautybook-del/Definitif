@@ -47,7 +47,7 @@ function useRingTone(active) {
  *  - onReject (mode ringing uniquement)
  *  - remoteAudioRef: ref à attacher à <audio>
  */
-export default function CallScreen({ mode, targetName, targetAvatar, onHangup, onAccept, onReject, remoteAudioRef, targetEmail, currentUserEmail }) {
+export default function CallScreen({ mode, targetName, targetAvatar, onHangup, onAccept, onReject, remoteAudioRef, targetEmail, currentUserEmail, isCallee, sendQuickMessage }) {
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(true);
   const [seconds, setSeconds] = useState(0);
@@ -61,16 +61,8 @@ export default function CallScreen({ mode, targetName, targetAvatar, onHangup, o
     "Merci, pas maintenant",
   ];
 
-  const sendQuickMessage = async (msg) => {
-    if (!targetEmail || !currentUserEmail) return;
-    const convId = [currentUserEmail, targetEmail].sort().join("_");
-    await supabase.from("MessageChat").insert({
-      conversation_id: convId, sender_email: currentUserEmail,
-      sender_name: "📞 Appel", receiver_email: targetEmail,
-      content: msg, type: "text", read: false,
-    }).catch(() => {});
-    setShowQuickMsgs(false);
-    onHangup();
+  const handleQuickMsg = (msg) => {
+    if (sendQuickMessage) sendQuickMessage(msg);
   };
 
   // Sonnerie active pendant "calling" et "ringing"
@@ -133,53 +125,54 @@ export default function CallScreen({ mode, targetName, targetAvatar, onHangup, o
       {/* Contrôles */}
       <div className="w-full">
         {mode === "ringing" ? (
-          /* Appel entrant : refuser + accepter */
-          <div className="flex items-center justify-around">
-            <div className="flex flex-col items-center gap-2">
-              <button onClick={onReject} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
-                <PhoneOff className="w-8 h-8 text-white" />
-              </button>
-              <p className="text-white/40 text-[11px] font-medium">Refuser</p>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <button onClick={onAccept} className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-xl shadow-green-500/40 active:scale-95 animate-pulse">
-                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.47 11.47 0 003.58.57 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 5a1 1 0 011-1h3.5a1 1 0 011 1 11.47 11.47 0 00.57 3.58 1 1 0 01-.25 1.02z"/>
-                </svg>
-              </button>
-              <p className="text-white/40 text-[11px] font-medium">Accepter</p>
+          /* Appel entrant : refuser + accepter + messages rapides */
+          <div className="flex flex-col items-center gap-6">
+            {/* Messages rapides (seulement pour celui qui reçoit) */}
+            {isCallee && (
+              <div className="w-full max-w-xs">
+                {showQuickMsgs ? (
+                  <div className="space-y-2">
+                    {QUICK_MESSAGES.map(msg => (
+                      <button key={msg} onClick={() => handleQuickMsg(msg)}
+                        className="w-full bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-white text-[13px] font-medium text-left active:scale-95 transition-all border border-white/10">
+                        {msg}
+                      </button>
+                    ))}
+                    <button onClick={() => setShowQuickMsgs(false)} className="w-full text-white/40 text-[12px] font-bold py-2">Annuler</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setShowQuickMsgs(true)} className="w-full bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-white text-[13px] font-medium flex items-center justify-center gap-2 active:scale-95 border border-white/10">
+                    <MessageSquare className="w-4 h-4" /> Message rapide
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="flex items-center justify-around w-full">
+              <div className="flex flex-col items-center gap-2">
+                <button onClick={onReject} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
+                  <PhoneOff className="w-8 h-8 text-white" />
+                </button>
+                <p className="text-white/40 text-[11px] font-medium">Refuser</p>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <button onClick={onAccept} className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-xl shadow-green-500/40 active:scale-95 animate-pulse">
+                  <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.47 11.47 0 003.58.57 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 5a1 1 0 011-1h3.5a1 1 0 011 1 11.47 11.47 0 00.57 3.58 1 1 0 01-.25 1.02z"/>
+                  </svg>
+                </button>
+                <p className="text-white/40 text-[11px] font-medium">Accepter</p>
+              </div>
             </div>
           </div>
         ) : mode === "calling" ? (
-          /* Appel sortant en attente : messages rapides + raccrocher */
-          <div className="flex flex-col items-center gap-4">
-            {showQuickMsgs ? (
-              <div className="w-full space-y-2">
-                {QUICK_MESSAGES.map(msg => (
-                  <button key={msg} onClick={() => sendQuickMessage(msg)}
-                    className="w-full bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-white text-[13px] font-medium text-left active:scale-95 transition-all border border-white/10">
-                    {msg}
-                  </button>
-                ))}
-                <button onClick={() => setShowQuickMsgs(false)}
-                  className="w-full text-white/40 text-[12px] font-bold py-2">Annuler</button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-6">
-                <div className="flex flex-col items-center gap-2">
-                  <button onClick={() => setShowQuickMsgs(true)} className="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center active:scale-95">
-                    <MessageSquare className="w-6 h-6 text-white" />
-                  </button>
-                  <p className="text-white/40 text-[10px] font-medium">Message</p>
-                </div>
-                <div className="flex flex-col items-center gap-2">
-                  <button onClick={onHangup} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
-                    <PhoneOff className="w-8 h-8 text-white" />
-                  </button>
-                  <p className="text-white/40 text-[11px] font-medium">Raccrocher</p>
-                </div>
-              </div>
-            )}
+          /* Appel sortant en attente : raccrocher seulement */
+          <div className="flex items-center justify-around">
+            <div className="flex flex-col items-center gap-2">
+              <button onClick={onHangup} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
+                <PhoneOff className="w-8 h-8 text-white" />
+              </button>
+              <p className="text-white/40 text-[11px] font-medium">Raccrocher</p>
+            </div>
           </div>
         ) : (
           /* Appel actif : micro + HP + raccrocher */
