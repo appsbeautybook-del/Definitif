@@ -283,23 +283,26 @@ export default function Home() {
       <div className="px-4 py-4">
         <SectionTitle title="Services Tendance" action="Voir tout" onAction={() => navigate("/services-salons")} />
         <div className="grid grid-cols-2 gap-3">
-          {servicesTendance.slice(0, 4).map((s) => (
-            <button key={s.id || s.title}
-              onClick={() => navigate(`/service/${s.id}`, { state: { title: s.title, price: s.price, cover: s.image_url } })}
-              className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-orange-50">
-              <div className="relative h-[150px]">
-                <img src={s.image_url || LIFTING_IMAGE} alt={s.title} className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-                <span className="absolute top-2.5 left-2.5 bg-primary text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
-                  <Flame className="w-2.5 h-2.5" /> {s.tag || "TENDANCE"}
-                </span>
-              </div>
-              <div className="p-3">
-                <p className="text-[13px] font-black text-gray-900 leading-tight">{s.title}</p>
-                <p className="text-[12px] font-bold text-primary mt-1">À partir de {formatPrice(s.price)}</p>
-              </div>
-            </button>
-          ))}
+          {servicesTendance.slice(0, 4).map((s) => {
+            const serviceImage = s.image_url || (s.images && s.images[0]) || LIFTING_IMAGE;
+            return (
+              <button key={s.id || s.title}
+                onClick={() => navigate(`/service/${s.id}`, { state: { title: s.title, price: s.price, cover: serviceImage } })}
+                className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-orange-50">
+                <div className="relative h-[150px]">
+                  <img src={serviceImage} alt={s.title} className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+                  <span className="absolute top-2.5 left-2.5 bg-primary text-white text-[9px] font-black uppercase px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <Flame className="w-2.5 h-2.5" /> {s.tag || "TENDANCE"}
+                  </span>
+                </div>
+                <div className="p-3">
+                  <p className="text-[13px] font-black text-gray-900 leading-tight">{s.title}</p>
+                  <p className="text-[12px] font-bold text-primary mt-1">À partir de {formatPrice(s.price)}</p>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

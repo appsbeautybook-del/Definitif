@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { uploadFile } from '@/api/entities';
 import { adminApi } from "@/lib/adminApiClient";
 import { entities } from "@/api/entities";
-import { Upload, Loader2, Save, Plus, ChevronDown, ChevronUp, X, Check, Search, Info, Image, Flame, Scissors, Award, Gift, Home, Star } from "lucide-react";
+import { Upload, Loader2, Save, Plus, ChevronDown, ChevronUp, X, Check, Search, Info, Image, Flame, Scissors, Award, Gift, Home, Star, LayoutGrid, Play, Sparkles } from "lucide-react";
 
 
 const HERO_BANNER_WIDTH = 800;
@@ -14,9 +14,12 @@ const inputCls = "w-full bg-gray-50 border border-gray-200 text-gray-800 rounded
 
 const ADMIN_TABS = [
   { id: "hero", label: "Hero", icon: Image },
+  { id: "categories", label: "Catégories", icon: LayoutGrid },
   { id: "tendance", label: "Tendance", icon: Flame },
   { id: "salons", label: "Salons", icon: Award },
   { id: "offres", label: "Offres", icon: Gift },
+  { id: "recommande", label: "Recommandé", icon: Sparkles },
+  { id: "directs", label: "Lives", icon: Play },
   { id: "infos", label: "Infos", icon: Info },
 ];
 
@@ -477,6 +480,238 @@ function PartenairesInfo() {
   );
 }
 
+// ── Categories Editor ─────────────────────────────────────────────────────────
+const DEFAULT_CATEGORIES = [
+  { id: "coiffure", label: "Coiffure", active: true },
+  { id: "tresses", label: "Tresses", active: true },
+  { id: "manucure", label: "Manucure", active: true },
+  { id: "pedicure", label: "Pédicure", active: true },
+  { id: "maquillage", label: "Maquillage", active: true },
+  { id: "soin_visage", label: "Soin Visage", active: true },
+  { id: "barbe", label: "Barbe", active: true },
+  { id: "extensions", label: "Extensions", active: true },
+  { id: "massage", label: "Massage", active: true },
+  { id: "epilation", label: "Épilation", active: true },
+  { id: "cils_sourcils", label: "Cils & Sourcils", active: true },
+  { id: "spa", label: "Spa & Bien-être", active: true },
+];
+
+function CategoriesEditor({ categories = [], onSave }) {
+  const [list, setList] = useState(categories.length > 0 ? categories : DEFAULT_CATEGORIES);
+  const [saving, setSaving] = useState(false);
+
+  const toggle = (idx) => {
+    setList(l => l.map((c, i) => i === idx ? { ...c, active: !c.active } : c));
+  };
+
+  const updateLabel = (idx, val) => {
+    setList(l => l.map((c, i) => i === idx ? { ...c, label: val } : c));
+  };
+
+  const addCategory = () => {
+    setList(l => [...l, { id: `custom_${Date.now()}`, label: "", active: true }]);
+  };
+
+  const removeCategory = (idx) => {
+    setList(l => l.filter((_, i) => i !== idx));
+  };
+
+  const save = async () => { setSaving(true); await onSave("categories", list); setSaving(false); };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[12px] text-gray-500">
+        Activez/désactivez les catégories affichées sur la page d'accueil. L'ordre correspond à l'affichage.
+      </p>
+      <div className="space-y-2">
+        {list.map((cat, idx) => (
+          <div key={cat.id || idx} className="flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
+            <button onClick={() => toggle(idx)}
+              className={`w-10 h-6 rounded-full transition-all relative ${cat.active ? "bg-primary" : "bg-gray-300"}`}>
+              <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow-sm ${cat.active ? "left-[18px]" : "left-0.5"}`} />
+            </button>
+            <input value={cat.label || ""} onChange={e => updateLabel(idx, e.target.value)}
+              placeholder="Nom de la catégorie"
+              className="flex-1 bg-transparent text-[13px] font-black text-gray-800 outline-none" />
+            {cat.id?.startsWith("custom_") && (
+              <button onClick={() => removeCategory(idx)} className="w-6 h-6 bg-red-50 rounded-full flex items-center justify-center">
+                <X className="w-3 h-3 text-red-500" />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-3">
+        <button onClick={addCategory} className="flex items-center gap-1.5 text-primary text-[12px] font-black border border-primary/30 rounded-xl px-4 py-2.5 hover:bg-primary/5">
+          <Plus className="w-3.5 h-3.5" /> Ajouter une catégorie
+        </button>
+        <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-[12px] font-black disabled:opacity-60 shadow-md shadow-primary/20 active:scale-95 transition-all">
+          {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sauvegarde...</> : <><Save className="w-3.5 h-3.5" /> Sauvegarder</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Recommandé pour vous Editor ───────────────────────────────────────────────
+function RecommandeEditor({ selected = [], onSave }) {
+  const [items, setItems] = useState([]);
+  const [picks, setPicks] = useState(selected);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.allSettled([
+      entities.Produit.filter({ status: "actif" }, "-created_at", 100),
+      fetchShopifyProducts({}).then(r =>
+        (r.data?.products || []).map(p => ({ id: p.id, name: p.name, price: p.price, image_url: p.img, brand: p.brand, source: "shopify" }))
+      ),
+    ]).then(([dbRes, shopifyRes]) => {
+      const db = dbRes.status === "fulfilled" ? (dbRes.value || []) : [];
+      const shopify = shopifyRes.status === "fulfilled" ? shopifyRes.value : [];
+      setItems([...db, ...shopify]);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const toggle = (item) => {
+    setPicks(p => p.some(x => x.id === item.id) ? p.filter(x => x.id !== item.id) : [...p, item]);
+  };
+
+  const save = async () => { setSaving(true); await onSave("recommande_pour_vous", picks); setSaving(false); };
+
+  const filtered = search.trim() ? items.filter(i => (i.name + " " + (i.brand || "")).toLowerCase().includes(search.toLowerCase())) : items;
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[12px] text-gray-500">
+        Sélectionnez les produits à afficher dans la section "Recommandé pour vous". Si vide, la section utilisera les meilleurs ventes automatiquement.
+      </p>
+      {picks.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {picks.map(p => (
+            <div key={p.id} className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5">
+              {p.image_url && <img src={p.image_url} className="w-5 h-5 rounded-lg object-cover" alt="" />}
+              <span className="text-[12px] font-black text-orange-800">{p.name}</span>
+              <button onClick={() => toggle(p)}><X className="w-3 h-3 text-orange-400" /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2.5">
+        <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un produit..." className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none" />
+        {search && <button onClick={() => setSearch("")}><X className="w-3.5 h-3.5 text-gray-400" /></button>}
+      </div>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : (
+        <div className="max-h-64 overflow-y-auto space-y-1 border border-gray-200 rounded-xl p-2">
+          {filtered.map(item => {
+            const sel = picks.some(x => x.id === item.id);
+            return (
+              <button key={item.id} onClick={() => toggle(item)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border-2 transition-all text-left ${sel ? "border-primary bg-orange-50" : "border-transparent bg-gray-50 hover:bg-gray-100"}`}>
+                {item.image_url && <img src={item.image_url} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0" />}
+                <div className="flex-1">
+                  <p className="text-[12px] font-black text-gray-900">{item.name}</p>
+                  <p className="text-[10px] text-gray-400">{item.price}€{item.brand ? ` · ${item.brand}` : ""}</p>
+                </div>
+                {sel && <Check className="w-4 h-4 text-primary shrink-0" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-[12px] font-black disabled:opacity-60 active:scale-95 transition-all">
+        {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sauvegarde...</> : <><Save className="w-3.5 h-3.5" /> Sauvegarder</>}
+      </button>
+    </div>
+  );
+}
+
+// ── Directs / Lives Editor ────────────────────────────────────────────────────
+function DirectsEditor({ sessions = [], onSave }) {
+  const [list, setList] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    entities.LiveSession.list("-created_at", 20)
+      .then(res => {
+        const all = res || [];
+        const savedIds = sessions.map(s => s.id);
+        const enriched = all.map(s => ({
+          ...s,
+          selected: savedIds.includes(s.id),
+        }));
+        setList(enriched);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const toggle = (idx) => {
+    setList(l => l.map((s, i) => i === idx ? { ...s, selected: !s.selected } : s));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    const selected = list.filter(s => s.selected).map(({ id, title, host_name, thumbnail_url, status }) => ({ id, title, host_name, thumbnail_url, status }));
+    await onSave("directs", selected);
+    setSaving(false);
+  };
+
+  const STATUS_LABELS = { live: "EN DIRECT", ended: "Terminé", scheduled: "Planifié" };
+  const STATUS_COLORS = { live: "bg-red-500", ended: "bg-gray-400", scheduled: "bg-blue-500" };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-[12px] text-gray-500">
+        Sélectionnez les sessions live à mettre en avant sur la page d'accueil.
+      </p>
+      {loading ? (
+        <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : list.length === 0 ? (
+        <p className="text-gray-400 text-center text-[12px] py-6">Aucune session live trouvée</p>
+      ) : (
+        <div className="space-y-2">
+          {list.map((session, idx) => (
+            <button key={session.id} onClick={() => toggle(idx)}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${session.selected ? "border-primary bg-orange-50" : "border-gray-200 bg-white hover:bg-gray-50"}`}>
+              <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100">
+                {session.thumbnail_url ? (
+                  <img src={session.thumbnail_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Play className="w-5 h-5 text-gray-300" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-black text-gray-900 truncate">{session.title || "Session sans titre"}</p>
+                <p className="text-[11px] text-gray-400 font-medium mt-0.5">{session.host_name || "Hôte inconnu"}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`w-2 h-2 rounded-full ${STATUS_COLORS[session.status] || "bg-gray-300"}`} />
+                  <span className="text-[10px] font-black text-gray-500 uppercase">{STATUS_LABELS[session.status] || session.status}</span>
+                </div>
+              </div>
+              <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${session.selected ? "border-primary bg-primary" : "border-gray-300"}`}>
+                {session.selected && <Check className="w-3.5 h-3.5 text-white" />}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl text-[12px] font-black disabled:opacity-60 active:scale-95 transition-all">
+        {saving ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sauvegarde...</> : <><Save className="w-3.5 h-3.5" /> Sauvegarder</>}
+      </button>
+    </div>
+  );
+}
+
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function AdminHomePage() {
   const [homeData, setHomeData] = useState({});
@@ -608,6 +843,36 @@ export default function AdminHomePage() {
               <ImmosPicker selected={Array.isArray(homeData.offres_immobilier) ? homeData.offres_immobilier : homeData.offres_immobilier ? [homeData.offres_immobilier] : []} onSave={handleSave} />
             </div>
           </>
+        )}
+
+        {activeTab === "categories" && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <LayoutGrid className="w-5 h-5 text-primary" />
+              <h3 className="text-[14px] font-black text-gray-900">Catégories</h3>
+            </div>
+            <CategoriesEditor categories={homeData.categories || []} onSave={handleSave} />
+          </div>
+        )}
+
+        {activeTab === "recommande" && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <h3 className="text-[14px] font-black text-gray-900">Recommandé pour vous</h3>
+            </div>
+            <RecommandeEditor selected={homeData.recommande_pour_vous || []} onSave={handleSave} />
+          </div>
+        )}
+
+        {activeTab === "directs" && (
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Play className="w-5 h-5 text-primary" />
+              <h3 className="text-[14px] font-black text-gray-900">Directs / Lives</h3>
+            </div>
+            <DirectsEditor sessions={homeData.directs || []} onSave={handleSave} />
+          </div>
         )}
 
         {activeTab === "infos" && (
