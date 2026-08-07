@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Plus, Trash2, Tag } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Tag, Scissors } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
@@ -23,7 +23,7 @@ function ImageSlider({ images, onClick }) {
   };
 
   if (!images || images.length === 0) {
-    return <div className="w-full h-full bg-gray-100 flex items-center justify-center text-[40px]">✂️</div>;
+    return <div className="w-full h-full bg-gray-100 flex items-center justify-center"><Scissors className="w-10 h-10 text-gray-300" /></div>;
   }
 
   return (
@@ -134,11 +134,13 @@ export default function CatalogueServices() {
             <div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <span className="text-[48px]">✂️</span>
-            <p className="text-[16px] font-black text-gray-700">Aucun service</p>
-            <p className="text-[13px] text-gray-400">Ajoutez votre premier service ci-dessous.</p>
-          </div>
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+              <div className="w-20 h-20 rounded-full bg-orange-50 flex items-center justify-center">
+                <Scissors className="w-10 h-10 text-primary" />
+              </div>
+              <p className="text-[16px] font-black text-gray-700">Aucun service</p>
+              <p className="text-[13px] text-gray-400">Ajoutez votre premier service ci-dessous.</p>
+            </div>
         ) : (
           <div className="space-y-4">
             {filtered.map(service => {
