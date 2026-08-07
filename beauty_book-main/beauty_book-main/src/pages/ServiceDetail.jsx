@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, Share2, Heart, MapPin, Clock, Star, CheckCircle, ShoppingCart, Play, Calendar, ChevronRight, Scissors, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, Share2, Heart, MapPin, Clock, Star, CheckCircle, ShoppingCart, Play, Calendar, ChevronRight, Scissors, Sparkles, Wand2, X, ChevronLeft } from "lucide-react";
 import VTCSection from "@/components/service/VTCSection";
 import CommandeModal from "@/components/restaurant/CommandeModal";
 import PostServiceReview from "@/components/reservation/PostServiceReview";
@@ -10,7 +10,7 @@ import { supabase } from '@/api/supabaseClient';
 import { useLocale } from "@/hooks/useLocale";
 
 /* ── Media slider ──────────────────────────────────────────────────── */
-function MediaSlider({ media }) {
+function MediaSlider({ media, onImageClick }) {
   const [current, setCurrent] = useState(0);
   const touchStartX = useRef(null);
 
@@ -49,7 +49,7 @@ function MediaSlider({ media }) {
               </div>
             </div>
           ) : (
-            <img src={item.url} alt="" className="w-full h-full object-cover" />
+            <img src={item.url} alt="" className="w-full h-full object-cover cursor-pointer" onClick={() => onImageClick?.(i)} />
           )}
         </div>
       ))}
@@ -68,6 +68,94 @@ function MediaSlider({ media }) {
       {media.length > 1 && (
         <div className="absolute top-3 right-4 bg-black/40 rounded-full px-2 py-0.5 z-10">
           <span className="text-white text-[10px] font-black">{current + 1}/{media.length}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Image Lightbox ─────────────────────────────────────────────── */
+function ImageLightbox({ images, initialIndex, onClose }) {
+  const [idx, setIdx] = useState(initialIndex || 0);
+  const touchStartX = useRef(null);
+
+  const goNext = useCallback(() => setIdx(i => Math.min(i + 1, images.length - 1)), [images.length]);
+  const goPrev = useCallback(() => setIdx(i => Math.max(i - 1, 0)), []);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "ArrowRight") goNext();
+      else if (e.key === "ArrowLeft") goPrev();
+      else if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [goNext, goPrev, onClose]);
+
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) goNext();
+      else goPrev();
+    }
+    touchStartX.current = null;
+  };
+
+  const imagesOnly = images.filter(m => m.type !== "video");
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex flex-col" onClick={onClose}>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 shrink-0" onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} className="w-9 h-9 bg-white/10 rounded-full flex items-center justify-center">
+          <X className="w-5 h-5 text-white" />
+        </button>
+        <span className="text-white text-[13px] font-black">{idx + 1} / {images.length}</span>
+        <div className="w-9" />
+      </div>
+
+      {/* Image */}
+      <div className="flex-1 flex items-center justify-center min-h-0"
+        onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
+        onClick={e => e.stopPropagation()}>
+        {images[idx]?.type === "video" ? (
+          <video src={images[idx].url} controls autoPlay className="w-full h-full object-contain" />
+        ) : (
+          <img src={images[idx]?.url} alt="" className="w-full h-full object-contain" />
+        )}
+      </div>
+
+      {/* Navigation arrows */}
+      {images.length > 1 && (
+        <>
+          {idx > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); goPrev(); }}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center z-10">
+              <ChevronLeft className="w-6 h-6 text-white" />
+            </button>
+          )}
+          {idx < images.length - 1 && (
+            <button onClick={(e) => { e.stopPropagation(); goNext(); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center z-10">
+              <ChevronRight className="w-6 h-6 text-white" />
+            </button>
+          )}
+        </>
+      )}
+
+      {/* Thumbnails */}
+      {images.length > 1 && (
+        <div className="shrink-0 px-4 py-3 flex gap-2 overflow-x-auto justify-center" onClick={e => e.stopPropagation()}>
+          {images.map((m, i) => (
+            <button key={i} onClick={() => setIdx(i)}
+              className={`w-12 h-12 rounded-xl overflow-hidden shrink-0 border-2 transition-all ${i === idx ? "border-white scale-110" : "border-transparent opacity-50"}`}>
+              {m.type === "video"
+                ? <div className="w-full h-full bg-gray-800 flex items-center justify-center"><Play className="w-4 h-4 text-white" /></div>
+                : <img src={m.url} alt="" className="w-full h-full object-cover" />}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -107,6 +195,7 @@ export default function ServiceDetail() {
   const [showReview, setShowReview] = useState(false);
   const [reviewReservation, setReviewReservation] = useState(null);
   const [showFiltreAI, setShowFiltreAI] = useState(false);
+  const [lightboxIdx, setLightboxIdx] = useState(null);
   const { formatPrice } = useLocale();
 
   // Ouvrir automatiquement la modale d'avis si ?avis=1
@@ -256,7 +345,7 @@ export default function ServiceDetail() {
 
       {/* ── Hero slider ── */}
       <div className="relative mt-[52px]">
-        <MediaSlider media={media} />
+        <MediaSlider media={media} onImageClick={(idx) => setLightboxIdx(idx)} />
         {/* Badges */}
         <div className="absolute bottom-10 left-4 flex gap-2 z-20">
           {s.category && (
@@ -832,6 +921,11 @@ export default function ServiceDetail() {
             }
           }}
         />
+      )}
+
+      {/* Image Lightbox */}
+      {lightboxIdx !== null && media.length > 0 && (
+        <ImageLightbox images={media} initialIndex={lightboxIdx} onClose={() => setLightboxIdx(null)} />
       )}
 
       {/* ── Sticky CTA ── */}
