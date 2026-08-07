@@ -977,3 +977,6 @@ export default function ServiceDetail() {
       <ScrollToTopButton containerRef={scrollRef} />
 
     </div>
+  );
+}
+
