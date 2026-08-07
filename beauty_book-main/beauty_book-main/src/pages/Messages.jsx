@@ -332,23 +332,34 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       }
     }
 
+    const now = new Date().toISOString();
     const payload = {
       conversation_id: convId,
       sender_email: currentUser.email,
       sender_name: currentUser.user_metadata?.full_name || currentUser.email,
+      sender_avatar: currentUser.user_metadata?.avatar_url || null,
       receiver_email: conversation.other_email,
+      receiver_name: conversation.other_name || conversation.other_email,
+      receiver_avatar: conversation.other_avatar || null,
       content: content || (fileUrl ? "📷 Image" : ""),
       type: fileUrl ? "image" : "text",
       file_url: fileUrl || "",
       is_read: false, read: false,
+      created_at: now, updated_at: now,
     };
+
+    // Optimistic insert
+    const tempId = `tmp_${Date.now()}`;
+    setMessages(prev => [...prev, { ...payload, id: tempId }]);
 
     const { data, error } = await supabase.from("MessageChat").insert(payload).select().single();
     if (error) {
       console.error("Send error:", error);
-      setMessages(prev => [...prev, { id: `tmp_${Date.now()}`, ...payload, created_at: new Date().toISOString() }]);
+      // Garder le message optimiste même en cas d'erreur
     } else if (data) {
-      setMessages(prev => [...prev, data]);
+      // Remplacer le message optimiste par le vrai
+      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
+      msgIdsRef.current.add(data.id);
     }
     setSending(false);
 
