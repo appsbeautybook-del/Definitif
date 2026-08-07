@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import { ArrowLeft, Share2, Heart, Clock, Star, MapPin, Sparkles, MessageSquare, Send, X, ShoppingCart, Scissors } from "lucide-react";
+import { ArrowLeft, Share2, Heart, Clock, Star, MapPin, Sparkles, MessageSquare, Send, X, ShoppingCart, Scissors, ChevronLeft, ChevronRight, Eye, Bookmark } from "lucide-react";
 import VueClient from "@/pages/pro/VueClient";
 import FiltreAIModal from "@/components/modals/FiltreAIModal";
 import { entities } from '@/api/entities';
@@ -9,12 +9,102 @@ import { useAuth } from "@/lib/AuthContext";
 
 
 
+// ── Full-screen Lightbox ──────────────────────────────────────────────────────
+function ImageLightbox({ media, initialIndex, onClose }) {
+  const [current, setCurrent] = useState(initialIndex || 0);
+  const touchStartX = useRef(null);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft") setCurrent(c => Math.max(c - 1, 0));
+      if (e.key === "ArrowRight") setCurrent(c => Math.min(c + 1, media.length - 1));
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [media.length, onClose]);
+
+  const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 40) {
+      if (diff > 0) setCurrent(c => Math.min(c + 1, media.length - 1));
+      else setCurrent(c => Math.max(c - 1, 0));
+    }
+    touchStartX.current = null;
+  };
+
+  const isVideo = (url) => url && (url.includes(".mp4") || url.includes(".webm") || url.includes(".mov"));
+
+  return (
+    <div className="fixed inset-0 z-[200] bg-black/95 flex flex-col"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 shrink-0">
+        <button onClick={onClose} className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center">
+          <X className="w-5 h-5 text-white" />
+        </button>
+        <span className="text-white/70 text-[13px] font-bold">{current + 1} / {media.length}</span>
+        <div className="w-10" />
+      </div>
+
+      {/* Image */}
+      <div className="flex-1 flex items-center justify-center px-2 min-h-0">
+        {isVideo(media[current]) ? (
+          <video src={media[current]} autoPlay loop muted playsInline className="max-w-full max-h-full object-contain rounded-xl" />
+        ) : (
+          <img src={media[current]} alt="" className="max-w-full max-h-full object-contain rounded-xl select-none" draggable={false} />
+        )}
+      </div>
+
+      {/* Navigation arrows */}
+      {media.length > 1 && (
+        <>
+          {current > 0 && (
+            <button onClick={() => setCurrent(c => c - 1)}
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center active:scale-90 transition-all">
+              <ArrowLeft className="w-5 h-5 text-white" />
+            </button>
+          )}
+          {current < media.length - 1 && (
+            <button onClick={() => setCurrent(c => c + 1)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-11 h-11 bg-white/15 backdrop-blur-sm rounded-full flex items-center justify-center active:scale-90 transition-all">
+              <ArrowLeft className="w-5 h-5 text-white rotate-180" />
+            </button>
+          )}
+        </>
+      )}
+
+      {/* Thumbnails */}
+      {media.length > 1 && (
+        <div className="shrink-0 flex justify-center gap-2 px-4 py-4">
+          {media.map((url, i) => (
+            <button key={i} onClick={() => setCurrent(i)}
+              className={`w-14 h-14 rounded-xl overflow-hidden border-2 transition-all ${i === current ? "border-white scale-105" : "border-white/20 opacity-60"}`}>
+              {isVideo(url) ? (
+                <div className="w-full h-full bg-black/50 flex items-center justify-center">
+                  <span className="text-white text-[10px] font-black">▶</span>
+                </div>
+              ) : (
+                <img src={url} alt="" className="w-full h-full object-cover" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Media slider ──────────────────────────────────────────────────────────────
-function HeroSlider({ media = [] }) {
+function HeroSlider({ media = [], onImageClick }) {
   const [current, setCurrent] = useState(0);
   const touchStartX = useRef(null);
 
-  if (!media || media.length === 0) return <div className="h-[340px] bg-gray-200" />;
+  if (!media || media.length === 0) return <div className="h-[420px] bg-gray-200" />;
 
   const handleTouchStart = (e) => { touchStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e) => {
@@ -30,9 +120,10 @@ function HeroSlider({ media = [] }) {
   const isVideo = (url) => url && (url.includes(".mp4") || url.includes(".webm") || url.includes(".mov"));
 
   return (
-    <div className="relative h-[340px] overflow-hidden bg-gray-900"
+    <div className="relative h-[420px] overflow-hidden bg-gray-900"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
+      onClick={() => onImageClick?.(current)}
     >
       {media.map((url, i) => (
         <div key={i} className="absolute inset-0 w-full h-full transition-transform duration-300 ease-in-out"
@@ -44,19 +135,19 @@ function HeroSlider({ media = [] }) {
           )}
         </div>
       ))}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/10 pointer-events-none" />
       {media.length > 1 && (
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+        <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-2 z-10">
           {media.map((_, i) => (
-            <button key={i} onClick={() => setCurrent(i)}
-              className={`rounded-full transition-all ${i === current ? "w-5 h-1.5 bg-white" : "w-1.5 h-1.5 bg-white/50"}`}
+            <button key={i} onClick={(e) => { e.stopPropagation(); setCurrent(i); }}
+              className={`rounded-full transition-all duration-300 ${i === current ? "w-6 h-2 bg-white" : "w-2 h-2 bg-white/40"}`}
             />
           ))}
         </div>
       )}
       {isVideo(media[current]) && (
-        <div className="absolute top-16 right-4 bg-black/50 rounded-full px-2 py-1 z-10">
-          <span className="text-white text-[10px] font-black">▶ VID</span>
+        <div className="absolute top-20 right-4 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 z-10">
+          <span className="text-white text-[10px] font-black">▶ VIDEO</span>
         </div>
       )}
     </div>
@@ -383,6 +474,8 @@ export default function StyleDetail() {
   const [showAIModal, setShowAIModal] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const produitsRef = useRef(null);
   const profilsRef = useRef(null);
   const aiRef = useRef(null);
@@ -556,23 +649,23 @@ export default function StyleDetail() {
 
       {/* ── Sticky top bar ── */}
       <div className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
-        <button onClick={() => navigate(-1)} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:scale-95 transition-all">
-          <ArrowLeft className="w-4 h-4 text-gray-700" />
+        <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 active:scale-95 transition-all hover:bg-gray-200">
+          <ArrowLeft className="w-5 h-5 text-gray-700" />
         </button>
-        <span className="text-[14px] font-black text-gray-900">Détail du Style</span>
+        <span className="text-[15px] font-black text-gray-900">Détail du Style</span>
         <div className="flex gap-2">
-          <button onClick={() => setShowShare(true)} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:scale-95 transition-all">
-            <Share2 className="w-4 h-4 text-gray-600" />
+          <button onClick={() => setShowShare(true)} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 active:scale-95 transition-all hover:bg-gray-200">
+            <Share2 className="w-4.5 h-4.5 text-gray-600" />
           </button>
-          <button onClick={handleLike} className="w-9 h-9 flex items-center justify-center rounded-full bg-gray-100 active:scale-95 transition-all">
-            <Heart className={`w-4 h-4 ${liked ? "fill-red-500 text-red-500" : "text-gray-600"}`} />
+          <button onClick={handleLike} className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 active:scale-95 transition-all hover:bg-gray-200">
+            <Heart className={`w-4.5 h-4.5 transition-all ${liked ? "fill-red-500 text-red-500 scale-110" : "text-gray-600"}`} />
           </button>
         </div>
       </div>
 
       {/* ── Hero ── */}
       <div className="relative mt-[52px]">
-        <HeroSlider media={mediaList} />
+        <HeroSlider media={mediaList} onImageClick={(idx) => { setLightboxIndex(idx); setLightboxOpen(true); }} />
         <div className="absolute bottom-0 left-0 right-0 px-5 pb-5 z-10">
           <span className="inline-block bg-primary/90 backdrop-blur-sm rounded-full px-3 py-1 text-white text-[9px] font-black uppercase tracking-widest mb-2">
             {st.badge || st.category || "STYLE TENDANCE"}
@@ -591,19 +684,19 @@ export default function StyleDetail() {
       <div className="px-5 pt-5 space-y-7">
 
         {/* Filtre AI */}
-        <div ref={aiRef} className="bg-orange-50 rounded-3xl p-4 border border-orange-100">
-          <div className="flex items-start gap-3 mb-4">
-            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm shrink-0">
-              <span className="text-[22px]">🤖</span>
+        <div ref={aiRef} className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-3xl p-5 border border-orange-100">
+          <div className="flex items-start gap-4 mb-4">
+            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm shrink-0">
+              <Eye className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <p className="text-[15px] font-black text-gray-900">Filtre AI & Recommandations</p>
-              <p className="text-[12px] text-gray-500 leading-relaxed mt-0.5">Découvrez si ce style correspond à la forme de votre visage.</p>
+              <p className="text-[16px] font-black text-gray-900">Filtre AI & Recommandations</p>
+              <p className="text-[12px] text-gray-500 leading-relaxed mt-1">Découvrez si ce style correspond à la forme de votre visage.</p>
             </div>
           </div>
           <button onClick={() => setShowAIModal(true)}
-            className="w-full bg-primary rounded-2xl py-3.5 flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-md shadow-primary/30">
-            <Sparkles className="w-4 h-4 text-white" />
+            className="w-full bg-gradient-to-r from-primary to-orange-500 rounded-2xl py-4 flex items-center justify-center gap-2.5 active:scale-[0.98] transition-all shadow-lg shadow-primary/30">
+            <Sparkles className="w-5 h-5 text-white" />
             <span className="text-white text-[13px] font-black uppercase tracking-widest">Essayer le Filtre AI</span>
           </button>
         </div>
@@ -611,8 +704,11 @@ export default function StyleDetail() {
         {/* Détails du Style */}
         {st.description && (
           <div>
-            <h2 className="text-[20px] font-black text-gray-900 mb-2">Détails du Style</h2>
-            <p className="text-[13px] text-gray-600 leading-relaxed">{st.description}</p>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-1 h-6 bg-primary rounded-full" />
+              <h2 className="text-[20px] font-black text-gray-900">Détails du Style</h2>
+            </div>
+            <p className="text-[14px] text-gray-600 leading-relaxed pl-4">{st.description}</p>
           </div>
         )}
 
@@ -714,6 +810,7 @@ export default function StyleDetail() {
       </div>
 
       {/* Modals */}
+      {lightboxOpen && <ImageLightbox media={mediaList} initialIndex={lightboxIndex} onClose={() => setLightboxOpen(false)} />}
       {showAIModal && <FiltreAIModal styleTitle={st.title} onClose={() => setShowAIModal(false)} />}
       {showComments && <CommentsSheet styleId={st.id} onClose={() => setShowComments(false)} />}
       {showShare && <ShareSheet title={st.title} styleId={st.id} onClose={() => setShowShare(false)} />}
