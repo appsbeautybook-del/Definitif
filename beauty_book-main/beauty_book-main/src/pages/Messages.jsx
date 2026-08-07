@@ -192,33 +192,41 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
   const [sending, setSending] = useState(false);
   const [serviceCardSent, setServiceCardSent] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [securityWarning, setSecurityWarning] = useState(null);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const myTypingRef = useRef(null);
   const msgIdsRef = useRef(new Set());
   const fileInputRef = useRef(null);
+  const channelRef = useRef(null);
 
   const convId = conversation.conversation_id;
+
+  // Security detection
+  const detectSensitiveContent = (text) => {
+    const phoneRegex = /(\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{2,4}[-.\s]?\d{2,4}/;
+    const addressRegex = /\d+\s+(rue|avenue|boulevard|chemin|impasse|allée|place|rond-point|route|bd)\s+/i;
+    if (phoneRegex.test(text)) return "phone";
+    if (addressRegex.test(text)) return "address";
+    return null;
+  };
 
   // Charger les messages
   const loadMessages = useCallback(async () => {
     try {
-      const [sent, received] = await Promise.all([
-        supabase.from("MessageChat").select("*").eq("conversation_id", convId).eq("sender_email", currentUser.email).order("created_at", { ascending: true }),
-        supabase.from("MessageChat").select("*").eq("conversation_id", convId).eq("receiver_email", currentUser.email).order("created_at", { ascending: true }),
-      ]);
-      const allById = {};
-      for (const m of [...(sent.data || []), ...(received.data || [])]) {
-        if (m.type !== "typing") allById[m.id] = m;
-      }
-      const res = Object.values(allById).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-      msgIdsRef.current = new Set(res.map(m => m.id));
-      setMessages(res);
-      // Marquer comme lus
-      for (const m of res) {
-        if (!m.read && m.receiver_email === currentUser.email) {
-          supabase.from("MessageChat").update({ read: true }).eq("id", m.id).catch(() => {});
-        }
+      const { data, error } = await supabase
+        .from("MessageChat")
+        .select("*")
+        .eq("conversation_id", convId)
+        .order("created_at", { ascending: true });
+      if (error) { console.error("[Chat] loadMessages error:", error); setLoading(false); return; }
+      const filtered = (data || []).filter(m => m.type !== "typing");
+      msgIdsRef.current = new Set(filtered.map(m => m.id));
+      setMessages(filtered);
+      // Mark as read
+      const unread = filtered.filter(m => !m.read && m.receiver_email === currentUser.email);
+      for (const m of unread) {
+        supabase.from("MessageChat").update({ read: true, is_read: true }).eq("id", m.id).catch(() => {});
       }
     } catch (e) { console.error("[Chat] loadMessages:", e); }
     setLoading(false);
@@ -236,58 +244,71 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       receiver_email: conversation.other_email,
       content: JSON.stringify({ type: "service_card", ...conversation.service }),
       type: "text", read: false,
-    }).catch(() => {});
+    }).catch(e => console.error("Service card error:", e));
   }, []);
 
-  // Realtime subscription
+  // Realtime
   useEffect(() => {
+    if (channelRef.current) supabase.removeChannel(channelRef.current);
     const channel = supabase
-      .channel(`chat_${convId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "MessageChat", filter: `conversation_id=eq.${convId}` }, (payload) => {
+      .channel(`chat_${convId}_${Date.now()}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "MessageChat", filter: `conversation_id=eq.${convId}` }, (payload) => {
         const m = payload.new;
-        if (!m) return;
-        if (m.sender_email !== currentUser.email && m.receiver_email !== currentUser.email) return;
-        if (m.type === "typing" && m.sender_email !== currentUser.email) {
+        if (!m || m.sender_email === currentUser.email) return;
+        if (m.type === "typing") {
           setOtherTyping(true);
           clearTimeout(typingTimeoutRef.current);
           typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 3000);
           supabase.from("MessageChat").delete().eq("id", m.id).catch(() => {});
           return;
         }
-        if (payload.eventType === "INSERT" && m.type !== "typing") {
-          if (msgIdsRef.current.has(m.id)) return;
-          msgIdsRef.current.add(m.id);
-          setMessages(prev => [...prev, m]);
-          if (m.receiver_email === currentUser.email) {
-            supabase.from("MessageChat").update({ read: true }).eq("id", m.id).catch(() => {});
-          }
-          setOtherTyping(false);
-        }
-        if (payload.eventType === "UPDATE" && m.sender_email === currentUser.email) {
-          setMessages(prev => prev.map(msg => msg.id === m.id ? { ...msg, read: m.read } : msg));
-        }
+        if (msgIdsRef.current.has(m.id)) return;
+        msgIdsRef.current.add(m.id);
+        setMessages(prev => [...prev, m]);
+        supabase.from("MessageChat").update({ read: true, is_read: true }).eq("id", m.id).catch(() => {});
+        setOtherTyping(false);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "MessageChat", filter: `conversation_id=eq.${convId}` }, (payload) => {
+        const old = payload.old;
+        if (old?.id) setMessages(prev => prev.filter(m => m.id !== old.id));
       })
       .subscribe();
+    channelRef.current = channel;
     return () => { supabase.removeChannel(channel); clearTimeout(typingTimeoutRef.current); };
   }, [convId, currentUser.email]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
   const sendTypingSignal = () => {
-    clearTimeout(myTypingRef.current);
+    clearTimeout(typingTimeoutRef.current);
     supabase.from("MessageChat").insert({
       conversation_id: convId, sender_email: currentUser.email,
       receiver_email: conversation.other_email, content: "", type: "typing", read: false,
     }).catch(() => {});
-    myTypingRef.current = setTimeout(() => {}, 2500);
+    typingTimeoutRef.current = setTimeout(() => {}, 2500);
+  };
+
+  const deleteMessage = async (msgId) => {
+    await supabase.from("MessageChat").delete().eq("id", msgId);
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    setContextMenu(null);
   };
 
   const send = async (imageFile = null) => {
     if ((!input.trim() && !imageFile) || sending) return;
-    clearTimeout(myTypingRef.current);
+    clearTimeout(typingTimeoutRef.current);
     setSending(true);
     const content = input.trim();
     setInput("");
+
+    // Check for sensitive content
+    const sensitive = detectSensitiveContent(content);
+    if (sensitive && !securityWarning) {
+      setSecurityWarning(sensitive);
+      setSending(false);
+      setInput(content);
+      return;
+    }
 
     let fileUrl = "";
     if (imageFile) {
@@ -300,15 +321,14 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
         fileUrl = urlData?.publicUrl || "";
       } catch (e) {
         console.error("Upload error:", e);
-        // Fallback : convertir en base64
         try {
-          const reader = new FileReader();
           fileUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = reject;
             reader.readAsDataURL(imageFile);
           });
-        } catch (e2) { console.error("Base64 fallback error:", e2); }
+        } catch (e2) { console.error("Base64 error:", e2); }
       }
     }
 
@@ -326,12 +346,13 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     const { data, error } = await supabase.from("MessageChat").insert(payload).select().single();
     if (error) {
       console.error("Send error:", error);
-      // Optimistic fallback
-      const optimistic = { id: `tmp_${Date.now()}`, ...payload, created_at: new Date().toISOString() };
-      setMessages(prev => [...prev, optimistic]);
+      setMessages(prev => [...prev, { id: `tmp_${Date.now()}`, ...payload, created_at: new Date().toISOString() }]);
+    } else if (data) {
+      setMessages(prev => [...prev, data]);
     }
     setSending(false);
 
+    // Notification
     try {
       await notifyMessageReceived({
         receiverEmail: conversation.other_email,
@@ -347,6 +368,40 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-gray-50 z-50">
+      {/* Security Warning Modal */}
+      {securityWarning && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-6" onClick={() => setSecurityWarning(null)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+            </div>
+            <h3 className="text-[16px] font-black text-gray-900 text-center mb-2">
+              {securityWarning === "phone" ? "Numéro de téléphone détecté" : "Adresse détectée"}
+            </h3>
+            <p className="text-[13px] text-gray-500 text-center mb-4 leading-relaxed">
+              Pour votre sécurité, nous vous déconseillons de partager des {securityWarning === "phone" ? "numéros de téléphone" : "adresses personnelles"} sur la plateforme. BeautyBook ne peut être tenu responsable des échanges effectués en dehors de la plateforme.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => { setSecurityWarning(null); setInput(""); }} className="flex-1 py-3 bg-gray-100 rounded-xl text-[13px] font-black text-gray-600">Annuler</button>
+              <button onClick={() => { setSecurityWarning(null); send(); }} className="flex-1 py-3 bg-primary rounded-xl text-[13px] font-black text-white">Envoyer quand même</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div className="fixed inset-0 z-[100]" onClick={() => setContextMenu(null)}>
+          <div className="absolute bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden min-w-[160px]"
+            style={{ top: contextMenu.y, left: Math.min(contextMenu.x, window.innerWidth - 180) }}
+            onClick={e => e.stopPropagation()}>
+            <button onClick={() => deleteMessage(contextMenu.msgId)} className="w-full flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-red-500 hover:bg-red-50 transition-all">
+              <Trash2 className="w-4 h-4" /> Supprimer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white shrink-0">
         <button onClick={onBack} className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center active:scale-95 transition-all">
@@ -375,7 +430,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
         )}
       </div>
 
-      {/* Messages area */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ minHeight: 0 }}>
         {loading ? (
           <div className="flex justify-center pt-20"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
@@ -395,7 +450,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
             </div>
             <div className="flex gap-2 mt-2">
               {["Bonjour ! 👋", "Disponible ?", "Merci"].map(g => (
-                <button key={g} onClick={() => { setInput(g); }}
+                <button key={g} onClick={() => setInput(g)}
                   className="px-4 py-2 bg-white border border-orange-200 rounded-full text-[12px] font-bold text-primary active:scale-95 transition-all shadow-sm">
                   {g}
                 </button>
@@ -408,13 +463,14 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
             let serviceData = null;
             try { const p = JSON.parse(m.content); if (p?.type === "service_card") serviceData = p; } catch {}
             return (
-              <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[78%] ${isMe ? "items-end" : "items-start"} flex flex-col`}>
+              <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ msgId: m.id, x: e.clientX, y: e.clientY }); }}>
+                <div className={`max-w-[78%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                   {serviceData ? (
                     <div className="w-56"><ServiceCard service={serviceData} navigate={navigate} /></div>
                   ) : m.type === "image" && m.file_url ? (
                     <div>
-                      <img src={m.file_url} alt="image" className="rounded-2xl max-w-full shadow-sm max-h-64 object-cover" loading="lazy" onClick={() => window.open(m.file_url, "_blank")} />
+                      <img src={m.file_url} alt="image" className="rounded-2xl max-w-full shadow-sm max-h-64 object-cover" loading="lazy" />
                       {m.content && m.content !== "📷 Image" && (
                         <div className={`mt-1 px-3 py-2 rounded-2xl text-[13px] font-medium ${isMe ? "bg-primary text-white rounded-br-sm" : "bg-white text-gray-900 rounded-bl-sm shadow-sm"}`}>{m.content}</div>
                       )}
@@ -443,9 +499,9 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input bar — always at bottom */}
+      {/* Input */}
       {isReadonly ? (
-        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 shrink-0"><p className="text-center text-[12px] text-gray-400">🔒 Messages administrateur en lecture seule</p></div>
+        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 shrink-0"><p className="text-center text-[12px] text-gray-400">🔒 Lecture seule</p></div>
       ) : (
         <div className="px-3 py-3 border-t border-gray-100 bg-white flex items-end gap-2 shrink-0" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { await send(f); e.target.value = ""; } }} />
