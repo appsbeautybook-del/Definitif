@@ -718,14 +718,15 @@ export default function Messages() {
     if (!user) return;
     setLoading(true);
     try {
-      const sent = await entities.MessageChat.filter({ sender_email: user.email }, "-created_at", 200);
-      const received = await entities.MessageChat.filter({ receiver_email: user.email }, "-created_at", 200);
-      const allMessages = [...sent, ...received];
+      const { data: sent } = await supabase.from("MessageChat").select("*").eq("sender_email", user.email).order("created_at", { ascending: false }).limit(200);
+      const { data: received } = await supabase.from("MessageChat").select("*").eq("receiver_email", user.email).order("created_at", { ascending: false }).limit(200);
+      const allMessages = [...(sent || []), ...(received || [])];
 
       const convMap = {};
       for (const m of allMessages) {
         const cid = m.conversation_id;
-        if (!convMap[cid] || new Date(m.created_date) > new Date(convMap[cid].created_date)) {
+        if (!cid) continue;
+        if (!convMap[cid] || new Date(m.created_at) > new Date(convMap[cid].created_at)) {
           convMap[cid] = m;
         }
       }
@@ -737,31 +738,22 @@ export default function Messages() {
         const otherAvatar = isMe ? (m.receiver_avatar || null) : (m.sender_avatar || null);
         const unread = allMessages.filter(msg =>
           msg.conversation_id === m.conversation_id &&
-          !msg.read &&
+          !msg.read && !msg.is_read &&
           msg.receiver_email === user.email
         ).length;
-        // Si le dernier message est une carte service, afficher un résumé lisible
-        let lastMessage = m.content;
-        try {
-          const parsed = JSON.parse(m.content);
-          if (parsed?.type === "service_card") lastMessage = `✂️ ${parsed.title} — ${parsed.price}€`;
-        } catch {}
+        let lastMessage = m.content || "";
+        try { const p = JSON.parse(m.content); if (p?.type === "service_card") lastMessage = `✂️ ${p.title} — ${p.price}€`; } catch {}
+        if (m.type === "image") lastMessage = "📷 Image";
         return {
-          conversation_id: m.conversation_id,
-          other_email: otherEmail,
-          other_name: otherName,
-          other_avatar: otherAvatar,
-          last_message: lastMessage,
-          last_date: m.created_date,
-          unread,
+          conversation_id: m.conversation_id, other_email: otherEmail,
+          other_name: otherName, other_avatar: otherAvatar,
+          last_message: lastMessage, last_date: m.created_at, unread,
         };
       });
 
       convs.sort((a, b) => new Date(b.last_date) - new Date(a.last_date));
       setConversations(convs);
-    } catch (e) {
-      console.error("loadConversations error:", e);
-    }
+    } catch (e) { console.error("loadConversations error:", e); }
     setLoading(false);
   };
 
