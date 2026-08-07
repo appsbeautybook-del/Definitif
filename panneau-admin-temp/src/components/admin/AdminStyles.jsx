@@ -37,7 +37,7 @@ export default function AdminStyles() {
   const imgInputRef = useRef(null);
 
   const EMPTY_FORM = {
-    title: "", description: "", category: "", subcategory: "", category_id: "", subcategory_id: "",
+    title: "", description: "", category: "", subcategory: "",
     image_url: "", images: [], video_url: "", tags: [], produits_utilises: [], outils_utilises: [],
     type_cheveux: "", type_peau: "", type_prestation: "", temps_moyen: "", niveau_difficulte: "", mots_cles: [],
   };
@@ -67,7 +67,8 @@ export default function AdminStyles() {
 
   const autoSaveDraft = async (data) => {
     try {
-      const styleData = { ...data, pro_email: data.pro_email || "admin@beautybook.fr" };
+      const { category_id, subcategory_id, ...cleanData } = data;
+      const styleData = { ...cleanData, pro_email: data.pro_email || "admin@beautybook.fr" };
       if (draftId) {
         await entities.Style.update(draftId, { ...styleData, status: "brouillon" });
       } else {
@@ -196,7 +197,7 @@ export default function AdminStyles() {
     setEditingId(style.id);
     setForm({
       title: style.title || "", description: style.description || "", category: style.category || "",
-      subcategory: style.subcategory || "", category_id: style.category_id || "", subcategory_id: style.subcategory_id || "",
+      subcategory: style.subcategory || "",
       image_url: style.image_url || "", images: style.images || [], video_url: style.video_url || "",
       tags: style.tags || [], produits_utilises: style.produits_utilises || [], outils_utilises: style.outils_utilises || [],
       type_cheveux: style.type_cheveux || "", type_peau: style.type_peau || "", type_prestation: style.type_prestation || "",
@@ -217,7 +218,8 @@ export default function AdminStyles() {
     clearTimeout(autoSaveTimer.current);
     try {
       let savedStyle;
-      const payload = { ...form, status };
+      const { category_id, subcategory_id, ...cleanForm } = form;
+      const payload = { ...cleanForm, status };
       if (editingId) {
         const res = await entities.Style.update(editingId, payload);
         savedStyle = res || { ...form, id: editingId, status };
