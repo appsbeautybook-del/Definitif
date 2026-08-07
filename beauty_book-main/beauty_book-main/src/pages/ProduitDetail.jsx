@@ -582,7 +582,7 @@ export default function ProduitDetail() {
       </div>
 
       <div className="h-2 bg-gray-50" />
-      <RelatedService productName={product.title || product.name} productCategory={product.category} />
+      <RelatedServices productId={productId} productName={product.title || product.name} />
       <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="Tu pourrais aimer" />
 
       {/* Bottom CTA */}
@@ -662,44 +662,67 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Tu po
   );
 }
 
-// ── Service associé ──────────────────────────────────────────────────────────
-function RelatedService({ productName, productCategory }) {
+// ── Services associés ────────────────────────────────────────────────────────
+function RelatedServices({ productId, productName }) {
   const navigate = useNavigate();
-  const [service, setService] = useState(null);
+  const [services, setServices] = useState([]);
 
   useEffect(() => {
-    if (!productName) return;
-    const needle = productName.toLowerCase().trim();
-    entities.Service.filter({ status: "actif" }, "-created_at", 100)
-      .then(services => {
-        const match = services.find(s => {
-          const t = (s.title || "").toLowerCase().trim();
-          const st = (s.style || "").toLowerCase().trim();
-          return t === needle || t.includes(needle) || needle.includes(t) || st === needle || st.includes(needle) || needle.includes(st);
-        }) || (productCategory ? services.find(s => (s.category || "").toLowerCase() === productCategory.toLowerCase()) : null);
-        if (match) setService(match);
-      }).catch(() => {});
-  }, [productName, productCategory]);
+    if (!productId && !productName) return;
+    (async () => {
+      try {
+        // 1) Charger tous les styles
+        const styles = await entities.Style.list("-created_at", 200);
+        // 2) Trouver les styles qui utilisent ce produit (par id ou nom)
+        const matchingStyles = (styles || []).filter(s => {
+          const produits = s.produits_utilises || [];
+          return produits.some(p =>
+            String(p.id) === String(productId) ||
+            (p.name || "").toLowerCase().trim() === (productName || "").toLowerCase().trim()
+          );
+        });
+        if (matchingStyles.length === 0) return;
+        // 3) Charger tous les services actifs
+        const allServices = await entities.Service.list("-created_at", 100);
+        // 4) Trouver les services dont le champ style correspond à un des styles trouvés
+        const styleTitles = new Set(matchingStyles.map(s => (s.title || "").toLowerCase().trim()));
+        const matchedServices = (allServices || []).filter(s => {
+          const svcStyle = (s.style || "").toLowerCase().trim();
+          return svcStyle && styleTitles.has(svcStyle);
+        });
+        setServices(matchedServices.slice(0, 4));
+      } catch (e) { console.error("[RelatedServices]", e); }
+    })();
+  }, [productId, productName]);
 
-  if (!service) return null;
+  if (services.length === 0) return null;
   return (
     <div className="px-4 py-5">
-      <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">Service associé</h2>
-      <button onClick={() => navigate(`/service/${service.id}`, { state: { id: service.id } })}
-        className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex items-center gap-3 p-3 active:scale-[0.98] transition-all">
-        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-          {service.image_url ? <img src={service.image_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Scissors className="w-6 h-6 text-gray-300" /></div>}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-black text-gray-900 truncate">{service.title}</p>
-          {service.category && <p className="text-[10px] text-primary font-bold">{service.category}</p>}
-          <div className="flex items-center gap-2 mt-1">
-            {service.duration && <span className="text-[10px] text-gray-400 font-medium flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{service.duration} min</span>}
-            <span className="text-[13px] font-black text-primary">{service.price}€</span>
-          </div>
-        </div>
-        <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
-      </button>
+      <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">Services associés</h2>
+      <div className="space-y-3">
+        {services.map(s => {
+          const media = [];
+          if (s.image_url) media.push(s.image_url);
+          if (s.images?.length > 0) s.images.forEach(u => { if (u && !media.includes(u)) media.push(u); });
+          return (
+            <button key={s.id} onClick={() => navigate(`/service/${s.id}`, { state: { id: s.id } })}
+              className="w-full bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden flex items-center gap-3 p-3 active:scale-[0.98] transition-all">
+              <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                {media[0] ? <img src={media[0]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center"><Scissors className="w-6 h-6 text-gray-300" /></div>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-black text-gray-900 truncate">{s.title}</p>
+                {s.category && <p className="text-[10px] text-primary font-bold">{s.category}</p>}
+                <div className="flex items-center gap-2 mt-1">
+                  {s.duration && <span className="text-[10px] text-gray-400 font-medium flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{s.duration} min</span>}
+                  <span className="text-[13px] font-black text-primary">{s.price}€</span>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300 shrink-0" />
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
