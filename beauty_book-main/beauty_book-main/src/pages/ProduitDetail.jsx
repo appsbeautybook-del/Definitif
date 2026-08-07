@@ -600,7 +600,14 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
       if (dead) return;
       const all = [...shopifyProds, ...vendeurProds];
       if (cat) all.sort((a, b) => { const am = a.category.includes(cat) || cat.includes(a.category) ? 1 : 0; const bm = b.category.includes(cat) || cat.includes(b.category) ? 1 : 0; return bm - am; });
-      setProducts(all.slice(0, 8));
+      if (all.length > 0) setProducts(all.slice(0, 8));
+      else {
+        // Fallback : charger tous les produits BDD sans filtre catégorie
+        try {
+          const fallback = await entities.Produit.filter({ status: "actif" }, "-created_at", 8);
+          if (!dead && fallback.length > 0) setProducts(fallback.filter(p => p.id !== currentProductId).slice(0, 8).map(p => ({ id: p.id, img: p.image_url || '', name: p.name || '', brand: p.brand || '', price: parseFloat(p.price || 0), category: (p.category || '').toLowerCase(), _shopify: false })));
+        } catch {}
+      }
     })();
     return () => { dead = true; };
   }, [currentProductId, currentCategory]);
