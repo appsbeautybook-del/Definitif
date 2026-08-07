@@ -503,6 +503,34 @@ export default function ProduitDetail() {
         <ExpandableSection title="Description du produit" defaultOpen>
           <p className="text-[13px] text-gray-600 leading-relaxed">{product.description || "Aucune description disponible."}</p>
         </ExpandableSection>
+        <ExpandableSection title="Spécifications">
+          <div className="space-y-2">
+            {(() => {
+              const specs = [];
+              // Extraire les specs depuis la description (Pattern: "Key: Value")
+              const desc = product.description || "";
+              const lines = desc.split(/[.\n]/).map(l => l.trim()).filter(Boolean);
+              for (const line of lines) {
+                const match = line.match(/^([A-Za-zÀ-ÿ\s&]+?)\s*[:]\s*(.+)$/);
+                if (match && match[1].trim().length < 40 && match[2].trim().length < 200) {
+                  specs.push({ label: match[1].trim(), value: match[2].trim() });
+                }
+              }
+              // Ajouter des specs standard si pas assez trouvées
+              if (product.category) specs.push({ label: "Catégorie", value: product.category });
+              if (product.brand) specs.push({ label: "Marque", value: product.brand });
+              if (product.stock !== undefined) specs.push({ label: "Disponibilité", value: product.stock > 0 ? "En stock" : "Rupture de stock" });
+              if (product.tags?.length > 0) specs.push({ label: "Tags", value: product.tags.join(", ") });
+              if (specs.length === 0) specs.push({ label: "Catégorie", value: product.category || "Non spécifié" });
+              return specs.slice(0, 12).map((s, i) => (
+                <div key={i} className={`flex items-center justify-between py-2 ${i < specs.length - 1 ? "border-b border-gray-100" : ""}`}>
+                  <span className="text-[12px] font-bold text-gray-500">{s.label}</span>
+                  <span className="text-[12px] font-black text-gray-900 text-right max-w-[60%]">{s.value}</span>
+                </div>
+              ));
+            })()}
+          </div>
+        </ExpandableSection>
         <ExpandableSection title="Avis clients">
           {productReviews.length > 0 ? (
             <div className="space-y-3">
