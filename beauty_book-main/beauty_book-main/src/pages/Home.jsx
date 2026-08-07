@@ -230,20 +230,23 @@ export default function Home() {
 
   useEffect(() => {
     if (!servicesTendanceRaw.length) return;
-    const ids = servicesTendanceRaw.map(s => s.id).filter(Boolean);
-    if (!ids.length) { setServicesTendance(servicesTendanceRaw); return; }
-    entities.Service.filter({ status: "actif" }, "-created_at", 100)
-      .then(all => {
-        const byId = {};
-        all.forEach(s => { byId[s.id] = s; });
-        setServicesTendance(servicesTendanceRaw.map(s => {
-          const real = byId[s.id];
-          if (!real) return s;
-          const img = real.image_url || (real.images && real.images[0]) || s.image_url;
-          return { ...s, image_url: img, price: real.price || s.price, title: real.title || s.title };
-        }));
-      })
-      .catch(() => setServicesTendance(servicesTendanceRaw));
+    Promise.allSettled([
+      entities.Service.filter({ status: "actif" }, "-created_at", 200),
+      entities.ProfilPro.filter({ status: "actif" }, "-created_at", 200),
+    ]).then(([svcRes, proRes]) => {
+      const allSvc = svcRes.status === "fulfilled" ? svcRes.value || [] : [];
+      const byId = {};
+      allSvc.forEach(s => { byId[s.id] = s; });
+      const salonMap = {};
+      (proRes.status === "fulfilled" ? proRes.value || [] : []).forEach(p => { salonMap[p.user_email] = p.salon_name || ""; });
+      setServicesTendance(servicesTendanceRaw.map(s => {
+        const real = byId[s.id];
+        if (!real) return s;
+        const img = real.image_url || (real.images && real.images[0]) || s.image_url;
+        const salon = salonMap[real.pro_email] || "";
+        return { ...s, image_url: img, price: real.price || s.price, title: real.title || s.title, salon_name: salon, pro_email: real.pro_email };
+      }));
+    }).catch(() => setServicesTendance(servicesTendanceRaw));
   }, [homeConfig.services_tendance]);
 
   const salonDuMois = homeConfig.salon_du_mois;
@@ -317,6 +320,7 @@ export default function Home() {
                 </div>
                 <div className="p-3">
                   <p className="text-[13px] font-black text-gray-900 leading-tight">{s.title}</p>
+                  {s.salon_name && <p className="text-[10px] text-gray-400 font-medium mt-0.5 truncate flex items-center gap-1"><MapPin className="w-2.5 h-2.5" />{s.salon_name}</p>}
                   <p className="text-[12px] font-bold text-primary mt-1">À partir de {formatPrice(s.price)}</p>
                 </div>
               </button>

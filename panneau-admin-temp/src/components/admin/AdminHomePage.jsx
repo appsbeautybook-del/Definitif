@@ -103,6 +103,7 @@ function HeroBannersEditor({ banners = [], onSave }) {
 // ── Service Picker ────────────────────────────────────────────────────────────
 function ServicesPicker({ selected = [], onSave }) {
   const [services, setServices] = useState([]);
+  const [proMap, setProMap] = useState({});
   const [picks, setPicks] = useState(selected);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -110,19 +111,25 @@ function ServicesPicker({ selected = [], onSave }) {
 
   useEffect(() => {
     setLoading(true);
-    entities.Service.filter({ status: "actif" }, "-created_at", 100)
-      .then(res => setServices(res || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.allSettled([
+      entities.Service.filter({ status: "actif" }, "-created_at", 200),
+      entities.ProfilPro.filter({ status: "actif" }, "-created_at", 200),
+    ]).then(([svcRes, proRes]) => {
+      setServices(svcRes.status === "fulfilled" ? svcRes.value || [] : []);
+      const map = {};
+      (proRes.status === "fulfilled" ? proRes.value || [] : []).forEach(p => { map[p.user_email] = p.salon_name || p.user_email; });
+      setProMap(map);
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const toggle = (svc) => {
-    setPicks(p => p.some(x => x.id === svc.id) ? p.filter(x => x.id !== svc.id) : [...p, { id: svc.id, title: svc.title, price: svc.price, image_url: svc.image_url, category: svc.category, tag: "TENDANCE" }]);
+    const img = svc.image_url || (svc.images && svc.images[0]) || "";
+    setPicks(p => p.some(x => x.id === svc.id) ? p.filter(x => x.id !== svc.id) : [...p, { id: svc.id, title: svc.title, price: svc.price, image_url: img, category: svc.category, pro_email: svc.pro_email, salon_name: proMap[svc.pro_email] || "", tag: "TENDANCE" }]);
   };
 
   const save = async () => { setSaving(true); await onSave("services_tendance", picks); setSaving(false); };
 
-  const filtered = search.trim() ? services.filter(s => (s.title + " " + s.category).toLowerCase().includes(search.toLowerCase())) : services;
+  const filtered = search.trim() ? services.filter(s => (s.title + " " + s.category + " " + (proMap[s.pro_email] || "")).toLowerCase().includes(search.toLowerCase())) : services;
 
   return (
     <div className="space-y-4">
@@ -131,7 +138,10 @@ function ServicesPicker({ selected = [], onSave }) {
           {picks.map(p => (
             <div key={p.id} className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3 py-1.5">
               {p.image_url && <img src={p.image_url} className="w-5 h-5 rounded-lg object-cover" alt="" />}
-              <span className="text-[12px] font-black text-orange-800">{p.title}</span>
+              <div className="flex flex-col">
+                <span className="text-[12px] font-black text-orange-800">{p.title}</span>
+                {(p.salon_name || p.pro_email) && <span className="text-[9px] text-orange-500 font-medium">{p.salon_name || p.pro_email}</span>}
+              </div>
               <button onClick={() => toggle(p)}><X className="w-3 h-3 text-orange-400" /></button>
             </div>
           ))}
@@ -139,7 +149,7 @@ function ServicesPicker({ selected = [], onSave }) {
       )}
       <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-3 py-2.5">
         <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un service..." className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none" />
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un service, un salon..." className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none" />
         {search && <button onClick={() => setSearch("")}><X className="w-3.5 h-3.5 text-gray-400" /></button>}
       </div>
       {loading ? (
@@ -148,13 +158,18 @@ function ServicesPicker({ selected = [], onSave }) {
         <div className="max-h-64 overflow-y-auto space-y-1 border border-gray-200 rounded-xl p-2">
           {filtered.map(svc => {
             const sel = picks.some(x => x.id === svc.id);
+            const img = svc.image_url || (svc.images && svc.images[0]) || "";
+            const salon = proMap[svc.pro_email] || "";
             return (
               <button key={svc.id} onClick={() => toggle(svc)}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border-2 transition-all text-left ${sel ? "border-primary bg-orange-50" : "border-transparent bg-gray-50 hover:bg-gray-100"}`}>
-                {svc.image_url && <img src={svc.image_url} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0" />}
-                <div className="flex-1">
-                  <p className="text-[12px] font-black text-gray-900">{svc.title}</p>
-                  <p className="text-[10px] text-gray-400">{svc.price}€ · {svc.category}</p>
+                {img ? <img src={img} alt="" className="w-9 h-9 rounded-xl object-cover shrink-0" /> : <div className="w-9 h-9 rounded-xl bg-gray-200 shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-black text-gray-900 truncate">{svc.title}</p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-gray-400">{svc.price}€ · {svc.category}</span>
+                    {salon && <span className="text-[9px] text-orange-500 font-bold truncate">· {salon}</span>}
+                  </div>
                 </div>
                 {sel && <Check className="w-4 h-4 text-primary shrink-0" />}
               </button>
