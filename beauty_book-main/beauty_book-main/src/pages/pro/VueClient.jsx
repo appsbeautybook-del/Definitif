@@ -479,7 +479,7 @@ function MosaicGrid({ publications, navigate }) {
         style={{ aspectRatio: isVideo ? "9/16" : (Math.random() > 0.5 ? "4/5" : "3/4") }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        onClick={() => navigate(`/style/${pub.id}`)}
+        onClick={() => navigate(`/reseau-social?reelId=${pub.id}`)}
       >
         {/* Image de base */}
         {thumb && <img src={thumb} alt={pub.title} className="w-full h-full object-cover" />}

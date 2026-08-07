@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Search, ArrowLeft, Heart, MessageSquare, Share2, Volume2, VolumeX, ShoppingBag, Music, X, Send, Smile, Repeat2, Play, Pause, Lightbulb, Video, ChevronRight, Gauge, MoreHorizontal, ShoppingCart, Sparkles, Scissors, ArrowUpRight } from "lucide-react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
@@ -828,6 +828,8 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function Reels() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const targetReelId = searchParams.get("reelId");
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("Réels");
   const [reelsData, setReelsData] = useState([]);
@@ -903,6 +905,18 @@ export default function Reels() {
         const ckm = {};
         enriched.forEach(r => { ckm[r.id] = r.comments_count ?? 0; });
         setReelCommentCounts(ckm);
+
+        // Scroll to specific reel if reelId param exists
+        if (targetReelId) {
+          setTimeout(() => {
+            const idx = enriched.findIndex(r => String(r.id) === String(targetReelId));
+            if (idx >= 0) {
+              const el = document.querySelector(`[data-idx="${idx}"]`);
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+              setCurrentIdx(idx);
+            }
+          }, 500);
+        }
 
         try {
           const reelIds = reels.map(r => String(r.id));
