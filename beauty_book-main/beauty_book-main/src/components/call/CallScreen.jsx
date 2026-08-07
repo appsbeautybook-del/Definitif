@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { PhoneOff, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { PhoneOff, Mic, MicOff, Volume2, VolumeX, MessageSquare } from "lucide-react";
+import { supabase } from "@/api/supabaseClient";
 
 // Sonnerie via Web Audio API
 function useRingTone(active) {
@@ -46,11 +47,31 @@ function useRingTone(active) {
  *  - onReject (mode ringing uniquement)
  *  - remoteAudioRef: ref à attacher à <audio>
  */
-export default function CallScreen({ mode, targetName, targetAvatar, onHangup, onAccept, onReject, remoteAudioRef }) {
+export default function CallScreen({ mode, targetName, targetAvatar, onHangup, onAccept, onReject, remoteAudioRef, targetEmail, currentUserEmail }) {
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(true);
   const [seconds, setSeconds] = useState(0);
+  const [showQuickMsgs, setShowQuickMsgs] = useState(false);
   const timerRef = useRef(null);
+
+  const QUICK_MESSAGES = [
+    "Je te rappelle plus tard 👋",
+    "Disponible dans 5 min",
+    "En réunion, rappelle-moi",
+    "Merci, pas maintenant",
+  ];
+
+  const sendQuickMessage = async (msg) => {
+    if (!targetEmail || !currentUserEmail) return;
+    const convId = [currentUserEmail, targetEmail].sort().join("_");
+    await supabase.from("MessageChat").insert({
+      conversation_id: convId, sender_email: currentUserEmail,
+      sender_name: "📞 Appel", receiver_email: targetEmail,
+      content: msg, type: "text", read: false,
+    }).catch(() => {});
+    setShowQuickMsgs(false);
+    onHangup();
+  };
 
   // Sonnerie active pendant "calling" et "ringing"
   useRingTone(mode === "calling" || mode === "ringing");
@@ -129,25 +150,52 @@ export default function CallScreen({ mode, targetName, targetAvatar, onHangup, o
               <p className="text-white/40 text-[11px] font-medium">Accepter</p>
             </div>
           </div>
-        ) : (
-          /* Appel sortant ou actif */
-          <div className="flex items-center justify-around">
-            {mode === "active" && (
-              <>
-                <div className="flex flex-col items-center gap-2">
-                  <button onClick={() => setMuted(m => !m)} className={`w-14 h-14 rounded-full flex items-center justify-center ${muted ? "bg-white/20" : "bg-white/10"} active:scale-95`}>
-                    {muted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
+        ) : mode === "calling" ? (
+          /* Appel sortant en attente : messages rapides + raccrocher */
+          <div className="flex flex-col items-center gap-4">
+            {showQuickMsgs ? (
+              <div className="w-full space-y-2">
+                {QUICK_MESSAGES.map(msg => (
+                  <button key={msg} onClick={() => sendQuickMessage(msg)}
+                    className="w-full bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-white text-[13px] font-medium text-left active:scale-95 transition-all border border-white/10">
+                    {msg}
                   </button>
-                  <p className="text-white/40 text-[10px] font-medium">{muted ? "Muet" : "Micro"}</p>
+                ))}
+                <button onClick={() => setShowQuickMsgs(false)}
+                  className="w-full text-white/40 text-[12px] font-bold py-2">Annuler</button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-6">
+                <div className="flex flex-col items-center gap-2">
+                  <button onClick={() => setShowQuickMsgs(true)} className="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center active:scale-95">
+                    <MessageSquare className="w-6 h-6 text-white" />
+                  </button>
+                  <p className="text-white/40 text-[10px] font-medium">Message</p>
                 </div>
                 <div className="flex flex-col items-center gap-2">
-                  <button onClick={() => setSpeaker(s => !s)} className={`w-14 h-14 rounded-full flex items-center justify-center ${speaker ? "bg-white/20" : "bg-white/10"} active:scale-95`}>
-                    {speaker ? <Volume2 className="w-6 h-6 text-white" /> : <VolumeX className="w-6 h-6 text-white" />}
+                  <button onClick={onHangup} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
+                    <PhoneOff className="w-8 h-8 text-white" />
                   </button>
-                  <p className="text-white/40 text-[10px] font-medium">HP</p>
+                  <p className="text-white/40 text-[11px] font-medium">Raccrocher</p>
                 </div>
-              </>
+              </div>
             )}
+          </div>
+        ) : (
+          /* Appel actif : micro + HP + raccrocher */
+          <div className="flex items-center justify-around">
+            <div className="flex flex-col items-center gap-2">
+              <button onClick={() => setMuted(m => !m)} className={`w-14 h-14 rounded-full flex items-center justify-center ${muted ? "bg-white/20" : "bg-white/10"} active:scale-95`}>
+                {muted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
+              </button>
+              <p className="text-white/40 text-[10px] font-medium">{muted ? "Muet" : "Micro"}</p>
+            </div>
+            <div className="flex flex-col items-center gap-2">
+              <button onClick={() => setSpeaker(s => !s)} className={`w-14 h-14 rounded-full flex items-center justify-center ${speaker ? "bg-white/20" : "bg-white/10"} active:scale-95`}>
+                {speaker ? <Volume2 className="w-6 h-6 text-white" /> : <VolumeX className="w-6 h-6 text-white" />}
+              </button>
+              <p className="text-white/40 text-[10px] font-medium">HP</p>
+            </div>
             <div className="flex flex-col items-center gap-2">
               <button onClick={onHangup} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
                 <PhoneOff className="w-8 h-8 text-white" />
