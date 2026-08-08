@@ -48,7 +48,8 @@ const DEFAULT_OUVERTURE = {
 };
 
 function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travailNuit = false, minSlotMin = null) {
-  const ov = (ouverture && Object.keys(ouverture).length > 0) ? ouverture : DEFAULT_OUVERTURE;
+  const hasRealOuverture = ouverture && typeof ouverture === "object" && Object.keys(ouverture).length > 0 && Object.values(ouverture).some(v => v && typeof v === "object" && "open" in v);
+  const ov = hasRealOuverture ? ouverture : DEFAULT_OUVERTURE;
 
   const dow = getDay(date);
   const dayKey = DAY_NAMES_FR[dow];
