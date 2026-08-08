@@ -14,7 +14,7 @@ import {
   Scissors, Users, Clock, Megaphone, TrendingUp, UserPlus,
   MoreVertical, Calendar, CheckCircle, ArrowLeft, Phone,
   Mail, Download, ChevronLeft, ChevronDown, Star, MapPin,
-  AlertCircle, Loader2, KeyRound
+  AlertCircle, Loader2, KeyRound, Shield, XCircle
 } from "lucide-react";
 import { format, addDays, startOfWeek, isSameDay, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -31,6 +31,9 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
   const [loading, setLoading] = useState(false);
   const [codeInput, setCodeInput] = useState(["", "", "", ""]);
   const [codeError, setCodeError] = useState(false);
+  const [showReliability, setShowReliability] = useState(false);
+  const [reliabilityChoice, setReliabilityChoice] = useState(null);
+  const [savingScore, setSavingScore] = useState(false);
   const codeRefs = [useRef(), useRef(), useRef(), useRef()];
 
   const statusColors = {
@@ -111,6 +114,22 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
       return;
     }
     await handleStatus("termine");
+    setShowReliability(true);
+  };
+
+  const handleSubmitReliability = async () => {
+    if (!reliabilityChoice) return;
+    setSavingScore(true);
+    try {
+      const scoreMap = { present: 100, retard: 50, no_show: 0 };
+      const score = scoreMap[reliabilityChoice] ?? 100;
+      try {
+        await supabase.from("Reservation").update({ reliability_score: score }).eq("id", rdv.id);
+      } catch {}
+      setShowReliability(false);
+      onClose();
+    } catch (e) { console.error("Reliability error:", e); }
+    setSavingScore(false);
   };
 
   return (
@@ -280,6 +299,63 @@ function RdvDetailModal({ rdv, onClose, onUpdateStatus, proEmail }) {
           </div>
         )}
       </div>
+
+      {/* Page Score de Fiabilite */}
+      {showReliability && (
+        <div className="fixed inset-0 z-[60] bg-white flex flex-col">
+          <div className="px-5 pt-12 pb-4">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Shield className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-[18px] font-black text-gray-900">Score de Fiabilite</h2>
+                  <p className="text-[11px] text-gray-400">{rdv.client_email} · {rdv.service_name}</p>
+                </div>
+              </div>
+              <button onClick={() => { setShowReliability(false); onClose(); }} className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            <div className="bg-blue-50 rounded-2xl p-4 mb-6 border border-blue-100">
+              <p className="text-[12px] text-blue-700 font-medium leading-relaxed">
+                Ce score est <strong>visible par tous les professionnels</strong> de la plateforme. Il permet de prioriser les demandes de reservation futures.
+              </p>
+            </div>
+            <p className="text-[11px] font-black text-gray-500 uppercase tracking-widest mb-4">Le client etait-il present ?</p>
+            <div className="space-y-3">
+              {[
+                { key: "present", label: "Present a l'heure", sub: "Le client etait au RDV et a l'heure", color: "border-green-300 bg-green-50", iconColor: "text-green-500" },
+                { key: "retard", label: "En retard", sub: "Le client est arrive avec du retard", color: "border-yellow-300 bg-yellow-50", iconColor: "text-yellow-500" },
+                { key: "no_show", label: "No-show / Absent", sub: "Le client n'est pas venu sans annuler", color: "border-red-300 bg-red-50", iconColor: "text-red-500" },
+              ].map(opt => (
+                <button key={opt.key} onClick={() => setReliabilityChoice(opt.key)}
+                  className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${reliabilityChoice === opt.key ? opt.color + " shadow-md" : "border-gray-200 bg-white"}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${reliabilityChoice === opt.key ? "bg-white" : "bg-gray-100"}`}>
+                      {opt.key === "present" && <CheckCircle className={`w-5 h-5 ${opt.iconColor}`} />}
+                      {opt.key === "retard" && <Clock className={`w-5 h-5 ${opt.iconColor}`} />}
+                      {opt.key === "no_show" && <XCircle className={`w-5 h-5 ${opt.iconColor}`} />}
+                    </div>
+                    <div>
+                      <p className="text-[14px] font-black text-gray-900">{opt.label}</p>
+                      <p className="text-[11px] text-gray-500">{opt.sub}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="px-5 pb-8 mt-auto">
+            <button onClick={handleSubmitReliability} disabled={!reliabilityChoice || savingScore}
+              className="w-full bg-blue-600 text-white py-4 rounded-2xl text-[14px] font-black uppercase tracking-widest active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-2">
+              {savingScore ? <Loader2 className="w-5 h-5 animate-spin" /> : <Shield className="w-5 h-5" />}
+              Valider le score
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

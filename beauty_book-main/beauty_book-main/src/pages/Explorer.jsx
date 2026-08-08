@@ -196,13 +196,15 @@ export default function Explorer() {
         ) : (
           <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
             <Map
-              defaultCenter={mapCenter}
-              defaultZoom={12}
+              center={mapCenter}
+              defaultZoom={13}
               mapId={mapId}
               gestureHandling="greedy"
               disableDefaultUI={true}
               style={{ width: "100%", height: "100%" }}
             >
+              {/* Marqueur localisation utilisateur */}
+              {hasLocation && <UserMarker lat={latitude} lng={longitude} />}
               {allMapItems.map((p) => (
                 <PriceMarker
                   key={p.id}
