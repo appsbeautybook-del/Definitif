@@ -252,7 +252,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       sender_email: currentUser.email,
       sender_name: currentUser.user_metadata?.full_name || currentUser.email,
       receiver_email: conversation.other_email,
-      text: JSON.stringify({ type: "service_card", ...conversation.service }),
+      content: JSON.stringify({ type: "service_card", ...conversation.service }),
       type: "text", read: false,
     }).catch(e => console.error("Service card error:", e));
   }, []);
@@ -297,7 +297,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     clearTimeout(typingTimeoutRef.current);
     supabase.from("MessageChat").insert({
       conversation_id: convId, sender_email: currentUser.email,
-      receiver_email: conversation.other_email, text: "", type: "typing", read: false,
+      receiver_email: conversation.other_email, content: "", type: "typing", read: false,
     }).catch(() => {});
     typingTimeoutRef.current = setTimeout(() => {}, 2500);
   };
@@ -354,10 +354,9 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       sender_avatar: currentUser.user_metadata?.avatar_url || null,
       receiver_email: conversation.other_email,
       receiver_name: conversation.other_name || conversation.other_email,
-      receiver_avatar: conversation.other_avatar || null,
-      text: content || (fileUrl ? "📷 Image" : ""),
+      content: content || (fileUrl ? "📷 Image" : ""),
       type: fileUrl ? "image" : "text",
-      attachment_url: fileUrl || "",
+      file_url: fileUrl || "",
       is_read: false, read: false,
       created_at: now, updated_at: now,
     };
@@ -885,7 +884,7 @@ export default function Messages() {
             sender_email: user.email,
             sender_name: "Maria AI",
             receiver_email: m.sender_email,
-            text: mariaReply,
+            content: mariaReply,
             type: "text",
             is_read: false,
             read: false,

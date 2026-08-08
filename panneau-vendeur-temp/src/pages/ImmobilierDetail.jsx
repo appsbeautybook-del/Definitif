@@ -51,7 +51,7 @@ function MessageModal({ listing, onClose }) {
         sender_name: name || user?.full_name || email,
         receiver_email: ADMIN_EMAIL,
         receiver_name: "BeautyBook Admin",
-        text: `📍 Offre immobilière : "${listing.title}"\n\n${msg}`,
+        content: `📍 Offre immobilière : "${listing.title}"\n\n${msg}`,
         type: "text",
         read: false,
       });

@@ -208,7 +208,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     for (const m of [...(sent || []), ...(received || [])]) allById[m.id] = m;
     const res = Object.values(allById)
       .filter(m => m.type !== "typing")
-      .sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
+      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
     setMessages(res);
     // Marquer comme lus
     for (const m of res) {
@@ -239,8 +239,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
           sender_avatar: currentUser.avatar_url || "",
           receiver_email: conversation.other_email,
           receiver_name: conversation.other_name || conversation.other_email,
-          receiver_avatar: conversation.other_avatar || "",
-          text: serviceJson,
+          content: serviceJson,
           type: "text",
           is_read: false,
           read: false,
@@ -296,7 +295,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       conversation_id: convId,
       sender_email: currentUser.email,
       receiver_email: conversation.other_email,
-      text: "",
+      content: "",
       type: "typing",
       read: false,
     }).catch(() => {});
@@ -308,7 +307,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     if (!input.trim() || sending) return;
     clearTimeout(myTypingRef.current);
     setSending(true);
-    const content = input.trim();
+    const msgText = input.trim();
     setInput("");
 
     // Optimistic
@@ -316,8 +315,8 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       id: `tmp_${Date.now()}`,
       sender_email: currentUser.email,
       receiver_email: conversation.other_email,
-      text: content,
-      created_date: new Date().toISOString(),
+      content: msgText,
+      created_at: new Date().toISOString(),
       read: false,
     };
     setMessages(prev => [...prev, optimistic]);
@@ -330,8 +329,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
         sender_avatar: currentUser.avatar_url || "",
         receiver_email: conversation.other_email,
         receiver_name: conversation.other_name || conversation.other_email,
-        receiver_avatar: conversation.other_avatar || "",
-        text: content,
+        content: msgText,
         type: "text",
         is_read: false,
         read: false,
