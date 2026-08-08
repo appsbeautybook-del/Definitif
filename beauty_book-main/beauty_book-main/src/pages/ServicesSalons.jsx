@@ -1246,14 +1246,14 @@ function ServicesTab({ activeCategory }) {
                       </span>
                     </span>
                   )}
-                  {pro.type_activite && (
-                    <span className="bg-orange-100 text-orange-600 text-[10px] font-black px-2.5 py-1 rounded-full">
-                      {pro.type_activite === "Salon" ? "Salon Professionnel" : pro.type_activite}
-                    </span>
-                  )}
-                  {(() => { const open = isOpenNow(pro.ouverture); return open === null ? null : open
+                  <span className="bg-orange-100 text-orange-600 text-[10px] font-black px-2.5 py-1 rounded-full">
+                    {pro.type_activite === "Salon" || !pro.type_activite ? "Salon Professionnel" : pro.type_activite}
+                  </span>
+                  {(() => { const open = isOpenNow(pro.ouverture); return open === true
                     ? <span className="bg-teal-50 text-teal-600 text-[10px] font-black px-2.5 py-1 rounded-full border border-teal-100">● Ouvert</span>
-                    : <span className="bg-red-50 text-red-500 text-[10px] font-black px-2.5 py-1 rounded-full border border-red-100">● Fermé</span>;
+                    : open === false
+                    ? <span className="bg-red-50 text-red-500 text-[10px] font-black px-2.5 py-1 rounded-full border border-red-100">● Fermé</span>
+                    : null;
                   })()}
                 </div>
               )}
