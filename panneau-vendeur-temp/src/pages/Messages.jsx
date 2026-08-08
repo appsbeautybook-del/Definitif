@@ -232,11 +232,18 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
           image_url: conversation.service.image_url,
           duration: conversation.service.duration,
         });
-        /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("sendMessage", {
-          receiver_email: conversation.other_email,
-          content: serviceJson,
+        entities.MessageChat.create({
           conversation_id: convId,
+          sender_email: currentUser.email,
+          sender_name: currentUser.full_name || currentUser.email,
+          sender_avatar: currentUser.avatar_url || "",
+          receiver_email: conversation.other_email,
+          receiver_name: conversation.other_name || conversation.other_email,
+          receiver_avatar: conversation.other_avatar || "",
+          content: serviceJson,
           type: "text",
+          is_read: false,
+          read: false,
         }).catch(() => {});
       }
     });
@@ -315,13 +322,22 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     };
     setMessages(prev => [...prev, optimistic]);
 
-    await /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("sendMessage", {
-      receiver_email: conversation.other_email,
-      content,
-      conversation_id: convId,
-    });
+    try {
+      await entities.MessageChat.create({
+        conversation_id: convId,
+        sender_email: currentUser.email,
+        sender_name: currentUser.full_name || currentUser.email,
+        sender_avatar: currentUser.avatar_url || "",
+        receiver_email: conversation.other_email,
+        receiver_name: conversation.other_name || conversation.other_email,
+        receiver_avatar: conversation.other_avatar || "",
+        content,
+        type: "text",
+        is_read: false,
+        read: false,
+      });
+    } catch (e) { console.warn('[Chat] send error:', e); }
     setSending(false);
-    // Recharger pour remplacer le message optimiste par le vrai
     loadMessages();
   };
 
