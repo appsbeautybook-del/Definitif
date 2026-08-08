@@ -614,9 +614,9 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       // Compter les abonnés depuis user_follow (source de vérité)
       let followerCount = 0;
       try {
-        const { count } = await supabase.from('user_follow')
-          .select('id', { count: 'exact', head: true }).eq('followed_email', targetEmail);
-        followerCount = count || 0;
+        const { data: followRows } = await supabase.from('user_follow')
+          .select('id').eq('followed_email', targetEmail);
+        followerCount = followRows ? followRows.length : 0;
       } catch (e) { followerCount = profile?.followers || 0; }
       setStats({ abonnes: followerCount, services: svcs.length, avis: avis.length });
     };
@@ -657,9 +657,9 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
     } catch (e) { console.warn('[Subscribe] follow error:', e); }
     // Recalculer depuis la DB pour avoir le vrai compteur
     try {
-      const { count } = await supabase.from('user_follow')
-        .select('id', { count: 'exact', head: true }).eq('followed_email', targetEmail);
-      const newCount = count || 0;
+      const { data: followRows } = await supabase.from('user_follow')
+        .select('id').eq('followed_email', targetEmail);
+      const newCount = followRows ? followRows.length : 0;
       setStats(s => ({ ...s, abonnes: newCount }));
       await entities.ProfilPro.update(proInfoId, { followers: newCount }).catch(() => {});
     } catch (e) { console.warn('[Subscribe] count error:', e); }
