@@ -63,7 +63,7 @@ export default function ModifierProfilPro() {
 
   useEffect(() => {
     if (!user?.email) return;
-    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, galerie_urls').eq('user_email', user.email).maybeSingle()
+    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, galerie_urls, horaires, ouverture, seats_count, specialites, commodites').eq('user_email', user.email).maybeSingle()
       .then(({ data: p }) => {
         let profile = p;
         if (!profile) {
@@ -82,10 +82,19 @@ export default function ModifierProfilPro() {
         if (profile) {
           const h = {};
           DAYS.forEach(d => { h[d] = { open: false, start: "09:00", end: "19:00" }; });
-          if (profile.horaires && typeof profile.horaires === 'object' && !Array.isArray(profile.horaires)) {
-            Object.keys(profile.horaires).forEach(d => { if (h[d]) h[d] = { ...h[d], ...profile.horaires[d] }; });
-          } else if (Array.isArray(profile.horaires)) {
-            profile.horaires.forEach(d => { if (h[d]) h[d].open = true; });
+          // Lire horaires (ModifierProfilPro) OU ouverture (HorairesConges)
+          const src = profile.horaires || profile.ouverture;
+          if (src && typeof src === 'object' && !Array.isArray(src)) {
+            Object.keys(src).forEach(k => {
+              const lk = k.toLowerCase();
+              if (h[lk] && typeof src[k] === 'object' && src[k] !== null) {
+                h[lk] = { ...h[lk], ...src[k] };
+              } else if (h[k] && typeof src[k] === 'object' && src[k] !== null) {
+                h[k] = { ...h[k], ...src[k] };
+              }
+            });
+          } else if (Array.isArray(src)) {
+            src.forEach(d => { if (h[d]) h[d].open = true; });
           }
           setData({
             salon_name: profile.salon_name || "", phone: profile.phone || "", address: profile.address || "",
