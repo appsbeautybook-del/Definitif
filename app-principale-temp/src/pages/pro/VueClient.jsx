@@ -606,7 +606,13 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       }
       if (demandes.length > 0) setDemandeInfo(demandes[0]);
       setAvis(avis);
-      setStats({ abonnes: profile?.followers || 0, services: svcs.length, avis: avis.length });
+      // Compter les abonnés via RPC (bypass RLS)
+      let followerCount = profile?.followers || 0;
+      try {
+        const { data: count } = await supabase.rpc('count_followers', { target_email: targetEmail });
+        if (count !== null && count !== undefined) followerCount = count;
+      } catch (e) {}
+      setStats({ abonnes: followerCount, services: svcs.length, avis: avis.length });
     };
     fetchData();
     const onUpdated = (e) => {
@@ -633,9 +639,27 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
     try { localStorage.setItem(`bb_subscribed_${targetEmail}`, newSubscribed ? "1" : "0"); } catch {}
     const newCount = newSubscribed ? (stats.abonnes + 1) : Math.max(0, stats.abonnes - 1);
     setStats(s => ({ ...s, abonnes: newCount }));
+    // Sauvegarder dans user_follow + ProfilPro via RPC (bypass RLS)
     try {
-      await entities.ProfilPro.update(proInfoId, { followers: newCount });
-    } catch (e) { console.warn('[Subscribe] update error:', e); }
+      if (newSubscribed) {
+        await supabase.from('user_follow').insert({
+          follower_email: user?.email,
+          follower_name: user?.full_name || "Utilisateur",
+          follower_avatar: user?.avatar_url || "",
+          followed_email: targetEmail,
+        }).catch(() => {});
+        await supabase.rpc('increment_followers', { target_email: targetEmail });
+      } else {
+        await supabase.from('user_follow')
+          .delete().eq('follower_email', user?.email).eq('followed_email', targetEmail).catch(() => {});
+        await supabase.rpc('decrement_followers', { target_email: targetEmail });
+      }
+      // Relire le vrai compteur
+      const { data: realCount } = await supabase.rpc('count_followers', { target_email: targetEmail });
+      if (realCount !== null && realCount !== undefined) {
+        setStats(s => ({ ...s, abonnes: realCount }));
+      }
+    } catch (e) { console.warn('[Subscribe] error:', e); }
   };
 
   const handleUnsubscribe = () => {

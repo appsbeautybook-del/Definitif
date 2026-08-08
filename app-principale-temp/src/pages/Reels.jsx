@@ -1023,36 +1023,21 @@ export default function Reels() {
     if (isFollowed) {
       setFollowed(prev => prev.filter(e => e !== authorEmail));
       try {
-        await entities.UserFollow.filter({ follower_email: user.email, followed_email: authorEmail }).then(rows => {
-          if (rows[0]) return entities.UserFollow.delete(rows[0].id);
-        });
+        await supabase.from('user_follow')
+          .delete().eq('follower_email', user.email).eq('followed_email', authorEmail);
       } catch (e) { console.warn('[Follow] delete error:', e); }
-
-      // Décrémenter followers du profil pro
-      try {
-        const profiles = await entities.ProfilPro.filter({ user_email: authorEmail }, "-created_at", 1);
-        if (profiles[0]) {
-          await entities.ProfilPro.update(profiles[0].id, { followers: Math.max((profiles[0].followers || 1) - 1, 0) });
-        }
-      } catch (e) { console.warn('[Follow] dec followers error:', e); }
+      try { await supabase.rpc('decrement_followers', { target_email: authorEmail }); } catch (e) {}
     } else {
       setFollowed(prev => [...prev, authorEmail]);
       try {
-        await entities.UserFollow.create({
+        await supabase.from('user_follow').insert({
           follower_email: user.email,
           follower_name: user?.full_name || "Utilisateur",
           follower_avatar: user?.avatar_url || "",
           followed_email: authorEmail,
         });
       } catch (e) { console.warn('[Follow] insert error:', e); }
-
-      // Incrémenter followers du profil pro
-      try {
-        const profiles = await entities.ProfilPro.filter({ user_email: authorEmail }, "-created_at", 1);
-        if (profiles[0]) {
-          await entities.ProfilPro.update(profiles[0].id, { followers: (profiles[0].followers || 0) + 1 });
-        }
-      } catch (e) { console.warn('[Follow] inc followers error:', e); }
+      try { await supabase.rpc('increment_followers', { target_email: authorEmail }); } catch (e) {}
     }
   };
 
