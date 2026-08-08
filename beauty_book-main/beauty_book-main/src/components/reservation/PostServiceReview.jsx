@@ -13,17 +13,26 @@ export default function PostServiceReview({ reservation, proEmail, proName, onCl
   const handleSubmit = async () => {
     if (note === 0) return;
     setSaving(true);
+    const targetEmail = proEmail || reservation.pro_email;
     await entities.Avis.create({
       reservation_id: reservation.id,
       type: "client_to_pro",
       auteur_email: reservation.client_email,
       auteur_nom: reservation.client_email,
-      cible_email: proEmail || reservation.pro_email,
+      cible_email: targetEmail,
       cible_nom: proName || reservation.pro_name,
       note,
       commentaire,
       service_nom: reservation.service_name,
     });
+    // Sync rating
+    try {
+      const { data: avis } = await supabase.from("Avis").select("note").eq("cible_email", targetEmail);
+      if (avis && avis.length > 0) {
+        const avg = avis.reduce((s, a) => s + (a.note || 0), 0) / avis.length;
+        await supabase.from("ProfilPro").update({ rating: Math.round(avg * 10) / 10, reviews_count: avis.length }).eq("user_email", targetEmail);
+      }
+    } catch (e) { console.error("Sync rating:", e); }
     setSaving(false);
     setDone(true);
     setTimeout(() => { onSubmitted?.(); onClose?.(); }, 1800);

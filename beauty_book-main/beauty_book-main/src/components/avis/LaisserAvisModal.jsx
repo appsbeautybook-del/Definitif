@@ -59,6 +59,14 @@ export default function LaisserAvisModal({ reservation, onClose, onSuccess }) {
         service_nom: reservation.service_name,
         criteres,
       });
+      // Recalculer la moyenne des avis pour ce pro
+      try {
+        const { data: avis } = await supabase.from("Avis").select("note").eq("cible_email", reservation.pro_email);
+        if (avis && avis.length > 0) {
+          const avg = avis.reduce((s, a) => s + (a.note || 0), 0) / avis.length;
+          await supabase.from("ProfilPro").update({ rating: Math.round(avg * 10) / 10, reviews_count: avis.length }).eq("user_email", reservation.pro_email);
+        }
+      } catch (e) { console.error("Update rating error:", e); }
       onSuccess?.();
       onClose();
     } catch (e) {
