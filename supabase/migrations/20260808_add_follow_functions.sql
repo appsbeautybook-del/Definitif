@@ -55,3 +55,6 @@ CREATE OR REPLACE FUNCTION public.is_following(follower text, followed text)
 RETURNS boolean AS $$
   SELECT EXISTS(SELECT 1 FROM public.user_follow WHERE follower_email = follower AND followed_email = followed);
 $$ LANGUAGE sql SECURITY DEFINER;
+
+-- 6. Activer Realtime sur user_follow
+ALTER PUBLICATION supabase_realtime ADD TABLE public.user_follow;

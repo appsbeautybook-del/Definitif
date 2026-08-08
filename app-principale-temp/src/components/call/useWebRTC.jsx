@@ -6,10 +6,13 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
   ],
 };
 
-export function useWebRTC({ callId, localStreamRef, onRemoteStream, onEnd }) {
+export function useWebRTC({ callIdRef, localStreamRef, onRemoteStream, onEnd, callerEmailRef, calleeEmailRef }) {
   const pcRef = useRef(null);
 
   const createPC = useCallback(() => {
@@ -21,25 +24,34 @@ export function useWebRTC({ callId, localStreamRef, onRemoteStream, onEnd }) {
 
     pc.onicecandidate = async (event) => {
       if (event.candidate) {
-        await entities.CallSignal.create({
-          call_id: callId,
-          caller_email: "_ice_",
-          callee_email: "_ice_",
-          type: "ice-candidate",
-          payload: JSON.stringify({ candidate: event.candidate, callId }),
-        }).catch(() => {});
+        const currentCallId = callIdRef.current;
+        const callerEmail = callerEmailRef?.current || '_ice_';
+        const calleeEmail = calleeEmailRef?.current || '_ice_';
+        if (!currentCallId) return;
+        try {
+          await entities.CallSignal.create({
+            call_id: currentCallId,
+            caller_email: callerEmail,
+            callee_email: calleeEmail,
+            type: "ice-candidate",
+            payload: JSON.stringify({ candidate: event.candidate }),
+          });
+        } catch (e) {
+          console.warn('[WebRTC] ICE candidate send error:', e);
+        }
       }
     };
 
     pc.onconnectionstatechange = () => {
-      if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
+      const state = pc.connectionState;
+      if (["disconnected", "failed", "closed"].includes(state)) {
         onEnd && onEnd();
       }
     };
 
     pcRef.current = pc;
     return pc;
-  }, [callId, onRemoteStream, onEnd]);
+  }, [onRemoteStream, onEnd, callIdRef, callerEmailRef, calleeEmailRef]);
 
   const addLocalTracks = useCallback((pc, stream) => {
     stream.getTracks().forEach(track => pc.addTrack(track, stream));

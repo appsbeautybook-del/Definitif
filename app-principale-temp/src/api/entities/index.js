@@ -38,7 +38,7 @@ const KNOWN_COLUMNS = {
   Service: ['id','name','title','description','price','category','subcategory','style','duration','images','pro_email','status','addons','tags','rating','reviews_count','max_persons','promo_price','promo_ends_at','created_at','updated_at','created_by_id'],
   VisiteVirtuelle: ['id','pro_email','title','scenes','status','created_at','updated_at','created_by_id'],
   Notification: ['id','user_email','title','message','body','type','is_read','read','icon','action_url','data','created_at','updated_at','created_by_id'],
-  MessageChat: ['id','conversation_id','sender_email','sender_name','sender_avatar','receiver_email','receiver_name','content','type','attachment_url','is_read','read','reservation_id','is_maria','created_at','updated_at','created_by_id'],
+  MessageChat: ['id','conversation_id','sender_email','sender_name','sender_avatar','receiver_email','receiver_name','receiver_avatar','content','type','file_url','attachment_url','is_read','read','reservation_id','is_maria','created_at','updated_at','created_by_id'],
   Commande: ['id','client_email','client_name','items','total_price','total','subtotal','shipping','status','payment_status','payment_method','payment_intent_id','shipping_address','tracking_number','notes','created_at','updated_at','created_by_id'],
   PointsFidelite: ['id','user_email','points','points_total','total_earned','total_spent','points_depenses','level','niveau','history','historique','code_parrainage','created_at','updated_at','created_by_id'],
   SoldeBeautyPay: ['id','user_email','balance','solde','currency','transactions','created_at','updated_at','created_by_id'],
@@ -99,41 +99,40 @@ const createEntity = (tableName) => ({
       }
       return q;
     };
-    // Aller directement à Supabase si pas de backend
-    if (!CRUD_API) {
-      try {
-        let query = supabase.from(tableName).select(getSelectColumns(tableName));
-        query = applyFilters(query);
-        query = applyOrder(query);
-        query = query.limit(limit);
-        const { data, error } = await query;
-        if (error) { console.error(`[entities] ${tableName} filter error:`, error.message); return []; }
-        return data || [];
-      } catch (e) { console.error(`[entities] ${tableName} filter exception:`, e.message); return []; }
-    }
+
+    // Toujours essayer directement Supabase en priorité
     try {
-      const res = await fetch(`${CRUD_API}/crud/list`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: tableName, orderBy, limit }),
-      });
-      if (!res.ok) throw new Error('List failed');
-      const { result } = await res.json();
-      let data = result || [];
-      if (filters && Object.keys(filters).length > 0) {
-        data = data.filter(row => Object.entries(filters).every(([k, v]) => row[k] === v));
+      let query = supabase.from(tableName).select(getSelectColumns(tableName));
+      query = applyFilters(query);
+      query = applyOrder(query);
+      query = query.limit(limit);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    } catch (directError) {
+      // Si pas de backend, retourner tableau vide
+      if (!CRUD_API) {
+        console.error(`[entities] ${tableName} filter error:`, directError.message);
+        return [];
       }
-      return data;
-    } catch (e) {
+      // Fallback: essayer le backend
       try {
-        let query = supabase.from(tableName).select(getSelectColumns(tableName));
-        query = applyFilters(query);
-        query = applyOrder(query);
-        query = query.limit(limit);
-        const { data, error } = await query;
-        if (error) { console.error(`[entities] ${tableName} filter fallback error:`, error.message); return []; }
-        return data || [];
-      } catch (e2) { console.error(`[entities] ${tableName} filter fallback exception:`, e2.message); return []; }
+        const res = await fetch(`${CRUD_API}/crud/list`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: tableName, orderBy, limit }),
+        });
+        if (!res.ok) throw new Error('List failed');
+        const { result } = await res.json();
+        let data = result || [];
+        if (filters && Object.keys(filters).length > 0) {
+          data = data.filter(row => Object.entries(filters).every(([k, v]) => row[k] === v));
+        }
+        return data;
+      } catch (e) {
+        console.error(`[entities] ${tableName} filter fallback error:`, e.message);
+        return [];
+      }
     }
   },
 
@@ -195,7 +194,8 @@ const createEntity = (tableName) => ({
     const payload = { ...data };
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
-    if (!CRUD_API) {
+    // Toujours essayer directement Supabase en priorité
+    try {
       const cleanPayload = await stripUnknownColumns(tableName, payload);
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user) {
@@ -204,21 +204,26 @@ const createEntity = (tableName) => ({
       const { data: result, error } = await supabase.from(tableName).insert(cleanPayload).select().single();
       if (error) throw error;
       return result;
-    }
-    try {
-      const res = await fetch(`${CRUD_API}/crud/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: tableName, data: payload }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Create failed' }));
-        throw new Error(err.error || 'Create failed');
+    } catch (directError) {
+      // Si pas de backend, relancer l'erreur
+      if (!CRUD_API) throw directError;
+      // Sinon essayer le backend comme fallback
+      try {
+        const res = await fetch(`${CRUD_API}/crud/create`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: tableName, data: payload }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Create failed' }));
+          throw new Error(err.error || 'Create failed');
+        }
+        const { result } = await res.json();
+        return result;
+      } catch (e) {
+        // Relancer l'erreur directe Supabase si le backend échoue aussi
+        throw directError;
       }
-      const { result } = await res.json();
-      return result;
-    } catch (e) {
-      throw e;
     }
   },
 
@@ -226,53 +231,54 @@ const createEntity = (tableName) => ({
     const payload = { ...data };
     Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
-    if (!CRUD_API) {
-      const cleanPayload = await stripUnknownColumns(tableName, payload);
-      const { data: result, error } = await supabase.from(tableName).update(cleanPayload).eq('id', id).select().single();
-      if (error) throw error;
-      return result;
-    }
+    // Toujours essayer directement Supabase en priorité
     try {
-      const res = await fetch(`${CRUD_API}/crud/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: tableName, id, data: payload }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Update failed' }));
-        throw new Error(err.error || 'Update failed');
-      }
-      const { result } = await res.json();
-      return result;
-    } catch (e) {
       const cleanPayload = await stripUnknownColumns(tableName, payload);
       const { data: result, error } = await supabase.from(tableName).update(cleanPayload).eq('id', id).select().single();
       if (error) throw error;
-      return { data: { [tableName.toLowerCase()]: result }, result };
+      return result;
+    } catch (directError) {
+      if (!CRUD_API) throw directError;
+      try {
+        const res = await fetch(`${CRUD_API}/crud/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: tableName, id, data: payload }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Update failed' }));
+          throw new Error(err.error || 'Update failed');
+        }
+        const { result } = await res.json();
+        return result;
+      } catch (e) {
+        throw directError;
+      }
     }
   },
 
   delete: async (id) => {
-    if (!CRUD_API) {
-      const { error } = await supabase.from(tableName).delete().eq('id', id);
-      if (error) throw error;
-      return true;
-    }
+    // Toujours essayer directement Supabase en priorité
     try {
-      const res = await fetch(`${CRUD_API}/crud/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ table: tableName, id }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Delete failed' }));
-        throw new Error(err.error || 'Delete failed');
-      }
-      return true;
-    } catch (e) {
       const { error } = await supabase.from(tableName).delete().eq('id', id);
       if (error) throw error;
       return true;
+    } catch (directError) {
+      if (!CRUD_API) throw directError;
+      try {
+        const res = await fetch(`${CRUD_API}/crud/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ table: tableName, id }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Delete failed' }));
+          throw new Error(err.error || 'Delete failed');
+        }
+        return true;
+      } catch (e) {
+        throw directError;
+      }
     }
   },
   subscribe: (callback) => {

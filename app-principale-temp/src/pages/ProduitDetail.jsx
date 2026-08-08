@@ -5,7 +5,7 @@ import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import {
   ArrowLeft, Share2, Heart, ShoppingCart, Star, ChevronRight,
-  Truck, Shield, RotateCcw, ChevronDown, ChevronUp, Check, ZoomIn, CreditCard, Lock, X, Wand2
+  Truck, Shield, RotateCcw, ChevronDown, ChevronUp, Check, ZoomIn, CreditCard, Lock, X, Wand2, ShoppingBag
 } from "lucide-react";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useLikedProducts } from "@/hooks/useLikedProducts";
@@ -220,6 +220,7 @@ function CheckoutModal({ product, onClose }) {
 function RecommendedProducts({ currentProductId, currentCategory, title = "Recommandé pour vous" }) {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let dead = false;
@@ -229,67 +230,72 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
       const shopifyProds = [];
       const vendeurProds = [];
 
-      // 1) Shopify Storefront API — fetch direct
+      // 1) Shopify Storefront API
       try {
-        const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN || 'hwqnwb-hi.myshopify.com';
-        const SHOPIFY_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '46a6de1eb3a2686abcae91039944762d';
-        const r = await fetch(`https://${SHOPIFY_DOMAIN}/api/2024-10/graphql.json`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN },
-          body: JSON.stringify({
-            query: `{
-              products(first: 50, sortKey: BEST_SELLING) {
-                edges { node {
-                  id title handle vendor productType
-                  images(first: 1) { edges { node { url } } }
-                  variants(first: 1) { edges { node {
-                    id price { amount } availableForSale
-                    selectedOptions { name value }
-                    image { url }
-                  } } }
-                } }
-              }
-            }`
-          })
-        });
-        const json = await r.json();
-        const edges = json.data?.products?.edges || [];
-        for (const { node } of edges) {
-          if (node.id === currentProductId) continue;
-          const v = node.variants?.edges?.[0]?.node;
-          const img = node.images?.edges?.[0]?.node;
-          shopifyProds.push({
-            id: node.id,
-            img: img?.url || '',
-            name: node.title,
-            brand: node.vendor || '',
-            price: parseFloat(v?.price?.amount || '0'),
-            category: (node.productType || '').toLowerCase(),
-            _shopify: true,
+        const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN || '';
+        const SHOPIFY_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
+        if (SHOPIFY_DOMAIN && SHOPIFY_TOKEN) {
+          const r = await fetch(`https://${SHOPIFY_DOMAIN}/api/2024-10/graphql.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN },
+            body: JSON.stringify({
+              query: `{
+                products(first: 50, sortKey: BEST_SELLING) {
+                  edges { node {
+                    id title handle vendor productType
+                    images(first: 1) { edges { node { url } } }
+                    variants(first: 1) { edges { node {
+                      id price { amount } availableForSale
+                      selectedOptions { name value }
+                      image { url }
+                    } } }
+                  } }
+                }
+              }`
+            })
           });
+          const json = await r.json();
+          const edges = json.data?.products?.edges || [];
+          for (const { node } of edges) {
+            if (node.id === currentProductId) continue;
+            const v = node.variants?.edges?.[0]?.node;
+            const img = node.images?.edges?.[0]?.node;
+            shopifyProds.push({
+              id: node.id,
+              img: img?.url || '',
+              name: node.title,
+              brand: node.vendor || '',
+              price: parseFloat(v?.price?.amount || '0'),
+              category: (node.productType || '').toLowerCase(),
+              _shopify: true,
+            });
+          }
         }
-      } catch (e) { console.error("[Recos] Shopify fetch error:", e); }
+      } catch (e) { console.warn("[Recos] Shopify error:", e.message); }
 
-      // 2) Produits vendeurs — via backend
+      // 2) Produits vendeurs — sans filtre de status d'abord, puis avec filtre
       try {
-        const items = await entities.Produit.filter({ status: "actif" }, "-created_at", 50);
-        for (const p of items) {
+        let items = await entities.Produit.filter({ status: "actif" }, "-created_at", 50);
+        if (!items || items.length === 0) {
+          items = await entities.Produit.list("-created_at", 50);
+        }
+        for (const p of (items || [])) {
           if (p.id === currentProductId) continue;
           vendeurProds.push({
             id: p.id,
-            img: p.image_url || '',
-            name: p.name || '',
+            img: p.image_url || (p.images && p.images[0]) || '',
+            name: p.name || p.title || '',
             brand: p.brand || '',
             price: parseFloat(p.price || 0),
             category: (p.category || '').toLowerCase(),
             _shopify: false,
           });
         }
-      } catch (e) { console.error("[Recos] DB fetch error:", e); }
+      } catch (e) { console.warn("[Recos] DB error:", e.message); }
 
       if (dead) return;
 
-      // 3) Fusion : Shopify d'abord, puis vendeurs
+      // 3) Fusion
       const all = [...shopifyProds, ...vendeurProds];
 
       // 4) Tri : même catégorie d'abord
@@ -302,12 +308,43 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
       }
 
       setProducts(all.slice(0, 8));
+      setLoading(false);
     })();
 
     return () => { dead = true; };
   }, [currentProductId, currentCategory]);
 
-  if (products.length === 0) return null;
+  if (loading) {
+    return (
+      <div className="px-4 py-5">
+        <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">{title}</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="animate-pulse">
+              <div className="aspect-square bg-gray-100 rounded-2xl" />
+              <div className="p-3 space-y-2">
+                <div className="h-3 bg-gray-100 rounded w-1/2" />
+                <div className="h-3 bg-gray-100 rounded w-3/4" />
+                <div className="h-4 bg-gray-100 rounded w-1/3" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="px-4 py-5">
+        <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">{title}</h2>
+        <div className="flex flex-col items-center py-8 gap-2">
+          <ShoppingBag className="w-10 h-10 text-gray-200" />
+          <p className="text-[13px] text-gray-400 font-medium">Aucun produit similaire pour le moment</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="px-4 py-5">
@@ -317,7 +354,13 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
           <div key={p.id} onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)}
             className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all">
             <div className="aspect-square overflow-hidden bg-gray-50">
-              <img src={p.img} alt={p.name} className="w-full h-full object-cover" />
+              {p.img ? (
+                <img src={p.img} alt={p.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ShoppingBag className="w-8 h-8 text-gray-200" />
+                </div>
+              )}
             </div>
             <div className="p-3">
               <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>
@@ -778,7 +821,7 @@ export default function ProduitDetail() {
       </div>
 
       <div className="h-2 bg-gray-50 mt-2" />
-      <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="Vous aimerez aussi" />
+      <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="TU POURRAIS AIMER" />
 
       {/* Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3 z-30" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>

@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Send, Search, MessageSquare, Trash2, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Scissors, Clock, ChevronRight, PhoneCall, Sparkles, Zap } from "lucide-react";
+import { ArrowLeft, Send, Search, MessageSquare, Trash2, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Scissors, Clock, ChevronRight, PhoneCall, Sparkles, Zap, Image, Smile, Users, UserCheck, UserPlus } from "lucide-react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from "@/lib/AuthContext";
 import usePullToRefresh from "@/hooks/usePullToRefresh";
 import { useCall } from "@/components/call/CallManager";
+import { notifyMessageReceived } from '@/lib/notificationService';
 
 // ── Maria AI Toggle ───────────────────────────────────────────────────────────
 const MARIA_AI_KEY = "bb_maria_ai_active";
@@ -191,279 +192,357 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
   const [sending, setSending] = useState(false);
   const [serviceCardSent, setServiceCardSent] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [securityWarning, setSecurityWarning] = useState(null);
   const bottomRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-  const myTypingRef = useRef(null);
+  const msgIdsRef = useRef(new Set());
+  const sendingMsgRef = useRef(false);
+  const fileInputRef = useRef(null);
+  const channelRef = useRef(null);
 
   const convId = conversation.conversation_id;
 
-  // Charger les messages — on charge uniquement les messages où l'utilisateur est sender ou receiver
-  const loadMessages = useCallback(async () => {
-    const [sent, received] = await Promise.all([
-      entities.MessageChat.filter({ conversation_id: convId, sender_email: currentUser.email }, "created_at", 200),
-      entities.MessageChat.filter({ conversation_id: convId, receiver_email: currentUser.email }, "created_at", 200),
-    ]);
-    // Fusionner et dédoublonner
-    const allById = {};
-    for (const m of [...(sent || []), ...(received || [])]) allById[m.id] = m;
-    const res = Object.values(allById)
-      .filter(m => m.type !== "typing")
-      .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-    setMessages(res);
-    // Marquer comme lus
-    for (const m of res) {
-      if (!m.read && m.receiver_email === currentUser.email) {
-        entities.MessageChat.update(m.id, { read: true }).catch(() => {});
-      }
-    }
-    setLoading(false);
-  }, [convId, currentUser.email]);
-
-  useEffect(() => {
-    loadMessages().then(() => {
-      // Envoyer la carte service automatiquement si on vient d'un service et pas encore envoyée
-      if (conversation.service && !serviceCardSent) {
-        setServiceCardSent(true);
-        const serviceJson = JSON.stringify({
-          type: "service_card",
-          id: conversation.service.id,
-          title: conversation.service.title,
-          price: conversation.service.price,
-          image_url: conversation.service.image_url,
-          duration: conversation.service.duration,
-        });
-        entities.MessageChat.create({
-          conversation_id: convId,
-          sender_email: currentUser.email,
-          sender_name: currentUser.full_name || currentUser.email,
-          sender_avatar: currentUser.avatar_url || "",
-          receiver_email: conversation.other_email,
-          receiver_name: conversation.other_name || conversation.other_email,
-          content: serviceJson,
-          type: "text",
-          is_read: false,
-          read: false,
-        }).catch(() => {});
-      }
-    });
-  }, []);
-
-  // Temps réel via subscription — vérifier que l'utilisateur appartient à la conversation
-  useEffect(() => {
-    const unsub = entities.MessageChat.subscribe((event) => {
-      if (event.data?.conversation_id !== convId) return;
-      const m = event.data;
-      if (m.sender_email !== currentUser.email && m.receiver_email !== currentUser.email) return;
-
-      // Typing indicator
-      if (m.type === "typing" && m.sender_email !== currentUser.email) {
-        setOtherTyping(true);
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 3000);
-        // Supprimer le signal typing côté BDD silencieusement
-        entities.MessageChat.delete(event.id).catch(() => {});
-        return;
-      }
-
-      if (event.type === "create" && m.type !== "typing") {
-        setMessages(prev => {
-          if (prev.find(msg => msg.id === event.id)) return prev;
-          return [...prev, m];
-        });
-        if (m.receiver_email === currentUser.email) {
-          entities.MessageChat.update(event.id, { read: true }).catch(() => {});
-        }
-        setOtherTyping(false);
-      }
-
-      // Mise à jour du statut "lu" sur mes propres messages
-      if (event.type === "update" && m.sender_email === currentUser.email) {
-        setMessages(prev => prev.map(msg => msg.id === event.id ? { ...msg, read: m.read } : msg));
-      }
-    });
-    return () => { unsub(); clearTimeout(typingTimeoutRef.current); };
-  }, [convId, currentUser.email]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Envoyer signal "typing" à l'autre utilisateur
-  const sendTypingSignal = () => {
-    clearTimeout(myTypingRef.current);
-    entities.MessageChat.create({
-      conversation_id: convId,
-      sender_email: currentUser.email,
-      receiver_email: conversation.other_email,
-      content: "",
-      type: "typing",
-      read: false,
-    }).catch(() => {});
-    // Stopper le signal après 2.5s si l'utilisateur arrête d'écrire
-    myTypingRef.current = setTimeout(() => {}, 2500);
+  // Security detection
+  const detectSensitiveContent = (text) => {
+    const phoneRegex = /(\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{2,4}[-.\s]?\d{2,4}/;
+    const addressRegex = /\d+\s+(rue|avenue|boulevard|chemin|impasse|allée|place|rond-point|route|bd)\s+/i;
+    if (phoneRegex.test(text)) return "phone";
+    if (addressRegex.test(text)) return "address";
+    return null;
   };
 
-  const send = async () => {
-    if (!input.trim() || sending) return;
-    clearTimeout(myTypingRef.current);
+  // Charger les messages
+  const loadMessages = useCallback(async () => {
+    try {
+      // Charger tous les messages entre les deux personnes
+      const { data: sent } = await supabase.from("MessageChat")
+        .select("*")
+        .eq("sender_email", currentUser.email)
+        .eq("receiver_email", conversation.other_email)
+        .order("created_at", { ascending: true });
+      const { data: received } = await supabase.from("MessageChat")
+        .select("*")
+        .eq("sender_email", conversation.other_email)
+        .eq("receiver_email", currentUser.email)
+        .order("created_at", { ascending: true });
+      const allById = {};
+      for (const m of [...(sent || []), ...(received || [])]) {
+        if (m.type !== "typing") allById[m.id] = m;
+      }
+      const filtered = Object.values(allById).sort((a, b) => new Date(a.created_at || a.created_date) - new Date(b.created_at || b.created_date));
+      msgIdsRef.current = new Set(filtered.map(m => m.id));
+      setMessages(filtered);
+      // Mark as read
+      for (const m of filtered) {
+        if (!m.read && !m.is_read && m.receiver_email === currentUser.email) {
+          supabase.from("MessageChat").update({ read: true, is_read: true }).eq("id", m.id).catch(() => {});
+        }
+      }
+    } catch (e) { console.error("[Chat] loadMessages:", e); }
+    setLoading(false);
+  }, [conversation.other_email, currentUser.email]);
+
+  useEffect(() => { loadMessages(); }, [loadMessages]);
+
+  // Auto-send service card
+  useEffect(() => {
+    if (!conversation.service || serviceCardSent) return;
+    setServiceCardSent(true);
+    supabase.from("MessageChat").insert({
+      sender_email: currentUser.email,
+      sender_name: currentUser.user_metadata?.full_name || currentUser.email,
+      receiver_email: conversation.other_email,
+      content: JSON.stringify({ type: "service_card", ...conversation.service }),
+      type: "text", read: false,
+    }).catch(e => console.error("Service card error:", e));
+  }, []);
+
+  // Realtime
+  useEffect(() => {
+    if (channelRef.current) supabase.removeChannel(channelRef.current);
+    const channel = supabase
+      .channel(`chat_${Date.now()}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "MessageChat" }, (payload) => {
+        const m = payload.new;
+        if (!m) return;
+        // Filtrer: seulement les messages entre ces deux personnes
+        const isRelevant = (m.sender_email === currentUser.email && m.receiver_email === conversation.other_email) ||
+          (m.sender_email === conversation.other_email && m.receiver_email === currentUser.email);
+        if (!isRelevant) return;
+        if (m.type === "typing") {
+          setOtherTyping(true);
+          clearTimeout(typingTimeoutRef.current);
+          typingTimeoutRef.current = setTimeout(() => setOtherTyping(false), 3000);
+          supabase.from("MessageChat").delete().eq("id", m.id).catch(() => {});
+          return;
+        }
+        if (msgIdsRef.current.has(m.id)) return;
+        if (sendingMsgRef.current && m.sender_email === currentUser.email) return;
+        msgIdsRef.current.add(m.id);
+        setMessages(prev => [...prev, m]);
+        supabase.from("MessageChat").update({ read: true, is_read: true }).eq("id", m.id).catch(() => {});
+        setOtherTyping(false);
+      })
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "MessageChat", filter: `conversation_id=eq.${convId}` }, (payload) => {
+        const old = payload.old;
+        if (old?.id) setMessages(prev => prev.filter(m => m.id !== old.id));
+      })
+      .subscribe();
+    channelRef.current = channel;
+    return () => { supabase.removeChannel(channel); clearTimeout(typingTimeoutRef.current); };
+  }, [convId, currentUser.email]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const sendTypingSignal = () => {
+    clearTimeout(typingTimeoutRef.current);
+    supabase.from("MessageChat").insert({
+      conversation_id: convId, sender_email: currentUser.email,
+      receiver_email: conversation.other_email, content: "", type: "typing", read: false,
+    }).catch(() => {});
+    typingTimeoutRef.current = setTimeout(() => {}, 2500);
+  };
+
+  const deleteMessage = async (msgId) => {
+    await supabase.from("MessageChat").delete().eq("id", msgId);
+    setMessages(prev => prev.filter(m => m.id !== msgId));
+    setContextMenu(null);
+  };
+
+  const send = async (imageFile = null) => {
+    if ((!input.trim() && !imageFile) || sending) return;
+    clearTimeout(typingTimeoutRef.current);
     setSending(true);
-    const msgText = input.trim();
+    const content = input.trim();
     setInput("");
 
-    // Optimistic
-    const optimistic = {
-      id: `tmp_${Date.now()}`,
-      sender_email: currentUser.email,
-      receiver_email: conversation.other_email,
-      content: msgText,
-      created_at: new Date().toISOString(),
-      read: false,
-    };
-    setMessages(prev => [...prev, optimistic]);
-
-    try {
-      await entities.MessageChat.create({
-        conversation_id: convId,
-        sender_email: currentUser.email,
-        sender_name: currentUser.full_name || currentUser.email,
-        sender_avatar: currentUser.avatar_url || "",
-        receiver_email: conversation.other_email,
-        receiver_name: conversation.other_name || conversation.other_email,
-        content: msgText,
-        type: "text",
-        is_read: false,
-        read: false,
-      });
-    } catch (e) {
-      console.warn('[Chat] send error:', e);
+    // Check for sensitive content
+    const sensitive = detectSensitiveContent(content);
+    if (sensitive && !securityWarning) {
+      setSecurityWarning(sensitive);
+      setSending(false);
+      setInput(content);
+      return;
     }
+
+    let fileUrl = "";
+    if (imageFile) {
+      try {
+        const ext = imageFile.name.split(".").pop() || "jpg";
+        const fileName = `chat/${convId}/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("media").upload(fileName, imageFile);
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
+        fileUrl = urlData?.publicUrl || "";
+      } catch (e) {
+        console.error("Upload error:", e);
+        try {
+          fileUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(imageFile);
+          });
+        } catch (e2) { console.error("Base64 error:", e2); }
+      }
+    }
+
+    const now = new Date().toISOString();
+    const payload = {
+      conversation_id: convId,
+      sender_email: currentUser.email,
+      sender_name: currentUser.user_metadata?.full_name || currentUser.email,
+      sender_avatar: currentUser.user_metadata?.avatar_url || null,
+      receiver_email: conversation.other_email,
+      receiver_name: conversation.other_name || conversation.other_email,
+      content: content || (fileUrl ? "📷 Image" : ""),
+      type: fileUrl ? "image" : "text",
+      attachment_url: fileUrl || "",
+      is_read: false, read: false,
+      created_at: now, updated_at: now,
+    };
+
+    // Optimistic insert
+    sendingMsgRef.current = true;
+    const tempId = `tmp_${Date.now()}`;
+    setMessages(prev => [...prev, { ...payload, id: tempId }]);
+
+    const { data, error } = await supabase.from("MessageChat").insert(payload).select().single();
+    if (error) {
+      console.error("Send error:", error);
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setInput(content);
+    } else if (data) {
+      setMessages(prev => prev.map(m => m.id === tempId ? data : m));
+      msgIdsRef.current.add(data.id);
+    }
+    sendingMsgRef.current = false;
     setSending(false);
-    await loadMessages();
+
+    // Notification
+    try {
+      await notifyMessageReceived({
+        receiverEmail: conversation.other_email,
+        senderName: currentUser.user_metadata?.full_name || currentUser.email,
+        senderEmail: currentUser.email,
+        conversationId: convId,
+        preview: content || (fileUrl ? "📷 Image" : ""),
+      });
+    } catch {}
   };
 
   const isReadonly = conversation.readonly;
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="fixed inset-0 flex flex-col bg-gray-50 z-50">
+      {/* Security Warning Modal */}
+      {securityWarning && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-6" onClick={() => setSecurityWarning(null)}>
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+            </div>
+            <h3 className="text-[16px] font-black text-gray-900 text-center mb-2">
+              {securityWarning === "phone" ? "Numéro de téléphone détecté" : "Adresse détectée"}
+            </h3>
+            <p className="text-[13px] text-gray-500 text-center mb-4 leading-relaxed">
+              Pour votre sécurité, nous vous déconseillons de partager des {securityWarning === "phone" ? "numéros de téléphone" : "adresses personnelles"} sur la plateforme. BeautyBook ne peut être tenu responsable des échanges effectués en dehors de la plateforme.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => { setSecurityWarning(null); setInput(""); }} className="flex-1 py-3 bg-gray-100 rounded-xl text-[13px] font-black text-gray-600">Annuler</button>
+              <button onClick={() => { setSecurityWarning(null); send(); }} className="flex-1 py-3 bg-primary rounded-xl text-[13px] font-black text-white">Envoyer quand même</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Context Menu */}
+      {contextMenu && (
+        <div className="fixed inset-0 z-[100]" onClick={() => setContextMenu(null)}>
+          <div className="absolute bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden min-w-[160px]"
+            style={{ top: contextMenu.y, left: Math.min(contextMenu.x, window.innerWidth - 180) }}
+            onClick={e => e.stopPropagation()}>
+            <button onClick={() => deleteMessage(contextMenu.msgId)} className="w-full flex items-center gap-3 px-4 py-3 text-[13px] font-bold text-red-500 hover:bg-red-50 transition-all">
+              <Trash2 className="w-4 h-4" /> Supprimer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white sticky top-0 z-10">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-white shrink-0">
         <button onClick={onBack} className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center active:scale-95 transition-all">
           <ArrowLeft className="w-4 h-4 text-gray-700" />
         </button>
         {conversation.other_avatar ? (
-          <img src={conversation.other_avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+          <img src={conversation.other_avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
         ) : (
-          <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center">
-            <span className="text-[13px] font-black text-primary">{(conversation.other_name || "?")[0]}</span>
+          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+            <span className="text-[14px] font-black text-primary">{(conversation.other_name || "?")[0]}</span>
           </div>
         )}
         <div className="flex-1 min-w-0">
           <p className="text-[14px] font-black text-gray-900 truncate">{conversation.other_name || conversation.other_email}</p>
           {otherTyping ? (
-            <p className="text-[10px] text-primary font-bold flex items-center gap-1">
-              <span>en train d'écrire</span>
-              <span className="flex gap-0.5">
-                <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-1 h-1 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-              </span>
-            </p>
+            <p className="text-[10px] text-primary font-bold">en train d'écrire...</p>
           ) : (
             <p className="text-[10px] text-green-500 font-bold">● En ligne</p>
           )}
         </div>
         {onStartCall && !isReadonly && (
-          <button
-            onClick={() => onStartCall({ targetEmail: conversation.other_email, targetName: conversation.other_name || conversation.other_email, targetAvatar: conversation.other_avatar })}
-            className="w-9 h-9 bg-orange-50 rounded-full flex items-center justify-center active:scale-95 transition-all border border-orange-100"
-          >
+          <button onClick={() => onStartCall({ targetEmail: conversation.other_email, targetName: conversation.other_name, targetAvatar: conversation.other_avatar })}
+            className="w-9 h-9 bg-orange-50 rounded-full flex items-center justify-center border border-orange-100 active:scale-95">
             <PhoneCall className="w-4 h-4 text-primary" />
           </button>
-        )}
-        {isReadonly && (
-          <span className="text-[10px] font-black text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full uppercase tracking-widest">Admin</span>
         )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 hide-scrollbar">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ minHeight: 0 }}>
         {loading ? (
-          <div className="flex justify-center pt-10">
-            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : messages.map((m) => {
-          const isMe = m.sender_email === currentUser.email;
-          // Détecter une carte service
-          let serviceData = null;
-          try {
-            const parsed = JSON.parse(m.content);
-            if (parsed?.type === "service_card") serviceData = parsed;
-          } catch {}
-
-          return (
-            <div key={m.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-              {serviceData ? (
-                <div className="max-w-[80%]">
-                  <p className={`text-[11px] font-medium mb-1.5 ${isMe ? "text-right text-gray-400" : "text-gray-400"}`}>
-                    {isMe ? "Vous avez partagé un service" : "Service partagé"}
-                  </p>
-                  <ServiceCard service={serviceData} navigate={navigate} />
-                </div>
-              ) : (
-                <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-[13px] font-medium leading-snug ${
-                  isMe ? "bg-primary text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                }`}>
-                  {cleanMarkdown(m.content)}
-                </div>
-              )}
-              {/* Heure + statut de lecture */}
-              <div className={`flex items-center gap-1 mt-0.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                <span className="text-[9px] text-gray-400 font-medium">{timeAgo(m.created_at)}</span>
-                {isMe && (
-                  <span className={`text-[11px] font-black ${m.read ? "text-primary" : "text-gray-300"}`}>
-                    {m.read ? "✓✓" : "✓"}
-                  </span>
-                )}
+          <div className="flex justify-center pt-20"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 py-12">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-orange-100 to-orange-50 flex items-center justify-center">
+                <MessageSquare className="w-10 h-10 text-primary/40" />
+              </div>
+              <div className="absolute -top-2 -right-2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center border border-orange-100">
+                <Sparkles className="w-4 h-4 text-primary" />
               </div>
             </div>
-          );
-        })}
-        {/* Indicateur "en train d'écrire" style Snapchat */}
-        {otherTyping && (
-          <div className="flex items-start gap-2">
-            <div className="flex items-center gap-1 bg-gray-100 px-4 py-3 rounded-2xl rounded-bl-sm">
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-              <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            <div className="text-center">
+              <p className="text-[16px] font-black text-gray-800">Démarrez la conversation</p>
+              <p className="text-[12px] text-gray-400 font-medium mt-1 px-6">Envoyez un message à {conversation.other_name || "cette personne"}</p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {["Bonjour ! 👋", "Disponible ?", "Merci"].map(g => (
+                <button key={g} onClick={() => setInput(g)}
+                  className="px-4 py-2 bg-white border border-orange-200 rounded-full text-[12px] font-bold text-primary active:scale-95 transition-all shadow-sm">
+                  {g}
+                </button>
+              ))}
             </div>
           </div>
+        ) : (
+          messages.map((m) => {
+            const isMe = m.sender_email === currentUser.email;
+            let serviceData = null;
+            try { const p = JSON.parse(m.content); if (p?.type === "service_card") serviceData = p; } catch {}
+            return (
+              <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ msgId: m.id, x: e.clientX, y: e.clientY }); }}>
+                <div className={`max-w-[78%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                  {serviceData ? (
+                    <div className="w-56"><ServiceCard service={serviceData} navigate={navigate} /></div>
+                  ) : m.type === "image" && m.attachment_url ? (
+                    <div>
+                      <img src={m.attachment_url} alt="image" className="rounded-2xl max-w-full shadow-sm max-h-64 object-cover" loading="lazy" />
+                      {m.content && m.content !== "📷 Image" && (
+                        <div className={`mt-1 px-3 py-2 rounded-2xl text-[13px] font-medium ${isMe ? "bg-primary text-white rounded-br-sm" : "bg-white text-gray-900 rounded-bl-sm shadow-sm"}`}>{m.content}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className={`px-4 py-2.5 rounded-2xl text-[13px] font-medium leading-snug ${isMe ? "bg-primary text-white rounded-br-sm" : "bg-white text-gray-900 rounded-bl-sm shadow-sm"}`}>
+                      {cleanMarkdown(m.content)}
+                    </div>
+                  )}
+                  <div className={`flex items-center gap-1 mt-0.5 px-1 ${isMe ? "flex-row-reverse" : ""}`}>
+                    <span className="text-[9px] text-gray-400">{timeAgo(m.created_at || m.created_date)}</span>
+                    {isMe && <span className={`text-[10px] ${m.read ? "text-primary" : "text-gray-300"}`}>{m.read ? "✓✓" : "✓"}</span>}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+        {otherTyping && (
+          <div className="flex justify-start"><div className="bg-white px-4 py-3 rounded-2xl rounded-bl-sm shadow-sm flex gap-1">
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div></div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* Input — masqué en mode readonly (admin) */}
+      {/* Input */}
       {isReadonly ? (
-        <div className="px-4 pb-5 pt-3 border-t border-gray-100 bg-gray-50">
-          <p className="text-center text-[12px] text-gray-400 font-medium py-2">
-            🔒 Vous ne pouvez pas répondre à ce message administrateur
-          </p>
-        </div>
+        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 shrink-0"><p className="text-center text-[12px] text-gray-400">🔒 Lecture seule</p></div>
       ) : (
-        <div className="px-4 pb-5 pt-3 border-t border-gray-100 flex items-center gap-2 bg-white">
-          <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-full px-4 py-3">
-            <input
-              value={input}
-              onChange={e => { setInput(e.target.value); if (e.target.value) sendTypingSignal(); }}
-              onKeyDown={e => e.key === "Enter" && send()}
-              placeholder="Écrire un message..."
-              className="flex-1 bg-transparent text-[13px] text-gray-800 outline-none placeholder:text-gray-400"
-            />
+        <div className="px-3 py-3 border-t border-gray-100 bg-white flex items-end gap-2 shrink-0" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (f) { await send(f); e.target.value = ""; } }} />
+          <button onClick={() => fileInputRef.current?.click()} className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0 active:scale-95">
+            <Image className="w-5 h-5 text-gray-500" />
+          </button>
+          <div className="flex-1 flex items-center bg-gray-100 rounded-2xl px-4 py-2.5">
+            <input value={input} onChange={e => { setInput(e.target.value); if (e.target.value) sendTypingSignal(); }}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
+              placeholder="Écrire un message..." className="flex-1 bg-transparent text-[13px] text-gray-800 outline-none" />
           </div>
-          <button
-            onClick={send}
-            disabled={!input.trim() || sending}
-            className="w-11 h-11 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-all disabled:opacity-40"
-          >
+          <button onClick={() => send()} disabled={(!input.trim() && !sending) || sending}
+            className="w-11 h-11 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/30 active:scale-95 transition-all disabled:opacity-40 shrink-0">
             <Send className="w-4 h-4 text-white" />
           </button>
         </div>
@@ -487,7 +566,7 @@ function CallHistory({ user }) {
       // Dédoublonner par call_id
       const byId = {};
       for (const c of [...asCaller, ...asCallee]) byId[c.call_id] = c;
-      const all = Object.values(byId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const all = Object.values(byId).sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
       setCalls(all);
       setLoading(false);
     });
@@ -571,7 +650,7 @@ function CallHistory({ user }) {
               <span className="text-[10px] text-gray-400 font-medium">
                 {call.started_at
                   ? new Date(call.started_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-                  : call.created_at ? new Date(call.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+                  : call.created_date ? new Date(call.created_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
               </span>
               {startCall && (
                 <button
@@ -585,6 +664,210 @@ function CallHistory({ user }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── ContactsTab ───────────────────────────────────────────────────────────────
+function ContactsTab({ user, onStartConversation }) {
+  const [subTab, setSubTab] = useState("abonnes");
+  const [following, setFollowing] = useState([]);
+  const [followers, setFollowers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tableExists, setTableExists] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadContacts = async () => {
+      setLoading(true);
+      try {
+        const { data: testData, error: testErr } = await supabase
+          .from('user_follow')
+          .select('id')
+          .limit(1);
+
+        if (testErr && testErr.message?.includes('does not exist')) {
+          setTableExists(false);
+          setLoading(false);
+          return;
+        }
+
+        const { data: followingData } = await supabase
+          .from('user_follow')
+          .select('*')
+          .eq('follower_email', user.email);
+
+        const { data: followersData } = await supabase
+          .from('user_follow')
+          .select('*')
+          .eq('followed_email', user.email);
+
+        const followingList = (followingData || []).map(f => ({
+          id: f.id,
+          display_email: f.followed_email,
+          display_name: f.followed_name || f.followed_email,
+          display_avatar: f.followed_avatar || null,
+        }));
+
+        const followersList = (followersData || []).map(f => ({
+          id: f.id,
+          display_email: f.follower_email,
+          display_name: f.follower_name || f.follower_email,
+          display_avatar: f.follower_avatar || null,
+        }));
+
+        const enrichBatch = async (list) => {
+          const emails = list.map(c => c.display_email);
+          if (emails.length === 0) return list;
+
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('email, full_name, avatar_url')
+            .in('email', emails);
+
+          const { data: proProfiles } = await supabase
+            .from('ProfilPro')
+            .select('user_email, nom, prenom, salon_name, avatar_url')
+            .in('user_email', emails);
+
+          const profileMap = {};
+          (profiles || []).forEach(p => { profileMap[p.email] = p; });
+          const proMap = {};
+          (proProfiles || []).forEach(p => { proMap[p.user_email] = p; });
+
+          return list.map(c => {
+            const p = profileMap[c.display_email];
+            const pro = proMap[c.display_email];
+            return {
+              ...c,
+              display_name: pro?.salon_name || pro?.prenom || p?.full_name || c.display_name,
+              display_avatar: p?.avatar_url || pro?.avatar_url || c.display_avatar,
+            };
+          });
+        };
+
+        setFollowing(await enrichBatch(followingList));
+        setFollowers(await enrichBatch(followersList));
+      } catch (e) {
+        console.error('[Contacts] load error:', e);
+      }
+      setLoading(false);
+    };
+    loadContacts();
+  }, [user]);
+
+  const unfollow = async (targetEmail) => {
+    try {
+      await supabase.from('user_follow').delete()
+        .eq('follower_email', user.email)
+        .eq('followed_email', targetEmail);
+      setFollowing(prev => prev.filter(f => f.display_email !== targetEmail));
+    } catch (e) {
+      console.error('[Contacts] unfollow error:', e);
+    }
+  };
+
+  const removeFollower = async (followerEmail) => {
+    try {
+      await supabase.from('user_follow').delete()
+        .eq('follower_email', followerEmail)
+        .eq('followed_email', user.email);
+      setFollowers(prev => prev.filter(f => f.display_email !== followerEmail));
+    } catch (e) {
+      console.error('[Contacts] removeFollower error:', e);
+    }
+  };
+
+  if (!tableExists) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <Users className="w-12 h-12 text-gray-200" />
+        <p className="text-[14px] font-bold text-gray-400">Table non configurée</p>
+        <p className="text-[12px] text-gray-300 font-medium text-center px-8">
+          Exécutez le SQL de migration dans Supabase pour activer les contacts
+        </p>
+      </div>
+    );
+  }
+
+  const list = subTab === "abonnes" ? following : followers;
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex border-b border-gray-100 bg-white">
+        <button onClick={() => setSubTab("abonnements")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${subTab === "abonnements" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}>
+          Abonnements ({following.length})
+        </button>
+        <button onClick={() => setSubTab("abonnes")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${subTab === "abonnes" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}>
+          Abonnés ({followers.length})
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center pt-10">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : list.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Users className="w-12 h-12 text-gray-200" />
+          <p className="text-[14px] font-bold text-gray-400">
+            {subTab === "abonnes" ? "Aucun abonnement" : "Aucun abonné"}
+          </p>
+          <p className="text-[12px] text-gray-300 font-medium text-center px-8">
+            {subTab === "abonnes" ? "Suivez des professionnels pour les contacter ici" : "Vos abonnés apparaîtront ici"}
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-50 overflow-y-auto">
+          {list.map((contact) => (
+            <div key={contact.id} className="flex items-center gap-3 px-4 py-4">
+              <div className="relative shrink-0">
+                {contact.display_avatar ? (
+                  <img src={contact.display_avatar} alt={contact.display_name} className="w-12 h-12 rounded-full object-cover" />
+                ) : (
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <span className="text-[16px] font-black text-primary">{(contact.display_name || "?")[0].toUpperCase()}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-black text-gray-800 truncate">{contact.display_name}</p>
+                <p className="text-[11px] text-gray-400 font-medium truncate">{contact.display_email}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onStartConversation({
+                    conversation_id: [user.email, contact.display_email].sort().join("_"),
+                    other_email: contact.display_email,
+                    other_name: contact.display_name,
+                    other_avatar: contact.display_avatar,
+                  })}
+                  className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center active:scale-95 transition-all"
+                >
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                </button>
+                {subTab === "abonnes" ? (
+                  <button
+                    onClick={() => unfollow(contact.display_email)}
+                    className="w-9 h-9 bg-red-50 rounded-full flex items-center justify-center active:scale-95 transition-all"
+                  >
+                    <UserCheck className="w-4 h-4 text-red-500" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => removeFollower(contact.display_email)}
+                    className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center active:scale-95 transition-all"
+                  >
+                    <UserPlus className="w-4 h-4 text-gray-500" />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -641,12 +924,19 @@ export default function Messages() {
       // Délai naturel (~2s) avant que Maria réponde
       setTimeout(async () => {
         try {
-          await /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("mariaAutoReply", {
-            conversation_id: m.conversation_id,
-            client_email: m.sender_email,
-            client_name: m.sender_name || m.sender_email,
-            pro_email: user.email,
-            client_message: m.content,
+          const convId = m.conversation_id;
+          const clientName = m.sender_name || m.sender_email;
+          const mariaReply = `Merci ${clientName} ! Je prends note de votre message. Je vous réponds très rapidement 😊`;
+          await supabase.from("MessageChat").insert({
+            conversation_id: convId,
+            sender_email: user.email,
+            sender_name: "Maria AI",
+            receiver_email: m.sender_email,
+            content: mariaReply,
+            type: "text",
+            is_read: false,
+            read: false,
+            is_maria: true,
           });
         } catch (e) {
           console.error("Maria AI reply error:", e);
@@ -660,49 +950,76 @@ export default function Messages() {
     if (!user) return;
     setLoading(true);
     try {
-      const sent = await entities.MessageChat.filter({ sender_email: user.email }, "-created_at", 200);
-      const received = await entities.MessageChat.filter({ receiver_email: user.email }, "-created_at", 200);
-      const allMessages = [...sent, ...received];
+      // Load all messages where user is sender or receiver
+      const { data: sent, error: sentError } = await supabase
+        .from("MessageChat")
+        .select("*")
+        .eq("sender_email", user.email)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      
+      const { data: received, error: receivedError } = await supabase
+        .from("MessageChat")
+        .select("*")
+        .eq("receiver_email", user.email)
+        .order("created_at", { ascending: false })
+        .limit(200);
 
+      if (sentError) console.error("[Messages] sent error:", sentError);
+      if (receivedError) console.error("[Messages] received error:", receivedError);
+
+      const allMessages = [...(sent || []), ...(received || [])];
+      console.log("[Messages] Total messages loaded:", allMessages.length);
+
+      // Grouper par l'autre personne (pas par conversation_id)
       const convMap = {};
       for (const m of allMessages) {
-        const cid = m.conversation_id;
-        if (!convMap[cid] || new Date(m.created_at) > new Date(convMap[cid].created_at)) {
-          convMap[cid] = m;
+        // Skip typing messages
+        if (m.type === "typing") continue;
+        
+        const otherEmail = m.sender_email === user.email ? m.receiver_email : m.sender_email;
+        if (!otherEmail) continue;
+        
+        if (!convMap[otherEmail] || new Date(m.created_at || m.created_date) > new Date(convMap[otherEmail].created_at || convMap[otherEmail].created_date)) {
+          convMap[otherEmail] = m;
         }
       }
 
-      const convs = Object.values(convMap).map(m => {
+      const convs = Object.entries(convMap).map(([otherEmail, m]) => {
         const isMe = m.sender_email === user.email;
-        const otherEmail = isMe ? m.receiver_email : m.sender_email;
-        const otherName = isMe ? (m.receiver_name || m.receiver_email) : (m.sender_name || m.sender_email);
+        const otherName = isMe ? (m.receiver_name || otherEmail) : (m.sender_name || otherEmail);
         const otherAvatar = isMe ? (m.receiver_avatar || null) : (m.sender_avatar || null);
+        
+        // Count unread messages from this person
         const unread = allMessages.filter(msg =>
-          msg.conversation_id === m.conversation_id &&
-          !msg.read &&
-          msg.receiver_email === user.email
+          !msg.read && !msg.is_read &&
+          msg.receiver_email === user.email &&
+          msg.sender_email === otherEmail &&
+          msg.type !== "typing"
         ).length;
-        // Si le dernier message est une carte service, afficher un résumé lisible
-        let lastMessage = m.content;
-        try {
-          const parsed = JSON.parse(m.content);
-          if (parsed?.type === "service_card") lastMessage = `✂️ ${parsed.title} — ${parsed.price}€`;
+        
+        let lastMessage = m.content || "";
+        try { 
+          const p = JSON.parse(m.content); 
+          if (p?.type === "service_card") lastMessage = `✂️ ${p.title} — ${p.price}€`; 
         } catch {}
+        if (m.type === "image") lastMessage = "📷 Image";
+        
         return {
-          conversation_id: m.conversation_id,
+          conversation_id: [user.email, otherEmail].sort().join("_"),
           other_email: otherEmail,
-          other_name: otherName,
+          other_name: otherName, 
           other_avatar: otherAvatar,
-          last_message: lastMessage,
-          last_date: m.created_at,
+          last_message: lastMessage, 
+          last_date: m.created_at || m.created_date, 
           unread,
         };
       });
 
       convs.sort((a, b) => new Date(b.last_date) - new Date(a.last_date));
       setConversations(convs);
-    } catch (e) {
-      console.error("loadConversations error:", e);
+    } catch (e) { 
+      console.error("[Messages] loadConversations error:", e); 
     }
     setLoading(false);
   };
@@ -819,6 +1136,10 @@ export default function Messages() {
           className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${tab === "messages" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}>
           <MessageSquare className="w-4 h-4" /> Messages
         </button>
+        <button onClick={() => setTab("contacts")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${tab === "contacts" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}>
+          <Users className="w-4 h-4" /> Contacts
+        </button>
         <button onClick={() => setTab("calls")}
           className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${tab === "calls" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}>
           <Phone className="w-4 h-4" /> Appels
@@ -846,6 +1167,16 @@ export default function Messages() {
             onDelete={deleteConversation}
           />
         </>
+      )}
+
+      {tab === "contacts" && (
+        <ContactsTab 
+          user={user} 
+          onStartConversation={(conv) => {
+            setActiveConv(conv);
+            setTab("messages");
+          }} 
+        />
       )}
 
       {tab === "calls" && <CallHistory user={user} />}
