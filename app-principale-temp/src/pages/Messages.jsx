@@ -681,6 +681,11 @@ function ContactsTab({ user, onStartConversation }) {
     const loadContacts = async () => {
       setLoading(true);
       try {
+        let followingList = [];
+        let followersList = [];
+
+        let tableOk = true;
+
         const { data: testData, error: testErr } = await supabase
           .from('user_follow')
           .select('id')
@@ -689,45 +694,48 @@ function ContactsTab({ user, onStartConversation }) {
         if (testErr) {
           console.error('[Contacts] table check error:', testErr);
           if (testErr.message?.includes('does not exist') || testErr.code === '42P01') {
+            tableOk = false;
             setTableExists(false);
-            setLoading(false);
-            return;
           }
         }
 
-        const { data: followingData, error: followErr } = await supabase
-          .from('user_follow')
-          .select('*')
-          .eq('follower_email', user.email);
+        if (tableOk) {
+          const { data: followingData, error: followErr } = await supabase
+            .from('user_follow')
+            .select('*')
+            .eq('follower_email', user.email);
 
-        const { data: followersData, error: followerErr } = await supabase
-          .from('user_follow')
-          .select('*')
-          .eq('followed_email', user.email);
+          const { data: followersData, error: followerErr } = await supabase
+            .from('user_follow')
+            .select('*')
+            .eq('followed_email', user.email);
 
-        if (followErr) console.error('[Contacts] following query error:', followErr);
-        if (followerErr) console.error('[Contacts] followers query error:', followerErr);
+          if (followErr) console.error('[Contacts] following query error:', followErr);
+          if (followerErr) console.error('[Contacts] followers query error:', followerErr);
 
-        let followingList = (followingData || []).map(f => ({
-          id: f.id,
-          display_email: f.followed_email,
-          display_name: f.followed_name || f.followed_email,
-          display_avatar: f.followed_avatar || null,
-        }));
+          followingList = (followingData || []).map(f => ({
+            id: f.id,
+            display_email: f.followed_email,
+            display_name: f.followed_name || f.followed_email,
+            display_avatar: f.followed_avatar || null,
+          }));
 
-        let followersList = (followersData || []).map(f => ({
-          id: f.id,
-          display_email: f.follower_email,
-          display_name: f.follower_name || f.follower_email,
-          display_avatar: f.follower_avatar || null,
-        }));
+          followersList = (followersData || []).map(f => ({
+            id: f.id,
+            display_email: f.follower_email,
+            display_name: f.follower_name || f.follower_email,
+            display_avatar: f.follower_avatar || null,
+          }));
+        }
 
-        if (followingList.length === 0 && followersList.length === 0) {
-          const { data: proProfiles } = await supabase
+        if (followingList.length === 0) {
+          const { data: proProfiles, error: proErr } = await supabase
             .from('ProfilPro')
             .select('user_email, nom, prenom, salon_name, avatar_url')
             .neq('user_email', user.email)
             .limit(50);
+
+          if (proErr) console.error('[Contacts] ProfilPro query error:', proErr);
 
           if (proProfiles && proProfiles.length > 0) {
             followingList = proProfiles.map(p => ({
