@@ -421,16 +421,18 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
               const isSel = selectedDate && isSameDay(day, selectedDate);
               const isT = isToday(day);
               const hasSlots = !isPast && !loadingPro && isDayAvailable(day);
+              const textColor = isSel ? "text-white" : isPast ? "text-gray-300" : isT ? "text-primary" : "text-gray-900";
               return (
                 <button
                   key={day.toISOString()}
+                  type="button"
                   onClick={() => handleSelectDate(day)}
-                  disabled={isPast}
-                  className="flex flex-col items-center justify-center aspect-square rounded-full text-[13px] font-black transition-all active:scale-90 relative"
+                  className={`flex flex-col items-center justify-center aspect-square rounded-full text-[13px] font-black transition-all active:scale-90 relative ${textColor} ${isPast ? "cursor-not-allowed" : "cursor-pointer"}`}
                   style={{
                     background: isSel ? "#E8732A" : "transparent",
-                    color: isSel ? "white" : isPast ? "#d1d5db" : isT ? "#E8732A" : "#111827",
                     border: isT && !isSel ? "2px solid #E8732A" : "2px solid transparent",
+                    pointerEvents: isPast ? "none" : "auto",
+                    opacity: isPast ? 0.35 : 1,
                   }}
                 >
                   {format(day, "d")}
