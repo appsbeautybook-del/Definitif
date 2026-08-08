@@ -686,35 +686,58 @@ function ContactsTab({ user, onStartConversation }) {
           .select('id')
           .limit(1);
 
-        if (testErr && testErr.message?.includes('does not exist')) {
-          setTableExists(false);
-          setLoading(false);
-          return;
+        if (testErr) {
+          console.error('[Contacts] table check error:', testErr);
+          if (testErr.message?.includes('does not exist') || testErr.code === '42P01') {
+            setTableExists(false);
+            setLoading(false);
+            return;
+          }
         }
 
-        const { data: followingData } = await supabase
+        const { data: followingData, error: followErr } = await supabase
           .from('user_follow')
           .select('*')
           .eq('follower_email', user.email);
 
-        const { data: followersData } = await supabase
+        const { data: followersData, error: followerErr } = await supabase
           .from('user_follow')
           .select('*')
           .eq('followed_email', user.email);
 
-        const followingList = (followingData || []).map(f => ({
+        if (followErr) console.error('[Contacts] following query error:', followErr);
+        if (followerErr) console.error('[Contacts] followers query error:', followerErr);
+
+        let followingList = (followingData || []).map(f => ({
           id: f.id,
           display_email: f.followed_email,
           display_name: f.followed_name || f.followed_email,
           display_avatar: f.followed_avatar || null,
         }));
 
-        const followersList = (followersData || []).map(f => ({
+        let followersList = (followersData || []).map(f => ({
           id: f.id,
           display_email: f.follower_email,
           display_name: f.follower_name || f.follower_email,
           display_avatar: f.follower_avatar || null,
         }));
+
+        if (followingList.length === 0 && followersList.length === 0) {
+          const { data: proProfiles } = await supabase
+            .from('ProfilPro')
+            .select('user_email, nom, prenom, salon_name, avatar_url')
+            .neq('user_email', user.email)
+            .limit(50);
+
+          if (proProfiles && proProfiles.length > 0) {
+            followingList = proProfiles.map(p => ({
+              id: p.user_email,
+              display_email: p.user_email,
+              display_name: p.salon_name || p.prenom || p.nom || p.user_email,
+              display_avatar: p.avatar_url || null,
+            }));
+          }
+        }
 
         const enrichBatch = async (list) => {
           const emails = list.map(c => c.display_email);
@@ -755,6 +778,27 @@ function ContactsTab({ user, onStartConversation }) {
     };
     loadContacts();
   }, [user]);
+
+  const followUser = async (targetEmail, targetName, targetAvatar) => {
+    try {
+      await supabase.from('user_follow').insert({
+        follower_email: user.email,
+        follower_name: user?.full_name || '',
+        follower_avatar: user?.avatar_url || '',
+        followed_email: targetEmail,
+        followed_name: targetName || '',
+        followed_avatar: targetAvatar || '',
+      });
+      setFollowing(prev => [...prev, {
+        id: targetEmail,
+        display_email: targetEmail,
+        display_name: targetName || targetEmail,
+        display_avatar: targetAvatar || null,
+      }]);
+    } catch (e) {
+      console.error('[Contacts] follow error:', e);
+    }
+  };
 
   const unfollow = async (targetEmail) => {
     try {
@@ -816,7 +860,7 @@ function ContactsTab({ user, onStartConversation }) {
             {subTab === "abonnes" ? "Aucun abonnement" : "Aucun abonné"}
           </p>
           <p className="text-[12px] text-gray-300 font-medium text-center px-8">
-            {subTab === "abonnes" ? "Suivez des professionnels pour les contacter ici" : "Vos abonnés apparaîtront ici"}
+            {subTab === "abonnes" ? "Suivez des professionnels pour les contacter ici" : "Les personnes que vous suivez apparaîtront ici"}
           </p>
         </div>
       ) : (
@@ -857,10 +901,10 @@ function ContactsTab({ user, onStartConversation }) {
                   </button>
                 ) : (
                   <button
-                    onClick={() => removeFollower(contact.display_email)}
-                    className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center active:scale-95 transition-all"
+                    onClick={() => followUser(contact.display_email, contact.display_name, contact.display_avatar)}
+                    className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center active:scale-95 transition-all"
                   >
-                    <UserPlus className="w-4 h-4 text-gray-500" />
+                    <UserPlus className="w-4 h-4 text-primary" />
                   </button>
                 )}
               </div>
