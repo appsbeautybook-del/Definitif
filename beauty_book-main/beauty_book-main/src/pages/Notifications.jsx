@@ -123,7 +123,7 @@ export default function Notifications() {
   const userEmailRef = useRef(null);
 
   useEffect(() => {
-    loadNotifications();
+    fetchNotifs();
   }, []);
 
   // Realtime subscription for new notifications
@@ -144,7 +144,7 @@ export default function Notifications() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const loadNotifications = async () => {
+  const fetchNotifs = async () => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
