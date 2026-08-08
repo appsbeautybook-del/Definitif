@@ -65,21 +65,11 @@ export default function ModifierProfilPro() {
 
   useEffect(() => {
     if (!user?.email) return;
-    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, galerie_urls').eq('user_email', user.email).maybeSingle()
+    supabase.from('ProfilPro').select('*').eq('user_email', user.email).maybeSingle()
       .then(({ data: p }) => {
         let profile = p;
         if (!profile) {
-          try {
-            const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
-            if (cached) profile = { user_email: user.email, ...cached };
-          } catch {}
-        } else {
-          try {
-            const cached = JSON.parse(localStorage.getItem('pro_profile_cache') || 'null');
-            if (cached) {
-              profile = { ...profile, avatar_url: cached.avatar_url || profile.avatar_url, cover_url: cached.cover_url || profile.cover_url, salon_name: cached.salon_name || profile.salon_name, bio: cached.bio || profile.bio, city: cached.city || profile.city, phone: cached.phone || profile.phone, address: cached.address || profile.address };
-            }
-          } catch {}
+          profile = { user_email: user.email };
         }
         if (profile) {
           const h = {};
