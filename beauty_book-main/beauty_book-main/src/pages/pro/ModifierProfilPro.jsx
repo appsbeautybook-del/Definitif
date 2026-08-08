@@ -429,7 +429,7 @@ export default function ModifierProfilPro() {
           {expanded.horaires && (
             <div className="px-4 pb-4 space-y-2">
               {DAYS.map(day => {
-                const h = data.hours[day] || { open: false, start: "09:00", end: "19:00" };
+                const h = data.hours[day] || { open: false, start: "09:00", end: "19:00", break_start: "", break_end: "" };
                 return (
                   <div key={day} className="bg-gray-50 rounded-2xl p-3.5">
                     <div className="flex items-center justify-between mb-2.5">
@@ -439,10 +439,18 @@ export default function ModifierProfilPro() {
                       </div>
                     </div>
                     {h.open && (
-                      <div className="flex items-center gap-2">
-                        <input type="time" value={h.start} onChange={e => updateHours(day, 'start', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
-                        <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
-                        <input type="time" value={h.end} onChange={e => updateHours(day, 'end', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <input type="time" value={h.start} onChange={e => updateHours(day, 'start', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                          <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                          <input type="time" value={h.end} onChange={e => updateHours(day, 'end', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-gray-400 font-bold w-12">Pause</span>
+                          <input type="time" value={h.break_start || ""} onChange={e => updateHours(day, 'break_start', e.target.value)} placeholder="Début" className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                          <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                          <input type="time" value={h.break_end || ""} onChange={e => updateHours(day, 'break_end', e.target.value)} placeholder="Fin" className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                        </div>
                       </div>
                     )}
                   </div>
