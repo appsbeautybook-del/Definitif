@@ -48,13 +48,23 @@ const DEFAULT_OUVERTURE = {
 };
 
 function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travailNuit = false) {
-  const ov = (ouverture && Object.keys(ouverture).length > 0) ? ouverture : DEFAULT_OUVERTURE;
+  // Parser ouverture si c'est une string JSON
+  let rawOuverture = ouverture;
+  if (typeof rawOuverture === "string") {
+    try { rawOuverture = JSON.parse(rawOuverture); } catch {}
+  }
+  // Vérifier que ouverture est un objet avec des clés de jours valides
+  const hasRealOuverture = rawOuverture
+    && typeof rawOuverture === "object"
+    && !Array.isArray(rawOuverture)
+    && DAY_NAMES_FR.some(key => rawOuverture[key]);
+  const ov = hasRealOuverture ? rawOuverture : DEFAULT_OUVERTURE;
 
   const dow = getDay(date);
   const dayKey = DAY_NAMES_FR[dow];
   const dayConfig = ov[dayKey];
 
-  if (!dayConfig || !dayConfig.open) {
+  if (!dayConfig || dayConfig.open === false || dayConfig.open === "false") {
     return { open: false };
   }
 
