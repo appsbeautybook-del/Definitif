@@ -614,9 +614,10 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       // Compter les abonnés depuis la table user_follow
       let followerCount = 0;
       try {
-        const { data: follows } = await supabase.from("user_follow").select("id").eq("followed_email", targetEmail);
-        followerCount = follows ? follows.length : 0;
-      } catch (e) { console.error("Count followers:", e); }
+        const { count } = await supabase.from("user_follow")
+          .select("id", { count: "exact", head: true }).eq("followed_email", targetEmail);
+        followerCount = count || 0;
+      } catch (e) { followerCount = profile?.followers || 0; }
 
       setStats({ abonnes: followerCount, services: svcs.length, avis: avis.length });
     };
@@ -642,28 +643,28 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
     const newSubscribed = !subscribed;
     setSubscribed(newSubscribed);
 
-    // Sauvegarder dans user_follow
-    if (newSubscribed) {
-      await supabase.from("user_follow").insert({
-        follower_email: user.email,
-        follower_name: user?.full_name || "Utilisateur",
-        follower_avatar: user?.avatar_url || "",
-        followed_email: targetEmail,
-      }).catch(() => {});
-    } else {
-      await supabase.from("user_follow").delete().eq("follower_email", user.email).eq("followed_email", targetEmail).catch(() => {});
-    }
+    try {
+      if (newSubscribed) {
+        await supabase.from("user_follow").insert({
+          follower_email: user.email,
+          follower_name: user?.full_name || "Utilisateur",
+          follower_avatar: user?.avatar_url || "",
+          followed_email: targetEmail,
+        });
+      } else {
+        await supabase.from("user_follow").delete().eq("follower_email", user.email).eq("followed_email", targetEmail);
+      }
+    } catch (e) { console.warn('[Subscribe] follow error:', e); }
 
-    // Recharger le vrai nombre d'abonnés depuis la DB
     try {
       const { count } = await supabase.from("user_follow")
         .select("id", { count: "exact", head: true }).eq("followed_email", targetEmail);
       const newCount = count || 0;
       setStats(s => ({ ...s, abonnes: newCount }));
       if (proInfoId) {
-        await entities.ProfilPro.update(proInfoId, { followers: newCount }).catch(() => {});
+        await entities.ProfilPro.update(proInfoId, { followers: newCount });
       }
-    } catch {}
+    } catch (e) { console.warn('[Subscribe] count error:', e); }
   };
 
   const handleUnsubscribe = () => {

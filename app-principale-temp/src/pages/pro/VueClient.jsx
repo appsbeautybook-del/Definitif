@@ -611,7 +611,14 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       }
       if (demandes.length > 0) setDemandeInfo(demandes[0]);
       setAvis(avis);
-      setStats({ abonnes: profile?.followers || 0, services: svcs.length, avis: avis.length });
+      // Compter les abonnés depuis user_follow (source de vérité)
+      let followerCount = 0;
+      try {
+        const { count } = await supabase.from('user_follow')
+          .select('id', { count: 'exact', head: true }).eq('followed_email', targetEmail);
+        followerCount = count || 0;
+      } catch (e) { followerCount = profile?.followers || 0; }
+      setStats({ abonnes: followerCount, services: svcs.length, avis: avis.length });
     };
     fetchData();
     const onUpdated = (e) => {
