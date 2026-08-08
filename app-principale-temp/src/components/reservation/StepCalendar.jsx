@@ -57,8 +57,9 @@ function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travai
   const hasRealOuverture = rawOuverture
     && typeof rawOuverture === "object"
     && !Array.isArray(rawOuverture)
-    && DAY_NAMES_FR.some(key => rawOuverture[key]);
-  const ov = hasRealOuverture ? rawOuverture : DEFAULT_OUVERTURE;
+    && DAY_NAMES_FR.some(key => rawOuverture[key] && typeof rawOuverture[key] === "object");
+  // Toujours merger avec DEFAULT_OUVERTURE pour couvrir les jours manquants
+  const ov = { ...DEFAULT_OUVERTURE, ...(hasRealOuverture ? rawOuverture : {}) };
 
   const dow = getDay(date);
   const dayKey = DAY_NAMES_FR[dow];
@@ -311,8 +312,12 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
 
   // Déterminer si un jour du calendrier a des créneaux disponibles (pour l'indicateur visuel)
   const isDayAvailable = (day) => {
-    const s = generateSlotsForDay(day, proOuverture, proPauses, dur, travailNuit);
-    return s.open !== false && (s.morning?.length > 0 || s.afternoon?.length > 0 || s.evening?.length > 0 || s.night?.length > 0);
+    try {
+      const s = generateSlotsForDay(day, proOuverture, proPauses, dur, travailNuit);
+      return s.open !== false && (s.morning?.length > 0 || s.afternoon?.length > 0 || s.evening?.length > 0 || s.night?.length > 0);
+    } catch {
+      return true;
+    }
   };
 
   const expertAvatar = expert?.avatar
