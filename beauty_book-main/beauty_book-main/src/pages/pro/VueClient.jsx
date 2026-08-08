@@ -627,7 +627,6 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
 
   const handleToggleSubscribe = async () => {
     if (!proInfoId) return;
-    // Empêcher de s'abonner plusieurs fois via localStorage
     const key = `bb_subscribed_${targetEmail}`;
     const alreadySubscribed = localStorage.getItem(key) === "1";
     const newSubscribed = !alreadySubscribed;
@@ -635,7 +634,9 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
     try { localStorage.setItem(key, newSubscribed ? "1" : "0"); } catch {}
     const newFollowers = newSubscribed ? (stats.abonnes + 1) : Math.max(0, stats.abonnes - 1);
     setStats(s => ({ ...s, abonnes: newFollowers }));
-    await entities.ProfilPro.update(proInfoId, { followers: newFollowers }).catch(() => {});
+    // Sauvegarder directement via Supabase
+    const { error } = await supabase.from("ProfilPro").update({ followers: newFollowers }).eq("id", proInfoId);
+    if (error) console.error("Follow update error:", error);
   };
 
   const handleUnsubscribe = () => {

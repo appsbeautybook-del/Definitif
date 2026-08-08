@@ -66,10 +66,9 @@ export default function CatalogueServices() {
     if (!svc) return;
     const newStatus = svc.status === "actif" ? "inactif" : "actif";
     setServices(s => s.map(sv => sv.id === id ? { ...sv, status: newStatus } : sv));
-    try {
-      await entities.Service.update(id, { status: newStatus });
-    } catch (err) {
-      console.error("Toggle status error:", err);
+    const { error } = await supabase.from("Service").update({ status: newStatus }).eq("id", id);
+    if (error) {
+      console.error("Toggle status error:", error);
       setServices(s => s.map(sv => sv.id === id ? { ...sv, status: svc.status } : sv));
     }
   };
@@ -206,7 +205,7 @@ export default function CatalogueServices() {
                     <div className="flex items-end gap-6 mb-3">
                       <div>
                         <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Durée</p>
-                        <p className={`text-[18px] font-black leading-none ${isActive ? "text-gray-900" : "text-gray-400"}`}>{service.duration_min}</p>
+                        <p className={`text-[18px] font-black leading-none ${isActive ? "text-gray-900" : "text-gray-400"}`}>{service.duration || service.duration_min || 60}</p>
                         <p className="text-[11px] font-bold text-gray-400">min</p>
                       </div>
                       <div className="ml-auto bg-gray-50 rounded-2xl px-5 py-3 text-right">
