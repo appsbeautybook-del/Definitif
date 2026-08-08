@@ -75,11 +75,16 @@ export default function CatalogueServices() {
     const svc = services.find(s => s.id === id);
     if (!svc) return;
     const newStatus = svc.status === "actif" ? "inactif" : "actif";
+    // Optimistic update
     setServices(s => s.map(sv => sv.id === id ? { ...sv, status: newStatus } : sv));
-    const { error } = await supabase.from("Service").update({ status: newStatus }).eq("id", id);
+    const { data, error } = await supabase.from("Service").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", id).select();
     if (error) {
-      console.error("Toggle error:", error.message);
+      console.error("Toggle error:", error.message, error);
+      // Revert
       setServices(s => s.map(sv => sv.id === id ? { ...sv, status: svc.status } : sv));
+    } else {
+      // Use server response
+      if (data?.[0]) setServices(s => s.map(sv => sv.id === id ? { ...sv, status: data[0].status } : sv));
     }
   };
 

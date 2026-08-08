@@ -606,7 +606,14 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       }
       if (demandes.length > 0) setDemandeInfo(demandes[0]);
       setAvis(avis);
-      setStats({ abonnes: profile?.followers || 0, services: svcs.length, avis: avis.length });
+      // Compter les abonnés depuis la table user_follow
+      let followerCount = 0;
+      try {
+        const { data: follows } = await supabase.from("user_follow").select("id").eq("followed_email", targetEmail);
+        followerCount = follows ? follows.length : 0;
+      } catch (e) { console.error("Count followers:", e); }
+
+      setStats({ abonnes: followerCount, services: svcs.length, avis: avis.length });
     };
     fetchData();
     const onUpdated = (e) => {
@@ -626,17 +633,25 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
   };
 
   const handleToggleSubscribe = async () => {
-    if (!proInfoId) return;
+    if (!user?.email || !targetEmail) return;
     const key = `bb_subscribed_${targetEmail}`;
     const alreadySubscribed = localStorage.getItem(key) === "1";
     const newSubscribed = !alreadySubscribed;
     setSubscribed(newSubscribed);
     try { localStorage.setItem(key, newSubscribed ? "1" : "0"); } catch {}
-    const newFollowers = newSubscribed ? (stats.abonnes + 1) : Math.max(0, stats.abonnes - 1);
-    setStats(s => ({ ...s, abonnes: newFollowers }));
-    // Sauvegarder directement via Supabase
-    const { error } = await supabase.from("ProfilPro").update({ followers: newFollowers }).eq("id", proInfoId);
-    if (error) console.error("Follow update error:", error);
+
+    // Sauvegarder dans user_follow
+    if (newSubscribed) {
+      await supabase.from("user_follow").insert({ follower_email: user.email, followed_email: targetEmail }).catch(() => {});
+    } else {
+      await supabase.from("user_follow").delete().eq("follower_email", user.email).eq("followed_email", targetEmail).catch(() => {});
+    }
+
+    // Recharger le vrai nombre d'abonnés
+    try {
+      const { data: follows } = await supabase.from("user_follow").select("id").eq("followed_email", targetEmail);
+      setStats(s => ({ ...s, abonnes: follows ? follows.length : 0 }));
+    } catch {}
   };
 
   const handleUnsubscribe = () => {
