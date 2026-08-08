@@ -602,24 +602,11 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       if (profile) {
         setProInfo(profile);
         setProInfoId(profile.id);
-        // Vérifier l'abonnement dans la DB user_follow
-        if (user?.email && targetEmail && user.email !== targetEmail) {
-          const { data: followRow } = await supabase.from('user_follow')
-            .select('id').eq('follower_email', user.email).eq('followed_email', targetEmail).maybeSingle();
-          setSubscribed(!!followRow);
-        }
+        try { setSubscribed(localStorage.getItem(`bb_subscribed_${targetEmail}`) === "1"); } catch {}
       }
       if (demandes.length > 0) setDemandeInfo(demandes[0]);
       setAvis(avis);
-      // Compter les abonnés depuis la table user_follow
-      let followerCount = 0;
-      try {
-        const { data: followRows } = await supabase.from("user_follow")
-          .select("id").eq("followed_email", targetEmail);
-        followerCount = followRows ? followRows.length : 0;
-      } catch (e) { followerCount = profile?.followers || 0; }
-
-      setStats({ abonnes: followerCount, services: svcs.length, avis: avis.length });
+      setStats({ abonnes: profile?.followers || 0, services: svcs.length, avis: avis.length });
     };
     fetchData();
     const onUpdated = (e) => {
@@ -642,29 +629,14 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
     if (!user?.email || !targetEmail) return;
     const newSubscribed = !subscribed;
     setSubscribed(newSubscribed);
-
-    try {
-      if (newSubscribed) {
-        await supabase.from("user_follow").insert({
-          follower_email: user.email,
-          follower_name: user?.full_name || "Utilisateur",
-          follower_avatar: user?.avatar_url || "",
-          followed_email: targetEmail,
-        });
-      } else {
-        await supabase.from("user_follow").delete().eq("follower_email", user.email).eq("followed_email", targetEmail);
-      }
-    } catch (e) { console.warn('[Subscribe] follow error:', e); }
-
-    try {
-      const { data: followRows } = await supabase.from("user_follow")
-        .select("id").eq("followed_email", targetEmail);
-      const newCount = followRows ? followRows.length : 0;
-      setStats(s => ({ ...s, abonnes: newCount }));
-      if (proInfoId) {
+    try { localStorage.setItem(`bb_subscribed_${targetEmail}`, newSubscribed ? "1" : "0"); } catch {}
+    const newCount = newSubscribed ? (stats.abonnes + 1) : Math.max(0, stats.abonnes - 1);
+    setStats(s => ({ ...s, abonnes: newCount }));
+    if (proInfoId) {
+      try {
         await entities.ProfilPro.update(proInfoId, { followers: newCount });
-      }
-    } catch (e) { console.warn('[Subscribe] count error:', e); }
+      } catch (e) { console.warn('[Subscribe] update error:', e); }
+    }
   };
 
   const handleUnsubscribe = () => {

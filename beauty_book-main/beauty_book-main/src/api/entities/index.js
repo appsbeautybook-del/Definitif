@@ -338,6 +338,7 @@ export const entities = {
   Like:               createEntity('user_like'),
   Favori:             createEntity('user_favorite'),
   CommentaireReel:    createEntity('reel_comment'),
+  UserFollow:         createEntity('user_follow'),
   User:               createEntity('profiles'),
   profiles:           createEntity('profiles'),
 };

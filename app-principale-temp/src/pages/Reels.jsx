@@ -1022,38 +1022,35 @@ export default function Reels() {
 
     if (isFollowed) {
       setFollowed(prev => prev.filter(e => e !== authorEmail));
-      const { error } = await supabase.from('user_follow').delete()
-        .eq('follower_email', user.email).eq('followed_email', authorEmail);
-      if (error) console.warn('[Follow] delete error:', error);
+      try {
+        await entities.UserFollow.filter({ follower_email: user.email, followed_email: authorEmail }).then(rows => {
+          if (rows[0]) return entities.UserFollow.delete(rows[0].id);
+        });
+      } catch (e) { console.warn('[Follow] delete error:', e); }
 
       // Décrémenter followers du profil pro
       try {
-        const { data: proData } = await supabase.from('ProfilPro')
-          .select('id, followers').eq('user_email', authorEmail).limit(1).maybeSingle();
-        if (proData) {
-          await supabase.from('ProfilPro')
-            .update({ followers: Math.max((proData.followers || 1) - 1, 0) })
-            .eq('id', proData.id);
+        const profiles = await entities.ProfilPro.filter({ user_email: authorEmail }, "-created_at", 1);
+        if (profiles[0]) {
+          await entities.ProfilPro.update(profiles[0].id, { followers: Math.max((profiles[0].followers || 1) - 1, 0) });
         }
       } catch (e) { console.warn('[Follow] dec followers error:', e); }
     } else {
       setFollowed(prev => [...prev, authorEmail]);
-      const { error } = await supabase.from('user_follow').insert({
-        follower_email: user.email,
-        follower_name: user?.full_name || "Utilisateur",
-        follower_avatar: user?.avatar_url || "",
-        followed_email: authorEmail,
-      });
-      if (error) console.warn('[Follow] insert error:', error);
+      try {
+        await entities.UserFollow.create({
+          follower_email: user.email,
+          follower_name: user?.full_name || "Utilisateur",
+          follower_avatar: user?.avatar_url || "",
+          followed_email: authorEmail,
+        });
+      } catch (e) { console.warn('[Follow] insert error:', e); }
 
       // Incrémenter followers du profil pro
       try {
-        const { data: proData } = await supabase.from('ProfilPro')
-          .select('id, followers').eq('user_email', authorEmail).limit(1).maybeSingle();
-        if (proData) {
-          await supabase.from('ProfilPro')
-            .update({ followers: (proData.followers || 0) + 1 })
-            .eq('id', proData.id);
+        const profiles = await entities.ProfilPro.filter({ user_email: authorEmail }, "-created_at", 1);
+        if (profiles[0]) {
+          await entities.ProfilPro.update(profiles[0].id, { followers: (profiles[0].followers || 0) + 1 });
         }
       } catch (e) { console.warn('[Follow] inc followers error:', e); }
     }
