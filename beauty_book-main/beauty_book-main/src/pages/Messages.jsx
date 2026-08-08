@@ -1133,38 +1133,6 @@ export default function Messages() {
       )}
 
       {tab === "calls" && <CallHistory user={user} />}
-
-      {/* Bouton test diagnostic */}
-      <div className="px-4 py-4 border-t border-gray-100">
-        <button onClick={async () => {
-          const tests = [];
-          // Test 1: insert MessageChat
-          try {
-            const { error } = await supabase.from("MessageChat").insert({
-              sender_email: "test@test.com", receiver_email: "test2@test.com",
-              content: "test", type: "text", read: false,
-            });
-            tests.push(error ? `MessageChat INSERT: ERREUR - ${error.message}` : "MessageChat INSERT: OK");
-            if (!error) await supabase.from("MessageChat").delete().eq("content", "test").eq("sender_email", "test@test.com");
-          } catch (e) { tests.push(`MessageChat INSERT: EXCEPTION - ${e.message}`); }
-          // Test 2: select MessageChat
-          try {
-            const { data, error } = await supabase.from("MessageChat").select("id").limit(1);
-            tests.push(error ? `MessageChat SELECT: ERREUR - ${error.message}` : `MessageChat SELECT: OK (${data?.length || 0} lignes)`);
-          } catch (e) { tests.push(`MessageChat SELECT: EXCEPTION - ${e.message}`); }
-          // Test 3: insert Notification
-          try {
-            const { error } = await supabase.from("Notification").insert({
-              user_email: "test@test.com", title: "test", type: "system", read: false,
-            });
-            tests.push(error ? `Notification INSERT: ERREUR - ${error.message}` : "Notification INSERT: OK");
-            if (!error) await supabase.from("Notification").delete().eq("title", "test").eq("user_email", "test@test.com");
-          } catch (e) { tests.push(`Notification INSERT: EXCEPTION - ${e.message}`); }
-          alert(tests.join("\n"));
-        }} className="w-full bg-red-500 text-white py-3 rounded-xl text-[12px] font-black">
-          🔍 TEST DIAGNOSTIC (appuie et envoie le résultat)
-        </button>
-      </div>
     </div>
   );
 }
