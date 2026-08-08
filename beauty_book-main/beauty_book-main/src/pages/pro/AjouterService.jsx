@@ -676,6 +676,7 @@ export default function AjouterService() {
         duration: editService.duration_min ?? "",
         images: mediaList,
         addons: editService.addons || [],
+        status: editService.status || "brouillon",
         _editId: editService.id,
       };
     }
@@ -707,7 +708,7 @@ export default function AjouterService() {
         duration: parseInt(data.duration) || 60,
         images: (data.images || []),
         addons: (data.addons || []).map(a => ({ name: a.name, price: parseFloat(a.price) || 0 })),
-        status: "brouillon",
+        status: data._editId ? (data.status || "brouillon") : "brouillon",
       };
       try {
         if (data._editId) {
