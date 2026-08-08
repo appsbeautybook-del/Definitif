@@ -1349,15 +1349,14 @@ function ProfilCard({ item, media, liked, onLike, onSelect, open, badge, minPric
               <span className="text-[12px] text-gray-500 font-semibold">{city}</span>
             </span>
           )}
-          {item.type_activite && (
-            <span className="bg-orange-100 text-orange-600 text-[10px] font-black px-2.5 py-0.5 rounded-full">
-              {item.type_activite === "Salon" ? "Salon Professionnel" : item.type_activite}
-            </span>
+          <span className="bg-orange-100 text-orange-600 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+            {item.type_activite === "Salon" || !item.type_activite ? "Salon Professionnel" : item.type_activite}
+          </span>
+          {open === true && (
+            <span className="bg-teal-50 text-teal-600 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-teal-100">● Ouvert</span>
           )}
-          {open !== null && (
-            open
-              ? <span className="bg-teal-50 text-teal-600 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-teal-100">● Ouvert</span>
-              : <span className="bg-red-50 text-red-500 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-red-100">● Fermé</span>
+          {open === false && (
+            <span className="bg-red-50 text-red-500 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-red-100">● Fermé</span>
           )}
           {item.rating > 0 && (
             <span className="flex items-center gap-1">
