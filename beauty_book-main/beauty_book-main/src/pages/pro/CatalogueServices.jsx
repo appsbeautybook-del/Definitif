@@ -71,7 +71,7 @@ export default function CatalogueServices() {
     const svc = services.find(s => s.id === id);
     if (!svc) return;
     const isActive = svc.status === "actif";
-    const newStatus = isActive ? "inactif" : "actif";
+    const newStatus = isActive ? "brouillon" : "actif";
     setServices(s => s.map(sv => sv.id === id ? { ...sv, status: newStatus } : sv));
     try {
       const { data, error } = await supabase
@@ -180,7 +180,7 @@ export default function CatalogueServices() {
                     {isDraft && (
                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                         <span className="bg-orange-500 text-white text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full">
-                          {service.status === "inactif" ? "Désactivé — Appuyer pour modifier" : "Brouillon — Appuyer pour continuer"}
+                          Brouillon — Appuyer pour modifier
                         </span>
                       </div>
                     )}
