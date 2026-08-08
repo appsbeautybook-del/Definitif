@@ -48,14 +48,26 @@ const DEFAULT_OUVERTURE = {
 };
 
 function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travailNuit = false, minSlotMin = null) {
-  const hasRealOuverture = ouverture && typeof ouverture === "object" && Object.keys(ouverture).length > 0 && Object.values(ouverture).some(v => v && typeof v === "object" && "open" in v);
-  const ov = hasRealOuverture ? ouverture : DEFAULT_OUVERTURE;
+  // Parser ouverture si c'est une string JSON
+  let rawOuverture = ouverture;
+  if (typeof rawOuverture === "string") {
+    try { rawOuverture = JSON.parse(rawOuverture); } catch {}
+  }
+  // Parser pauses si c'est une string JSON
+  let rawPauses = pauses;
+  if (typeof rawPauses === "string") {
+    try { rawPauses = JSON.parse(rawPauses); } catch {}
+  }
+
+  // Vérifier si ouverture contient des jours valides avec la structure { open, start, end }
+  const hasRealOuverture = rawOuverture && typeof rawOuverture === "object" && Object.keys(rawOuverture).length > 0 && Object.values(rawOuverture).some(v => v && typeof v === "object" && ("open" in v || "start" in v));
+  const ov = hasRealOuverture ? rawOuverture : DEFAULT_OUVERTURE;
 
   const dow = getDay(date);
   const dayKey = DAY_NAMES_FR[dow];
   const dayConfig = ov[dayKey];
 
-  if (!dayConfig || !dayConfig.open) {
+  if (!dayConfig || dayConfig.open === false || dayConfig.open === "false") {
     return { open: false };
   }
 
@@ -197,8 +209,19 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
         if (p) {
           setSeatsTotal(p.seats_count || 1);
           setTravailNuit(p.travail_nuit || false);
-          setProOuverture(p.ouverture || null);
-          setProPauses(p.pauses || []);
+          // Parser ouverture si c'est une string JSON
+          let ouverture = p.ouverture || null;
+          if (typeof ouverture === "string") {
+            try { ouverture = JSON.parse(ouverture); } catch {}
+          }
+          // Parser pauses si c'est une string JSON
+          let pauses = p.pauses || [];
+          if (typeof pauses === "string") {
+            try { pauses = JSON.parse(pauses); } catch {}
+          }
+          setProOuverture(ouverture);
+          setProPauses(pauses);
+          console.log("[StepCalendar] Horaires chargés:", ouverture);
         } else {
           // Pro introuvable : horaires par défaut
           setProOuverture({
@@ -398,16 +421,15 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
               const isSel = selectedDate && isSameDay(day, selectedDate);
               const isT = isToday(day);
               const hasSlots = !isPast && !loadingPro && isDayAvailable(day);
-              const disabled = isPast || (!loadingPro && !hasSlots);
               return (
                 <button
                   key={day.toISOString()}
                   onClick={() => handleSelectDate(day)}
-                  disabled={disabled}
+                  disabled={isPast}
                   className="flex flex-col items-center justify-center aspect-square rounded-full text-[13px] font-black transition-all active:scale-90 relative"
                   style={{
                     background: isSel ? "#E8732A" : "transparent",
-                    color: isSel ? "white" : disabled ? "#d1d5db" : isT ? "#E8732A" : "#111827",
+                    color: isSel ? "white" : isPast ? "#d1d5db" : isT ? "#E8732A" : "#111827",
                     border: isT && !isSel ? "2px solid #E8732A" : "2px solid transparent",
                   }}
                 >
