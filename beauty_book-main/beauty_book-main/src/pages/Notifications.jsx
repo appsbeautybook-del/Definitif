@@ -148,12 +148,20 @@ export default function Notifications() {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setLoading(false); return; }
+      if (!user) {
+        console.warn("[Notifications] No authenticated user found");
+        setLoading(false);
+        return;
+      }
       userEmailRef.current = user.email;
+      
+      // Try loading notifications with error handling
       const notifs = await loadNotifications(user.email, 50);
-      setNotifications(notifs);
+      console.log("[Notifications] Loaded notifications:", notifs?.length || 0);
+      setNotifications(notifs || []);
     } catch (e) {
-      console.error("Load notifications error:", e);
+      console.error("[Notifications] Load error:", e);
+      setNotifications([]);
     }
     setLoading(false);
   };

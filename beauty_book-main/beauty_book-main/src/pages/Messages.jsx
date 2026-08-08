@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, Send, Search, MessageSquare, Trash2, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Scissors, Clock, ChevronRight, PhoneCall, Sparkles, Zap, Image, Smile } from "lucide-react";
+import { ArrowLeft, Send, Search, MessageSquare, Trash2, Phone, PhoneIncoming, PhoneMissed, PhoneOutgoing, Scissors, Clock, ChevronRight, PhoneCall, Sparkles, Zap, Image, Smile, Users } from "lucide-react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from "@/lib/AuthContext";
@@ -348,6 +348,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
 
     const now = new Date().toISOString();
     const payload = {
+      conversation_id: convId,
       sender_email: currentUser.email,
       sender_name: currentUser.user_metadata?.full_name || currentUser.email,
       sender_avatar: currentUser.user_metadata?.avatar_url || null,
@@ -664,6 +665,166 @@ function CallHistory({ user }) {
   );
 }
 
+// ── FollowersList - Affiche les abonnés et abonnements ────────────────────────
+function FollowersList({ user, onSelectConversation }) {
+  const [followers, setFollowers] = useState([]);
+  const [following, setFollowing] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("following");
+
+  useEffect(() => {
+    if (!user) return;
+    loadFollows();
+  }, [user]);
+
+  const loadFollows = async () => {
+    setLoading(true);
+    try {
+      // Load people I follow
+      const { data: myFollowing } = await supabase
+        .from("user_follow")
+        .select("*")
+        .eq("follower_email", user.email);
+      
+      // Load my followers
+      const { data: myFollowers } = await supabase
+        .from("user_follow")
+        .select("*")
+        .eq("followed_email", user.email);
+
+      // Get profile data for following
+      if (myFollowing && myFollowing.length > 0) {
+        const followingEmails = myFollowing.map(f => f.followed_email);
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("email, full_name, avatar_url")
+          .in("email", followingEmails);
+        
+        const profileMap = {};
+        (profiles || []).forEach(p => { profileMap[p.email] = p; });
+        
+        setFollowing(myFollowing.map(f => ({
+          email: f.followed_email,
+          name: profileMap[f.followed_email]?.full_name || f.followed_email,
+          avatar: profileMap[f.followed_email]?.avatar_url || null,
+          since: f.created_at,
+        })));
+      }
+
+      // Get profile data for followers
+      if (myFollowers && myFollowers.length > 0) {
+        const followerEmails = myFollowers.map(f => f.follower_email);
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("email, full_name, avatar_url")
+          .in("email", followerEmails);
+        
+        const profileMap = {};
+        (profiles || []).forEach(p => { profileMap[p.email] = p; });
+        
+        setFollowers(myFollowers.map(f => ({
+          email: f.follower_email,
+          name: profileMap[f.follower_email]?.full_name || f.follower_email,
+          avatar: profileMap[f.follower_email]?.avatar_url || null,
+          since: f.created_at,
+        })));
+      }
+    } catch (e) {
+      console.error("[FollowersList] Error:", e);
+    }
+    setLoading(false);
+  };
+
+  const handleMessage = (person) => {
+    const convId = [user.email, person.email].sort().join("_");
+    onSelectConversation({
+      conversation_id: convId,
+      other_email: person.email,
+      other_name: person.name,
+      other_avatar: person.avatar,
+    });
+  };
+
+  const displayList = activeTab === "following" ? following : followers;
+
+  if (loading) {
+    return (
+      <div className="space-y-3 px-4 pt-4">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3 animate-pulse">
+            <div className="w-12 h-12 bg-gray-100 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-4 bg-gray-100 rounded-full w-1/2" />
+              <div className="h-3 bg-gray-100 rounded-full w-1/3" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Sub-tabs */}
+      <div className="flex border-b border-gray-100 bg-white">
+        <button 
+          onClick={() => setActiveTab("following")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${activeTab === "following" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}
+        >
+          Abonnements ({following.length})
+        </button>
+        <button 
+          onClick={() => setActiveTab("followers")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${activeTab === "followers" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}
+        >
+          Abonnés ({followers.length})
+        </button>
+      </div>
+
+      {displayList.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <Users className="w-12 h-12 text-gray-200" />
+          <p className="text-[14px] font-bold text-gray-400">
+            {activeTab === "following" ? "Aucun abonnement" : "Aucun abonné"}
+          </p>
+          <p className="text-[12px] text-gray-300 font-medium text-center px-8">
+            {activeTab === "following" 
+              ? "Suivez des professionnels pour les contacter ici" 
+              : "Vos abonnés apparaîtront ici"}
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-50">
+          {displayList.map((person) => (
+            <div key={person.email} className="flex items-center gap-3 px-4 py-4 hover:bg-gray-50 transition-all">
+              {person.avatar ? (
+                <img src={person.avatar} alt={person.name} className="w-12 h-12 rounded-full object-cover" />
+              ) : (
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <span className="text-[16px] font-black text-primary">
+                    {(person.name || "?")[0].toUpperCase()}
+                  </span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-black text-gray-900 truncate">{person.name}</p>
+                <p className="text-[11px] text-gray-400 font-medium truncate">{person.email}</p>
+              </div>
+              <button
+                onClick={() => handleMessage(person)}
+                className="flex items-center gap-1.5 bg-primary/10 text-primary px-3 py-2 rounded-full active:scale-95 transition-all"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-black">Message</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Messages() {
   const navigate = useNavigate();
@@ -742,15 +903,36 @@ export default function Messages() {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: sent } = await supabase.from("MessageChat").select("*").eq("sender_email", user.email).order("created_at", { ascending: false }).limit(200);
-      const { data: received } = await supabase.from("MessageChat").select("*").eq("receiver_email", user.email).order("created_at", { ascending: false }).limit(200);
+      // Load all messages where user is sender or receiver
+      const { data: sent, error: sentError } = await supabase
+        .from("MessageChat")
+        .select("*")
+        .eq("sender_email", user.email)
+        .order("created_at", { ascending: false })
+        .limit(200);
+      
+      const { data: received, error: receivedError } = await supabase
+        .from("MessageChat")
+        .select("*")
+        .eq("receiver_email", user.email)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (sentError) console.error("[Messages] sent error:", sentError);
+      if (receivedError) console.error("[Messages] received error:", receivedError);
+
       const allMessages = [...(sent || []), ...(received || [])];
+      console.log("[Messages] Total messages loaded:", allMessages.length);
 
       // Grouper par l'autre personne (pas par conversation_id)
       const convMap = {};
       for (const m of allMessages) {
+        // Skip typing messages
+        if (m.type === "typing") continue;
+        
         const otherEmail = m.sender_email === user.email ? m.receiver_email : m.sender_email;
         if (!otherEmail) continue;
+        
         if (!convMap[otherEmail] || new Date(m.created_at || m.created_date) > new Date(convMap[otherEmail].created_at || convMap[otherEmail].created_date)) {
           convMap[otherEmail] = m;
         }
@@ -760,25 +942,38 @@ export default function Messages() {
         const isMe = m.sender_email === user.email;
         const otherName = isMe ? (m.receiver_name || otherEmail) : (m.sender_name || otherEmail);
         const otherAvatar = isMe ? (m.receiver_avatar || null) : (m.sender_avatar || null);
+        
+        // Count unread messages from this person
         const unread = allMessages.filter(msg =>
           !msg.read && !msg.is_read &&
           msg.receiver_email === user.email &&
-          (msg.sender_email === otherEmail || msg.receiver_email === otherEmail)
+          msg.sender_email === otherEmail &&
+          msg.type !== "typing"
         ).length;
+        
         let lastMessage = m.content || "";
-        try { const p = JSON.parse(m.content); if (p?.type === "service_card") lastMessage = `✂️ ${p.title} — ${p.price}€`; } catch {}
+        try { 
+          const p = JSON.parse(m.content); 
+          if (p?.type === "service_card") lastMessage = `✂️ ${p.title} — ${p.price}€`; 
+        } catch {}
         if (m.type === "image") lastMessage = "📷 Image";
+        
         return {
           conversation_id: [user.email, otherEmail].sort().join("_"),
           other_email: otherEmail,
-          other_name: otherName, other_avatar: otherAvatar,
-          last_message: lastMessage, last_date: m.created_at || m.created_date, unread,
+          other_name: otherName, 
+          other_avatar: otherAvatar,
+          last_message: lastMessage, 
+          last_date: m.created_at || m.created_date, 
+          unread,
         };
       });
 
       convs.sort((a, b) => new Date(b.last_date) - new Date(a.last_date));
       setConversations(convs);
-    } catch (e) { console.error("loadConversations error:", e); }
+    } catch (e) { 
+      console.error("[Messages] loadConversations error:", e); 
+    }
     setLoading(false);
   };
 
@@ -894,6 +1089,10 @@ export default function Messages() {
           className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${tab === "messages" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}>
           <MessageSquare className="w-4 h-4" /> Messages
         </button>
+        <button onClick={() => setTab("contacts")}
+          className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${tab === "contacts" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}>
+          <Users className="w-4 h-4" /> Contacts
+        </button>
         <button onClick={() => setTab("calls")}
           className={`flex-1 flex items-center justify-center gap-2 py-3 text-[12px] font-black border-b-2 transition-all ${tab === "calls" ? "border-primary text-primary" : "border-transparent text-gray-400"}`}>
           <Phone className="w-4 h-4" /> Appels
@@ -921,6 +1120,16 @@ export default function Messages() {
             onDelete={deleteConversation}
           />
         </>
+      )}
+
+      {tab === "contacts" && (
+        <FollowersList 
+          user={user} 
+          onSelectConversation={(conv) => {
+            setActiveConv(conv);
+            setTab("messages");
+          }} 
+        />
       )}
 
       {tab === "calls" && <CallHistory user={user} />}

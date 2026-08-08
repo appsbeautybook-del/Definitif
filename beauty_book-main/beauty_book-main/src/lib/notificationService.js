@@ -27,11 +27,20 @@ export async function createNotification(payloads) {
     data: p.data || {},
     is_read: false,
     read: false,
+    created_at: new Date().toISOString(),
   }));
 
-  const { data, error } = await supabase.from("Notification").insert(rows);
-  if (error) console.error("[notificationService] insert error:", error);
-  return { data, error };
+  try {
+    const { data, error } = await supabase.from("Notification").insert(rows);
+    if (error) {
+      console.error("[notificationService] insert error:", error);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  } catch (e) {
+    console.error("[notificationService] insert exception:", e);
+    return { data: null, error: e };
+  }
 }
 
 /**
