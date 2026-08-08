@@ -54,12 +54,19 @@ function generateSlotsForDay(date, ouverture, pauses = [], duration = 60, travai
     try { rawOuverture = JSON.parse(rawOuverture); } catch {}
   }
   // Vérifier que ouverture est un objet avec des clés de jours valides
-  const hasRealOuverture = rawOuverture
-    && typeof rawOuverture === "object"
-    && !Array.isArray(rawOuverture)
-    && DAY_NAMES_FR.some(key => rawOuverture[key] && typeof rawOuverture[key] === "object");
+  // Normaliser les clés en minuscules (gère "Lundi" et "lundi")
+  const normalizedOuverture = {};
+  if (rawOuverture && typeof rawOuverture === "object" && !Array.isArray(rawOuverture)) {
+    Object.keys(rawOuverture).forEach(k => {
+      const lk = k.toLowerCase();
+      if (DAY_NAMES_FR.includes(lk) && typeof rawOuverture[k] === "object" && rawOuverture[k] !== null) {
+        normalizedOuverture[lk] = rawOuverture[k];
+      }
+    });
+  }
+  const hasRealOuverture = Object.keys(normalizedOuverture).length > 0;
   // Toujours merger avec DEFAULT_OUVERTURE pour couvrir les jours manquants
-  const ov = { ...DEFAULT_OUVERTURE, ...(hasRealOuverture ? rawOuverture : {}) };
+  const ov = { ...DEFAULT_OUVERTURE, ...(hasRealOuverture ? normalizedOuverture : {}) };
 
   const dow = getDay(date);
   const dayKey = DAY_NAMES_FR[dow];
