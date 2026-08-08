@@ -338,7 +338,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       console.warn('[Chat] send error:', e);
     }
     setSending(false);
-    loadMessages();
+    await loadMessages();
   };
 
   const isReadonly = conversation.readonly;
@@ -418,7 +418,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
               )}
               {/* Heure + statut de lecture */}
               <div className={`flex items-center gap-1 mt-0.5 ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                <span className="text-[9px] text-gray-400 font-medium">{timeAgo(m.created_date)}</span>
+                <span className="text-[9px] text-gray-400 font-medium">{timeAgo(m.created_at)}</span>
                 {isMe && (
                   <span className={`text-[11px] font-black ${m.read ? "text-primary" : "text-gray-300"}`}>
                     {m.read ? "✓✓" : "✓"}
@@ -487,7 +487,7 @@ function CallHistory({ user }) {
       // Dédoublonner par call_id
       const byId = {};
       for (const c of [...asCaller, ...asCallee]) byId[c.call_id] = c;
-      const all = Object.values(byId).sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+      const all = Object.values(byId).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setCalls(all);
       setLoading(false);
     });
@@ -571,7 +571,7 @@ function CallHistory({ user }) {
               <span className="text-[10px] text-gray-400 font-medium">
                 {call.started_at
                   ? new Date(call.started_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-                  : call.created_date ? new Date(call.created_date).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
+                  : call.created_at ? new Date(call.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}
               </span>
               {startCall && (
                 <button
@@ -667,7 +667,7 @@ export default function Messages() {
       const convMap = {};
       for (const m of allMessages) {
         const cid = m.conversation_id;
-        if (!convMap[cid] || new Date(m.created_date) > new Date(convMap[cid].created_date)) {
+        if (!convMap[cid] || new Date(m.created_at) > new Date(convMap[cid].created_at)) {
           convMap[cid] = m;
         }
       }
@@ -694,7 +694,7 @@ export default function Messages() {
           other_name: otherName,
           other_avatar: otherAvatar,
           last_message: lastMessage,
-          last_date: m.created_date,
+          last_date: m.created_at,
           unread,
         };
       });

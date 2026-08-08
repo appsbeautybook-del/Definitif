@@ -356,7 +356,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
       receiver_name: conversation.other_name || conversation.other_email,
       content: content || (fileUrl ? "📷 Image" : ""),
       type: fileUrl ? "image" : "text",
-      file_url: fileUrl || "",
+      attachment_url: fileUrl || "",
       is_read: false, read: false,
       created_at: now, updated_at: now,
     };
@@ -492,9 +492,9 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
                 <div className={`max-w-[78%] flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                   {serviceData ? (
                     <div className="w-56"><ServiceCard service={serviceData} navigate={navigate} /></div>
-                  ) : m.type === "image" && m.file_url ? (
+                  ) : m.type === "image" && m.attachment_url ? (
                     <div>
-                      <img src={m.file_url} alt="image" className="rounded-2xl max-w-full shadow-sm max-h-64 object-cover" loading="lazy" />
+                      <img src={m.attachment_url} alt="image" className="rounded-2xl max-w-full shadow-sm max-h-64 object-cover" loading="lazy" />
                       {m.content && m.content !== "📷 Image" && (
                         <div className={`mt-1 px-3 py-2 rounded-2xl text-[13px] font-medium ${isMe ? "bg-primary text-white rounded-br-sm" : "bg-white text-gray-900 rounded-bl-sm shadow-sm"}`}>{m.content}</div>
                       )}
