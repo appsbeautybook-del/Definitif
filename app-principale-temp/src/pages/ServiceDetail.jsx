@@ -170,12 +170,24 @@ export default function ServiceDetail() {
           }
         }
 
-        // Services similaires — même catégorie en priorité
-        const allSimilarServices = await entities.Service.filter({ status: "actif" }, "-created_at", 100).catch(() => []);
-        const others = allSimilarServices.filter(sv => sv.id !== svc.id);
-        const sameCategory = others.filter(sv => sv.category === styleCategory);
-        const otherCategory = others.filter(sv => sv.category !== styleCategory);
-        const similar = [...sameCategory, ...otherCategory].slice(0, 6);
+        // Services similaires — autres services du même pro d'abord, puis même catégorie
+        let similar = [];
+        if (svc.pro_email) {
+          const proServices = await entities.Service.filter({ pro_email: svc.pro_email, status: "actif" }, "-created_at", 50).catch(() => []);
+          const others = proServices.filter(sv => sv.id !== svc.id);
+          if (others.length > 0) {
+            const sameCategory = others.filter(sv => svc.category && sv.category === svc.category);
+            const otherCategory = others.filter(sv => !svc.category || sv.category !== svc.category);
+            similar = [...sameCategory, ...otherCategory].slice(0, 6);
+          }
+        }
+        if (similar.length === 0) {
+          const allServices = await entities.Service.filter({ status: "actif" }, "-created_at", 100).catch(() => []);
+          const others = allServices.filter(sv => sv.id !== svc.id);
+          const sameCategory = others.filter(sv => svc.category && sv.category === svc.category);
+          const otherCategory = others.filter(sv => !svc.category || sv.category !== svc.category);
+          similar = [...sameCategory, ...otherCategory].slice(0, 6);
+        }
         setSimilarStyles(similar);
 
         // Note réelle depuis les avis
