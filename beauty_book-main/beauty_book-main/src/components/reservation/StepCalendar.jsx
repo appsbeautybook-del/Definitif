@@ -309,7 +309,7 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
   };
 
   const handleSelectDate = (day) => {
-    if (isBefore(day, today)) return;
+    if (day.getTime() < today.getTime()) return;
     onSelectDate(day);
     onSelectTime(null);
     if (onSelectSeat) onSelectSeat(null);
@@ -417,18 +417,19 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
           <div className="grid grid-cols-7 gap-y-0.5 mb-4">
             {Array.from({ length: firstDayOfWeek }).map((_, i) => <div key={`e-${i}`} />)}
             {days.map(day => {
-              const isPast = isBefore(day, today);
+              const isPast = day.getTime() < today.getTime();
               const isSel = selectedDate && isSameDay(day, selectedDate);
               const isT = isToday(day);
               const hasSlots = !isPast && !loadingPro && isDayAvailable(day);
-              const textColor = isSel ? "text-white" : isPast ? "text-gray-300" : isT ? "text-primary" : "text-gray-900";
+              const dayColor = isSel ? "#ffffff" : isPast ? "#d1d5db" : isT ? "#E8732A" : "#111827";
               return (
                 <button
                   key={day.toISOString()}
                   type="button"
                   onClick={() => handleSelectDate(day)}
-                  className={`flex flex-col items-center justify-center aspect-square rounded-full text-[13px] font-black transition-all active:scale-90 relative ${textColor} ${isPast ? "cursor-not-allowed" : "cursor-pointer"}`}
+                  className={`flex flex-col items-center justify-center aspect-square rounded-full text-[13px] font-black transition-all active:scale-90 relative ${isPast ? "cursor-not-allowed" : "cursor-pointer"}`}
                   style={{
+                    color: dayColor,
                     background: isSel ? "#E8732A" : "transparent",
                     border: isT && !isSel ? "2px solid #E8732A" : "2px solid transparent",
                     pointerEvents: isPast ? "none" : "auto",
