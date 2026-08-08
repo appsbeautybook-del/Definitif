@@ -573,7 +573,7 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       try { return JSON.parse(localStorage.getItem('pro_profile_cache') || 'null'); } catch { return null; }
     };
     const fetchProfil = async () => {
-      const { data: profiles, error } = await supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, galerie_urls').eq('user_email', targetEmail).order('created_at', { ascending: false });
+      const { data: profiles, error } = await supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, galerie_urls, followers').eq('user_email', targetEmail).order('created_at', { ascending: false });
       if (error || !profiles || profiles.length === 0) return null;
       // Priority: 1) actif with images, 2) actif, 3) any with images, 4) latest
       const activeWithImages = profiles.find(p => p.status === 'actif' && (p.avatar_url || p.cover_url));
@@ -602,7 +602,12 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       if (profile) {
         setProInfo(profile);
         setProInfoId(profile.id);
-        try { setSubscribed(localStorage.getItem(`bb_subscribed_${targetEmail}`) === "1"); } catch {}
+        // Vérifier l'abonnement dans la DB user_follow
+        if (user?.email && targetEmail && user.email !== targetEmail) {
+          const { data: followRow } = await supabase.from('user_follow')
+            .select('id').eq('follower_email', user.email).eq('followed_email', targetEmail).maybeSingle();
+          setSubscribed(!!followRow);
+        }
       }
       if (demandes.length > 0) setDemandeInfo(demandes[0]);
       setAvis(avis);
@@ -634,23 +639,30 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
 
   const handleToggleSubscribe = async () => {
     if (!user?.email || !targetEmail) return;
-    const key = `bb_subscribed_${targetEmail}`;
-    const alreadySubscribed = localStorage.getItem(key) === "1";
-    const newSubscribed = !alreadySubscribed;
+    const newSubscribed = !subscribed;
     setSubscribed(newSubscribed);
-    try { localStorage.setItem(key, newSubscribed ? "1" : "0"); } catch {}
 
     // Sauvegarder dans user_follow
     if (newSubscribed) {
-      await supabase.from("user_follow").insert({ follower_email: user.email, followed_email: targetEmail }).catch(() => {});
+      await supabase.from("user_follow").insert({
+        follower_email: user.email,
+        follower_name: user?.full_name || "Utilisateur",
+        follower_avatar: user?.avatar_url || "",
+        followed_email: targetEmail,
+      }).catch(() => {});
     } else {
       await supabase.from("user_follow").delete().eq("follower_email", user.email).eq("followed_email", targetEmail).catch(() => {});
     }
 
-    // Recharger le vrai nombre d'abonnés
+    // Recharger le vrai nombre d'abonnés depuis la DB
     try {
-      const { data: follows } = await supabase.from("user_follow").select("id").eq("followed_email", targetEmail);
-      setStats(s => ({ ...s, abonnes: follows ? follows.length : 0 }));
+      const { count } = await supabase.from("user_follow")
+        .select("id", { count: "exact", head: true }).eq("followed_email", targetEmail);
+      const newCount = count || 0;
+      setStats(s => ({ ...s, abonnes: newCount }));
+      if (proInfoId) {
+        await entities.ProfilPro.update(proInfoId, { followers: newCount }).catch(() => {});
+      }
     } catch {}
   };
 
