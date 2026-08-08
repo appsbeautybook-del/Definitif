@@ -52,24 +52,20 @@ export default function CatalogueServices() {
   const [activeFilter, setActiveFilter] = useState("Tous");
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const loadedRef = useRef(false);
 
+  // Charger une seule fois au montage
   useEffect(() => {
-    if (!user?.email || loadedRef.current) return;
-    loadedRef.current = true;
+    if (!user?.email) return;
+    let cancelled = false;
     supabase.from("Service").select("*").eq("pro_email", user.email).order("created_at", { ascending: false }).limit(100)
       .then(({ data, error }) => {
+        if (cancelled) return;
         if (error) console.error("Load services error:", error);
         setServices(data || []);
       })
-      .finally(() => setLoading(false));
-  }, [user?.email]);
-
-  const reloadServices = async () => {
-    if (!user?.email) return;
-    const { data } = await supabase.from("Service").select("*").eq("pro_email", user.email).order("created_at", { ascending: false }).limit(100);
-    setServices(data || []);
-  };
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const toggleActive = async (id) => {
     const svc = services.find(s => s.id === id);
@@ -78,10 +74,10 @@ export default function CatalogueServices() {
     setServices(s => s.map(sv => sv.id === id ? { ...sv, status: newStatus } : sv));
     const { data, error } = await supabase.from("Service").update({ status: newStatus, updated_at: new Date().toISOString() }).eq("id", id).select();
     if (error) {
-      alert("Erreur de mise à jour: " + error.message);
+      alert("Erreur: " + error.message);
       setServices(s => s.map(sv => sv.id === id ? { ...sv, status: svc.status } : sv));
-    } else {
-      if (data?.[0]) setServices(s => s.map(sv => sv.id === id ? { ...sv, status: data[0].status } : sv));
+    } else if (data?.[0]) {
+      setServices(s => s.map(sv => sv.id === id ? { ...sv, status: data[0].status } : sv));
     }
   };
 
