@@ -1232,12 +1232,6 @@ function ServicesTab({ activeCategory }) {
               {/* Badges info : ville · type · ouvert/fermé · note */}
               {pro && (
                 <div className="flex items-center gap-1.5 mb-3 flex-wrap">
-                  {pro.rating > 0 && (
-                    <span className="flex items-center gap-1 bg-yellow-50 rounded-full px-2.5 py-1 border border-yellow-100">
-                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                      <span className="text-[11px] font-black text-gray-700">{pro.rating}</span>
-                    </span>
-                  )}
                   {(pro.city || pro.salon_name) && (
                     <span className="flex items-center gap-1 bg-gray-100 rounded-full px-2.5 py-1">
                       <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
@@ -1255,6 +1249,15 @@ function ServicesTab({ activeCategory }) {
                     ? <span className="bg-red-50 text-red-500 text-[10px] font-black px-2.5 py-1 rounded-full border border-red-100">● Fermé</span>
                     : null;
                   })()}
+                  {pro.rating > 0 && pro.reviews_count > 0 ? (
+                    <span className="flex items-center gap-1">
+                      <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
+                      <span className="text-[11px] font-black text-gray-700">{pro.rating}</span>
+                      <span className="text-[9px] text-gray-400">({pro.reviews_count})</span>
+                    </span>
+                  ) : (
+                    <span className="text-[9px] text-gray-400 italic">Pas de notation</span>
+                  )}
                 </div>
               )}
 
@@ -1307,6 +1310,7 @@ function ServicesTab({ activeCategory }) {
 function ProfilCard({ item, media, liked, onLike, onSelect, open, badge, minPrice, highlighted }) {
   const navigate = useNavigate();
   const city = [item.city, item.postal_code ? String(item.postal_code).slice(0, 2) : null].filter(Boolean).join(", ");
+  const hasRating = item.rating > 0 && item.reviews_count > 0;
 
   const goToDetail = (e) => {
     if (e) e.stopPropagation();
@@ -1341,7 +1345,7 @@ function ProfilCard({ item, media, liked, onLike, onSelect, open, badge, minPric
         {item.specialites?.length > 0 && (
           <p className="text-[12px] text-primary font-bold truncate mt-0.5">{item.specialites.slice(0, 2).join(" · ")}</p>
         )}
-        {/* Ville + type d'activité + ouvert/fermé sur une ligne */}
+        {/* Ville + type + ouvert/fermé + note */}
         <div className="flex items-center gap-2 flex-wrap mt-2">
           {city && (
             <span className="flex items-center gap-1">
@@ -1358,11 +1362,14 @@ function ProfilCard({ item, media, liked, onLike, onSelect, open, badge, minPric
           {open === false && (
             <span className="bg-red-50 text-red-500 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-red-100">● Fermé</span>
           )}
-          {item.rating > 0 && (
+          {hasRating ? (
             <span className="flex items-center gap-1">
               <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" />
               <span className="text-[12px] font-black text-gray-700">{item.rating}</span>
+              <span className="text-[10px] text-gray-400">({item.reviews_count})</span>
             </span>
+          ) : (
+            <span className="text-[10px] text-gray-400 italic">Pas de notation</span>
           )}
         </div>
         {/* Bouton Voir le profil + prix minimum */}
