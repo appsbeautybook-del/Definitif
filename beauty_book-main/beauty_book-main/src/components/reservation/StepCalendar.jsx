@@ -209,8 +209,8 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
         if (p) {
           setSeatsTotal(p.seats_count || 1);
           setTravailNuit(p.travail_nuit || false);
-          // Parser ouverture si c'est une string JSON
-          let ouverture = p.ouverture || null;
+          // Synchroniser avec horaires (ModifierProfilPro) OU ouverture (HorairesConges)
+          let ouverture = p.ouverture || p.horaires || null;
           if (typeof ouverture === "string") {
             try { ouverture = JSON.parse(ouverture); } catch {}
           }

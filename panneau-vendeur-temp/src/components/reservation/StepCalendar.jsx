@@ -204,7 +204,8 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
         if (p) {
           setSeatsTotal(p.seats_count || 1);
           setTravailNuit(p.travail_nuit || false);
-          setProOuverture(p.ouverture || null);
+          // Synchroniser avec horaires (ModifierProfilPro) OU ouverture (HorairesConges)
+          setProOuverture(p.ouverture || p.horaires || null);
           setProPauses(p.pauses || []);
         } else {
           // Pro introuvable : horaires par défaut
