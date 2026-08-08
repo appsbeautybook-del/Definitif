@@ -52,14 +52,24 @@ export default function CatalogueServices() {
   const [activeFilter, setActiveFilter] = useState("Tous");
   const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
-    if (!user?.email) return;
-    entities.Service.filter({ pro_email: user.email }, "-created_at", 100)
-      .then(res => setServices(res))
-      .catch(() => {})
+    if (!user?.email || loadedRef.current) return;
+    loadedRef.current = true;
+    supabase.from("Service").select("*").eq("pro_email", user.email).order("created_at", { ascending: false }).limit(100)
+      .then(({ data, error }) => {
+        if (error) console.error("Load services error:", error);
+        setServices(data || []);
+      })
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user?.email]);
+
+  const reloadServices = async () => {
+    if (!user?.email) return;
+    const { data } = await supabase.from("Service").select("*").eq("pro_email", user.email).order("created_at", { ascending: false }).limit(100);
+    setServices(data || []);
+  };
 
   const toggleActive = async (id) => {
     const svc = services.find(s => s.id === id);
@@ -68,7 +78,7 @@ export default function CatalogueServices() {
     setServices(s => s.map(sv => sv.id === id ? { ...sv, status: newStatus } : sv));
     const { error } = await supabase.from("Service").update({ status: newStatus }).eq("id", id);
     if (error) {
-      console.error("Toggle status error:", error);
+      console.error("Toggle error:", error.message);
       setServices(s => s.map(sv => sv.id === id ? { ...sv, status: svc.status } : sv));
     }
   };
