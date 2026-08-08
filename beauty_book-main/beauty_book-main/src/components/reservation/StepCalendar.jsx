@@ -209,8 +209,21 @@ export default function StepCalendar({ selectedDate, selectedTime, selectedSeat,
         if (p) {
           setSeatsTotal(p.seats_count || 1);
           setTravailNuit(p.travail_nuit || false);
-          // Synchroniser avec horaires (ModifierProfilPro) OU ouverture (HorairesConges)
-          let ouverture = p.ouverture || p.horaires || null;
+          // Synchroniser avec horaires (ModifierProfilPro) ET ouverture (HorairesConges)
+          const ouvRaw = p.ouverture;
+          const horRaw = p.horaires;
+          const DAY_NAMES = ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"];
+          const merged = {};
+          DAY_NAMES.forEach(d => {
+            const fromOuv = ouvRaw?.[d];
+            const fromHor = horRaw?.[d];
+            const fromOuvC = ouvRaw?.[d.charAt(0).toUpperCase() + d.slice(1)];
+            const fromHorC = horRaw?.[d.charAt(0).toUpperCase() + d.slice(1)];
+            merged[d] = fromOuv || fromHor || fromOuvC || fromHorC || null;
+          });
+          let ouverture = (Object.values(merged).some(v => v && typeof v === 'object'))
+            ? merged
+            : (ouvRaw || horRaw || null);
           if (typeof ouverture === "string") {
             try { ouverture = JSON.parse(ouverture); } catch {}
           }

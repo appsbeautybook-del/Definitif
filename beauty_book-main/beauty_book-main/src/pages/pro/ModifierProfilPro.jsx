@@ -73,11 +73,18 @@ export default function ModifierProfilPro() {
         }
         if (profile) {
           const h = {};
-          DAYS.forEach(d => { h[d] = { open: false, start: "09:00", end: "19:00" }; });
-          if (profile.horaires && typeof profile.horaires === 'object' && !Array.isArray(profile.horaires)) {
-            Object.keys(profile.horaires).forEach(d => { if (h[d]) h[d] = { ...h[d], ...profile.horaires[d] }; });
-          } else if (Array.isArray(profile.horaires)) {
-            profile.horaires.forEach(d => { if (h[d]) h[d].open = true; });
+          DAYS.forEach(d => { h[d.toLowerCase()] = { open: false, start: "09:00", end: "19:00" }; });
+          const src = profile.horaires || profile.ouverture;
+          if (src && typeof src === 'object' && !Array.isArray(src)) {
+            Object.keys(src).forEach(k => {
+              const lk = k.toLowerCase();
+              const dayNames = ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"];
+              if (dayNames.includes(lk) && typeof src[k] === 'object' && src[k] !== null) {
+                h[lk] = { ...h[lk], ...src[k] };
+              }
+            });
+          } else if (Array.isArray(src)) {
+            src.forEach(d => { if (h[d.toLowerCase()]) h[d.toLowerCase()].open = true; });
           }
           setData({
             salon_name: profile.salon_name || "", phone: profile.phone || "", address: profile.address || "",
@@ -420,27 +427,28 @@ export default function ModifierProfilPro() {
           {expanded.horaires && (
             <div className="px-4 pb-4 space-y-2">
               {DAYS.map(day => {
-                const h = data.hours[day] || { open: false, start: "09:00", end: "19:00", break_start: "", break_end: "" };
+                const lk = day.toLowerCase();
+                const h = data.hours[lk] || { open: false, start: "09:00", end: "19:00", break_start: "", break_end: "" };
                 return (
                   <div key={day} className="bg-gray-50 rounded-2xl p-3.5">
                     <div className="flex items-center justify-between mb-2.5">
                       <p className="text-[13px] font-black text-gray-900">{day}</p>
-                      <div onClick={() => toggleDay(day)} className={`w-11 h-6 rounded-full transition-all flex items-center px-0.5 cursor-pointer ${h.open ? "bg-[#E8732A]" : "bg-gray-300"}`}>
+                      <div onClick={() => toggleDay(lk)} className={`w-11 h-6 rounded-full transition-all flex items-center px-0.5 cursor-pointer ${h.open ? "bg-[#E8732A]" : "bg-gray-300"}`}>
                         <div className={`w-5 h-5 bg-white rounded-full shadow transition-all ${h.open ? "translate-x-5" : "translate-x-0"}`} />
                       </div>
                     </div>
                     {h.open && (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
-                          <input type="time" value={h.start} onChange={e => updateHours(day, 'start', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                          <input type="time" value={h.start} onChange={e => updateHours(lk, 'start', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
                           <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
-                          <input type="time" value={h.end} onChange={e => updateHours(day, 'end', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                          <input type="time" value={h.end} onChange={e => updateHours(lk, 'end', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] text-gray-400 font-bold w-12">Pause</span>
-                          <input type="time" value={h.break_start || ""} onChange={e => updateHours(day, 'break_start', e.target.value)} placeholder="Début" className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                          <input type="time" value={h.break_start || ""} onChange={e => updateHours(lk, 'break_start', e.target.value)} placeholder="Début" className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
                           <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
-                          <input type="time" value={h.break_end || ""} onChange={e => updateHours(day, 'break_end', e.target.value)} placeholder="Fin" className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                          <input type="time" value={h.break_end || ""} onChange={e => updateHours(lk, 'break_end', e.target.value)} placeholder="Fin" className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
                         </div>
                       </div>
                     )}

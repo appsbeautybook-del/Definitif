@@ -34,7 +34,7 @@ const COMMODITES_LIST = [
   { name: "Musique live", Icon: Music },
 ];
 
-const DAYS = ["Lundi", "Mardi", "Mercredi", "Vendredi", "Samedi", "Dimanche"];
+const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
 export default function ModifierProfilPro() {
   const navigate = useNavigate();
@@ -81,20 +81,18 @@ export default function ModifierProfilPro() {
         }
         if (profile) {
           const h = {};
-          DAYS.forEach(d => { h[d] = { open: false, start: "09:00", end: "19:00" }; });
-          // Lire horaires (ModifierProfilPro) OU ouverture (HorairesConges)
+          DAYS.forEach(d => { h[d.toLowerCase()] = { open: false, start: "09:00", end: "19:00" }; });
           const src = profile.horaires || profile.ouverture;
           if (src && typeof src === 'object' && !Array.isArray(src)) {
             Object.keys(src).forEach(k => {
               const lk = k.toLowerCase();
-              if (h[lk] && typeof src[k] === 'object' && src[k] !== null) {
+              const dayNames = ["lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"];
+              if (dayNames.includes(lk) && typeof src[k] === 'object' && src[k] !== null) {
                 h[lk] = { ...h[lk], ...src[k] };
-              } else if (h[k] && typeof src[k] === 'object' && src[k] !== null) {
-                h[k] = { ...h[k], ...src[k] };
               }
             });
           } else if (Array.isArray(src)) {
-            src.forEach(d => { if (h[d]) h[d].open = true; });
+            src.forEach(d => { if (h[d.toLowerCase()]) h[d.toLowerCase()].open = true; });
           }
           setData({
             salon_name: profile.salon_name || "", phone: profile.phone || "", address: profile.address || "",
@@ -428,20 +426,21 @@ export default function ModifierProfilPro() {
           {expanded.horaires && (
             <div className="px-4 pb-4 space-y-2">
               {DAYS.map(day => {
-                const h = data.hours[day] || { open: false, start: "09:00", end: "19:00" };
+                const lk = day.toLowerCase();
+                const h = data.hours[lk] || { open: false, start: "09:00", end: "19:00" };
                 return (
                   <div key={day} className="bg-gray-50 rounded-2xl p-3.5">
                     <div className="flex items-center justify-between mb-2.5">
                       <p className="text-[13px] font-black text-gray-900">{day}</p>
-                      <div onClick={() => toggleDay(day)} className={`w-11 h-6 rounded-full transition-all flex items-center px-0.5 cursor-pointer ${h.open ? "bg-[#E8732A]" : "bg-gray-300"}`}>
+                      <div onClick={() => toggleDay(lk)} className={`w-11 h-6 rounded-full transition-all flex items-center px-0.5 cursor-pointer ${h.open ? "bg-[#E8732A]" : "bg-gray-300"}`}>
                         <div className={`w-5 h-5 bg-white rounded-full shadow transition-all ${h.open ? "translate-x-5" : "translate-x-0"}`} />
                       </div>
                     </div>
                     {h.open && (
                       <div className="flex items-center gap-2">
-                        <input type="time" value={h.start} onChange={e => updateHours(day, 'start', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                        <input type="time" value={h.start} onChange={e => updateHours(lk, 'start', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
                         <ArrowRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
-                        <input type="time" value={h.end} onChange={e => updateHours(day, 'end', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
+                        <input type="time" value={h.end} onChange={e => updateHours(lk, 'end', e.target.value)} className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-[12px] text-gray-700" />
                       </div>
                     )}
                   </div>
