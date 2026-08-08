@@ -199,6 +199,7 @@ export default function ModifierProfilPro() {
         specialites: data.specialites,
         commodites: data.commodites,
         horaires: data.hours,
+        ouverture: data.hours,
         galerie_urls: data.galerie_urls || [],
         updated_at: new Date().toISOString(),
       };
