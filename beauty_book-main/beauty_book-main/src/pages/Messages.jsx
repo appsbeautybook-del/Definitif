@@ -214,23 +214,33 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
   // Charger les messages
   const loadMessages = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from("MessageChat")
+      // Charger tous les messages entre les deux personnes
+      const { data: sent } = await supabase.from("MessageChat")
         .select("*")
-        .eq("conversation_id", convId)
+        .eq("sender_email", currentUser.email)
+        .eq("receiver_email", conversation.other_email)
         .order("created_at", { ascending: true });
-      if (error) { console.error("[Chat] loadMessages error:", error); setLoading(false); return; }
-      const filtered = (data || []).filter(m => m.type !== "typing");
+      const { data: received } = await supabase.from("MessageChat")
+        .select("*")
+        .eq("sender_email", conversation.other_email)
+        .eq("receiver_email", currentUser.email)
+        .order("created_at", { ascending: true });
+      const allById = {};
+      for (const m of [...(sent || []), ...(received || [])]) {
+        if (m.type !== "typing") allById[m.id] = m;
+      }
+      const filtered = Object.values(allById).sort((a, b) => new Date(a.created_at || a.created_date) - new Date(b.created_at || b.created_date));
       msgIdsRef.current = new Set(filtered.map(m => m.id));
       setMessages(filtered);
       // Mark as read
-      const unread = filtered.filter(m => !m.read && m.receiver_email === currentUser.email);
-      for (const m of unread) {
-        supabase.from("MessageChat").update({ read: true, is_read: true }).eq("id", m.id).catch(() => {});
+      for (const m of filtered) {
+        if (!m.read && !m.is_read && m.receiver_email === currentUser.email) {
+          supabase.from("MessageChat").update({ read: true, is_read: true }).eq("id", m.id).catch(() => {});
+        }
       }
     } catch (e) { console.error("[Chat] loadMessages:", e); }
     setLoading(false);
-  }, [convId, currentUser.email]);
+  }, [conversation.other_email, currentUser.email]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
@@ -239,7 +249,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     if (!conversation.service || serviceCardSent) return;
     setServiceCardSent(true);
     supabase.from("MessageChat").insert({
-      conversation_id: convId, sender_email: currentUser.email,
+      sender_email: currentUser.email,
       sender_name: currentUser.user_metadata?.full_name || currentUser.email,
       receiver_email: conversation.other_email,
       content: JSON.stringify({ type: "service_card", ...conversation.service }),
@@ -251,10 +261,14 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
   useEffect(() => {
     if (channelRef.current) supabase.removeChannel(channelRef.current);
     const channel = supabase
-      .channel(`chat_${convId}_${Date.now()}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "MessageChat", filter: `conversation_id=eq.${convId}` }, (payload) => {
+      .channel(`chat_${Date.now()}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "MessageChat" }, (payload) => {
         const m = payload.new;
-        if (!m || m.sender_email === currentUser.email) return;
+        if (!m) return;
+        // Filtrer: seulement les messages entre ces deux personnes
+        const isRelevant = (m.sender_email === currentUser.email && m.receiver_email === conversation.other_email) ||
+          (m.sender_email === conversation.other_email && m.receiver_email === currentUser.email);
+        if (!isRelevant) return;
         if (m.type === "typing") {
           setOtherTyping(true);
           clearTimeout(typingTimeoutRef.current);
@@ -334,7 +348,6 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
 
     const now = new Date().toISOString();
     const payload = {
-      conversation_id: convId,
       sender_email: currentUser.email,
       sender_name: currentUser.user_metadata?.full_name || currentUser.email,
       sender_avatar: currentUser.user_metadata?.avatar_url || null,
@@ -733,32 +746,33 @@ export default function Messages() {
       const { data: received } = await supabase.from("MessageChat").select("*").eq("receiver_email", user.email).order("created_at", { ascending: false }).limit(200);
       const allMessages = [...(sent || []), ...(received || [])];
 
+      // Grouper par l'autre personne (pas par conversation_id)
       const convMap = {};
       for (const m of allMessages) {
-        const cid = m.conversation_id;
-        if (!cid) continue;
-        if (!convMap[cid] || new Date(m.created_at) > new Date(convMap[cid].created_at)) {
-          convMap[cid] = m;
+        const otherEmail = m.sender_email === user.email ? m.receiver_email : m.sender_email;
+        if (!otherEmail) continue;
+        if (!convMap[otherEmail] || new Date(m.created_at || m.created_date) > new Date(convMap[otherEmail].created_at || convMap[otherEmail].created_date)) {
+          convMap[otherEmail] = m;
         }
       }
 
-      const convs = Object.values(convMap).map(m => {
+      const convs = Object.entries(convMap).map(([otherEmail, m]) => {
         const isMe = m.sender_email === user.email;
-        const otherEmail = isMe ? m.receiver_email : m.sender_email;
-        const otherName = isMe ? (m.receiver_name || m.receiver_email) : (m.sender_name || m.sender_email);
+        const otherName = isMe ? (m.receiver_name || otherEmail) : (m.sender_name || otherEmail);
         const otherAvatar = isMe ? (m.receiver_avatar || null) : (m.sender_avatar || null);
         const unread = allMessages.filter(msg =>
-          msg.conversation_id === m.conversation_id &&
           !msg.read && !msg.is_read &&
-          msg.receiver_email === user.email
+          msg.receiver_email === user.email &&
+          (msg.sender_email === otherEmail || msg.receiver_email === otherEmail)
         ).length;
         let lastMessage = m.content || "";
         try { const p = JSON.parse(m.content); if (p?.type === "service_card") lastMessage = `✂️ ${p.title} — ${p.price}€`; } catch {}
         if (m.type === "image") lastMessage = "📷 Image";
         return {
-          conversation_id: m.conversation_id, other_email: otherEmail,
+          conversation_id: [user.email, otherEmail].sort().join("_"),
+          other_email: otherEmail,
           other_name: otherName, other_avatar: otherAvatar,
-          last_message: lastMessage, last_date: m.created_at, unread,
+          last_message: lastMessage, last_date: m.created_at || m.created_date, unread,
         };
       });
 
@@ -910,6 +924,38 @@ export default function Messages() {
       )}
 
       {tab === "calls" && <CallHistory user={user} />}
+
+      {/* Bouton test diagnostic */}
+      <div className="px-4 py-4 border-t border-gray-100">
+        <button onClick={async () => {
+          const tests = [];
+          // Test 1: insert MessageChat
+          try {
+            const { error } = await supabase.from("MessageChat").insert({
+              sender_email: "test@test.com", receiver_email: "test2@test.com",
+              content: "test", type: "text", read: false,
+            });
+            tests.push(error ? `MessageChat INSERT: ERREUR - ${error.message}` : "MessageChat INSERT: OK");
+            if (!error) await supabase.from("MessageChat").delete().eq("content", "test").eq("sender_email", "test@test.com");
+          } catch (e) { tests.push(`MessageChat INSERT: EXCEPTION - ${e.message}`); }
+          // Test 2: select MessageChat
+          try {
+            const { data, error } = await supabase.from("MessageChat").select("id").limit(1);
+            tests.push(error ? `MessageChat SELECT: ERREUR - ${error.message}` : `MessageChat SELECT: OK (${data?.length || 0} lignes)`);
+          } catch (e) { tests.push(`MessageChat SELECT: EXCEPTION - ${e.message}`); }
+          // Test 3: insert Notification
+          try {
+            const { error } = await supabase.from("Notification").insert({
+              user_email: "test@test.com", title: "test", type: "system", read: false,
+            });
+            tests.push(error ? `Notification INSERT: ERREUR - ${error.message}` : "Notification INSERT: OK");
+            if (!error) await supabase.from("Notification").delete().eq("title", "test").eq("user_email", "test@test.com");
+          } catch (e) { tests.push(`Notification INSERT: EXCEPTION - ${e.message}`); }
+          alert(tests.join("\n"));
+        }} className="w-full bg-red-500 text-white py-3 rounded-xl text-[12px] font-black">
+          🔍 TEST DIAGNOSTIC (appuie et envoie le résultat)
+        </button>
+      </div>
     </div>
   );
 }
