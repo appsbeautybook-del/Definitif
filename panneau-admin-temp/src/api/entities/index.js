@@ -10,6 +10,29 @@ import { supabase } from '@/api/supabaseClient';
 
 const CRUD_API = import.meta.env.VITE_BACKEND_URL || '';
 
+// Auto-migrate: add missing columns to Style table
+const STYLE_MIGRATION_KEY = 'bb_style_migration_v2';
+const runStyleMigration = async () => {
+  if (sessionStorage.getItem(STYLE_MIGRATION_KEY)) return;
+  try {
+    await supabase.rpc('exec_sql', {
+      query: `
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS subcategory TEXT DEFAULT '';
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS produits_utilises JSONB DEFAULT '[]'::jsonb;
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS outils_utilises JSONB DEFAULT '[]'::jsonb;
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS type_cheveux TEXT DEFAULT '';
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS type_peau TEXT DEFAULT '';
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS type_prestation TEXT DEFAULT '';
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS temps_moyen TEXT DEFAULT '';
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS niveau_difficulte TEXT DEFAULT '';
+        ALTER TABLE public."Style" ADD COLUMN IF NOT EXISTS mots_cles JSONB DEFAULT '[]'::jsonb;
+      `
+    });
+  } catch {}
+  sessionStorage.setItem(STYLE_MIGRATION_KEY, '1');
+};
+runStyleMigration();
+
 const parseOrder = (orderBy) => {
   if (!orderBy) return { column: 'created_at', ascending: false };
   const desc = orderBy.startsWith('-');
@@ -77,8 +100,27 @@ const stripUnknownColumns = async (tableName, payload) => {
   return cleaned;
 };
 
+const BASIC_COLUMNS = {
+  Style: 'id,title,description,category,images,image_url,video_url,tags,pro_email,status,likes,views,featured,author_email,author_name,author_avatar,created_at,updated_at',
+};
+
 const getSelectColumns = (tableName) => {
   return '*';
+};
+
+const safeQuery = async (tableName, queryFn) => {
+  try {
+    const result = await queryFn(getSelectColumns(tableName));
+    if (result?.error && result.error.message?.includes('column') && result.error.message?.includes('does not exist')) {
+      const fallback = BASIC_COLUMNS[tableName];
+      if (fallback) return await queryFn(fallback);
+    }
+    return result;
+  } catch (e) {
+    const fallback = BASIC_COLUMNS[tableName];
+    if (fallback) return await queryFn(fallback);
+    throw e;
+  }
 };
 
 const createEntity = (tableName) => ({
@@ -103,11 +145,12 @@ const createEntity = (tableName) => ({
     // Aller directement à Supabase si pas de backend
     if (!CRUD_API) {
       try {
-        let query = supabase.from(tableName).select(getSelectColumns(tableName));
-        query = applyFilters(query);
-        query = applyOrder(query);
-        query = query.limit(limit);
-        const { data, error } = await query;
+        const { data, error } = await safeQuery(tableName, (cols) => {
+          let q = supabase.from(tableName).select(cols);
+          q = applyFilters(q);
+          q = applyOrder(q);
+          return q.limit(limit);
+        });
         if (error) { console.error(`[entities] ${tableName} filter error:`, error.message); return []; }
         return data || [];
       } catch (e) { console.error(`[entities] ${tableName} filter exception:`, e.message); return []; }
@@ -127,11 +170,12 @@ const createEntity = (tableName) => ({
       return data;
     } catch (e) {
       try {
-        let query = supabase.from(tableName).select(getSelectColumns(tableName));
-        query = applyFilters(query);
-        query = applyOrder(query);
-        query = query.limit(limit);
-        const { data, error } = await query;
+        const { data, error } = await safeQuery(tableName, (cols) => {
+          let q = supabase.from(tableName).select(cols);
+          q = applyFilters(q);
+          q = applyOrder(q);
+          return q.limit(limit);
+        });
         if (error) { console.error(`[entities] ${tableName} filter fallback error:`, error.message); return []; }
         return data || [];
       } catch (e2) { console.error(`[entities] ${tableName} filter fallback exception:`, e2.message); return []; }
@@ -142,7 +186,9 @@ const createEntity = (tableName) => ({
     if (!CRUD_API) {
       try {
         const { column, ascending } = parseOrder(orderBy);
-        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
+        const { data, error } = await safeQuery(tableName, (cols) =>
+          supabase.from(tableName).select(cols).order(column, { ascending }).limit(limit)
+        );
         if (error) { console.error(`[entities] ${tableName} list error:`, error.message); return []; }
         return data || [];
       } catch (e) { console.error(`[entities] ${tableName} list exception:`, e.message); return []; }
@@ -159,7 +205,9 @@ const createEntity = (tableName) => ({
     } catch (e) {
       try {
         const { column, ascending } = parseOrder(orderBy);
-        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).order(column, { ascending }).limit(limit);
+        const { data, error } = await safeQuery(tableName, (cols) =>
+          supabase.from(tableName).select(cols).order(column, { ascending }).limit(limit)
+        );
         if (error) { console.error(`[entities] ${tableName} list fallback error:`, error.message); return []; }
         return data || [];
       } catch (e2) { console.error(`[entities] ${tableName} list fallback exception:`, e2.message); return []; }
@@ -169,7 +217,9 @@ const createEntity = (tableName) => ({
   get: async (id) => {
     if (!CRUD_API) {
       try {
-        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).eq('id', id).single();
+        const { data, error } = await safeQuery(tableName, (cols) =>
+          supabase.from(tableName).select(cols).eq('id', id).single()
+        );
         if (error) return null;
         return data;
       } catch { return null; }
@@ -185,7 +235,9 @@ const createEntity = (tableName) => ({
       return (result || []).find(r => r.id === id) || null;
     } catch (e) {
       try {
-        const { data, error } = await supabase.from(tableName).select(getSelectColumns(tableName)).eq('id', id).single();
+        const { data, error } = await safeQuery(tableName, (cols) =>
+          supabase.from(tableName).select(cols).eq('id', id).single()
+        );
         if (error) return null;
         return data;
       } catch { return null; }
