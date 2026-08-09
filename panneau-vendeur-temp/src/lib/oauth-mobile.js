@@ -1,11 +1,14 @@
 import { supabase } from '@/api/supabaseClient';
 
 export function isNativeApp() {
-  return false;
+  return !!(window.Capacitor);
 }
 
 export function getRedirectUrl() {
-  return `${window.location.origin}/auth/callback`;
+  if (isNativeApp()) {
+    return 'com.appsbeautybook.app://auth/callback';
+  }
+  return window.location.origin + '/auth/callback';
 }
 
 export async function signInWithOAuthWeb(provider) {

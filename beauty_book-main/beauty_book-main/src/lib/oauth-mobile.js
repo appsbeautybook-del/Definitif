@@ -8,9 +8,9 @@ export function isNativeApp() {
 
 export function getRedirectUrl() {
   if (isNativeApp()) {
-    return `${APP_SCHEME}://auth/callback`;
+    return APP_SCHEME + '://auth/callback';
   }
-  return `${window.location.origin}/auth/callback`;
+  return window.location.origin + '/auth/callback';
 }
 
 export async function signInWithOAuthMobile(provider) {
