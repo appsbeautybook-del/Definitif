@@ -34,8 +34,6 @@ export default function AuthCallback() {
           const socialSignup = sessionStorage.getItem('bb_social_signup');
 
           if (socialSignup) {
-            sessionStorage.removeItem('bb_social_signup');
-            sessionStorage.setItem('bb_social_signup_processed', '1');
             navigate('/onboarding', { replace: true });
           } else {
             const { data: profile } = await supabase
