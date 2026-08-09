@@ -82,8 +82,8 @@ Deno.serve(async (req) => {
           console.log("Email envoyé avec succès via Resend à:", email);
         } else {
           console.log("Resend erreur:", emailData.message);
-          // Retourner le code dans la réponse si Resend ne peut pas envoyer (domaine non vérifié)
-          return Response.json({ success: true, email_sent: false, dev_code: code });
+          // Ne jamais retourner le code dans la réponse
+          return Response.json({ success: true, email_sent: false });
         }
       }
     }

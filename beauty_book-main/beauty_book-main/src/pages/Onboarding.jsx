@@ -105,9 +105,24 @@ function StepSignup({ onNext, onBack }) {
     (mode === "email" ? form.email : form.phone) &&
     pwdStrong && form.password === form.confirm;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setTouched(true);
     if (!isValid) return;
+    setError("");
+
+    if (mode === "email" && form.email) {
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', form.email)
+        .single();
+
+      if (existingProfile) {
+        setError("Cette adresse email possède déjà un compte. Veuillez vous connecter.");
+        return;
+      }
+    }
+
     const contact = mode === "email" ? form.email : `+33${form.phone.replace(/\s/g, "")}`;
     sessionStorage.setItem("bb_signup_data", JSON.stringify({
       prenom: form.prenom,
@@ -305,7 +320,6 @@ function StepVerification({ onNext, onBack }) {
   const [resending, setResending] = useState(false);
   const [clipboardToast, setClipboardToast] = useState(false);
   const [resendTimer, setResendTimer] = useState(45);
-  const [otpCode, setOtpCode] = useState(null);
   const inputs = useRef([]);
   const timerRef = useRef(null);
 
@@ -396,9 +410,6 @@ function StepVerification({ onNext, onBack }) {
         });
         if (!res.data?.success) {
           console.error('[StepVerification] Send code failed:', res.data);
-        }
-        if (res.data?.code) {
-          setOtpCode(res.data.code);
         }
       } catch (e) {
         console.error('[StepVerification] Send code error:', e);
@@ -525,13 +536,6 @@ function StepVerification({ onNext, onBack }) {
             />
           ))}
         </div>
-
-        {otpCode && (
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 w-full text-center">
-            <p className="text-[11px] text-orange-600 font-bold mb-1">Code de vérification :</p>
-            <p className="text-[28px] font-black text-[#E8732A] tracking-[6px]">{otpCode}</p>
-          </div>
-        )}
 
         {error && (
           <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3 w-full text-center">

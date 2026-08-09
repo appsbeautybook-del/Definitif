@@ -33,8 +33,7 @@ export async function clientSendVerificationCode(email) {
   const code = generateCode();
   const expiry = Date.now() + 10 * 60 * 1000;
   localStorage.setItem(`${OTP_PREFIX}${email}`, JSON.stringify({ code, expiry }));
-  console.log('[OTP] Code pour', email, ':', code);
-  return { success: true, method: 'client', code };
+  return { success: true, method: 'client' };
 }
 
 export async function clientVerifyCode(email, code) {

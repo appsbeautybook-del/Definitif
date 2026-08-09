@@ -11,23 +11,36 @@ export default function AuthCallback() {
 
     const handleCallback = async () => {
       try {
-        // Supabase met les tokens dans le hash: #access_token=...&expires_at=...
-        // Si on est sur /auth/callback, on traite normalement
-        // Sinon, on laisse le App.jsx principal gérer
-
         const hash = window.location.hash;
         const hasTokens = hash && hash.includes('access_token');
 
         if (!hasTokens) {
-          // Pas de tokens dans le hash, vérifier la session existante
           const { data: { session }, error } = await supabase.auth.getSession();
           
           if (!mounted) return;
 
           if (session?.user) {
-            setStatus('Connexion réussie ! Redirection...');
-            localStorage.setItem('bb_onboarded', '1');
-            navigate('/', { replace: true });
+            const socialSignup = sessionStorage.getItem('bb_social_signup');
+            
+            if (socialSignup) {
+              sessionStorage.removeItem('bb_social_signup');
+              sessionStorage.setItem('bb_social_signup_processed', '1');
+              navigate('/onboarding', { replace: true });
+            } else {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', session.user.id)
+                .single();
+
+              if (profile) {
+                localStorage.setItem('bb_onboarded', '1');
+                navigate('/', { replace: true });
+              } else {
+                sessionStorage.setItem('bb_social_signup', '1');
+                navigate('/onboarding', { replace: true });
+              }
+            }
           } else {
             setStatus('Redirection vers l\'accueil...');
             localStorage.setItem('bb_onboarded', '1');
@@ -36,8 +49,6 @@ export default function AuthCallback() {
           return;
         }
 
-        // Tokens trouvés dans le hash - Supabase les a déjà traités
-        // Attendre que le client Supabase les enregistre
         await new Promise(r => setTimeout(r, 500));
 
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -45,20 +56,55 @@ export default function AuthCallback() {
         if (!mounted) return;
 
         if (session?.user) {
-          setStatus('Connexion réussie ! Redirection...');
-          localStorage.setItem('bb_onboarded', '1');
-          sessionStorage.removeItem('bb_social_signup');
-          navigate('/', { replace: true });
+          const socialSignup = sessionStorage.getItem('bb_social_signup');
+          
+          if (socialSignup) {
+            sessionStorage.removeItem('bb_social_signup');
+            sessionStorage.setItem('bb_social_signup_processed', '1');
+            navigate('/onboarding', { replace: true });
+          } else {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('id', session.user.id)
+              .single();
+
+            if (profile) {
+              localStorage.setItem('bb_onboarded', '1');
+              navigate('/', { replace: true });
+            } else {
+              sessionStorage.setItem('bb_social_signup', '1');
+              navigate('/onboarding', { replace: true });
+            }
+          }
         } else {
-          // Tokens présents mais session pas encore créée - réessayer
           await new Promise(r => setTimeout(r, 1000));
           const { data: { session: retrySession } } = await supabase.auth.getSession();
           
           if (!mounted) return;
 
           if (retrySession?.user) {
-            localStorage.setItem('bb_onboarded', '1');
-            navigate('/', { replace: true });
+            const socialSignup = sessionStorage.getItem('bb_social_signup');
+            
+            if (socialSignup) {
+              sessionStorage.removeItem('bb_social_signup');
+              sessionStorage.setItem('bb_social_signup_processed', '1');
+              navigate('/onboarding', { replace: true });
+            } else {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('id', retrySession.user.id)
+                .single();
+
+              if (profile) {
+                localStorage.setItem('bb_onboarded', '1');
+                navigate('/', { replace: true });
+              } else {
+                sessionStorage.setItem('bb_social_signup', '1');
+                navigate('/onboarding', { replace: true });
+              }
+            }
           } else {
             localStorage.setItem('bb_onboarded', '1');
             navigate('/', { replace: true });
@@ -75,7 +121,6 @@ export default function AuthCallback() {
 
     handleCallback();
 
-    // Fallback de sécurité
     const timeout = setTimeout(() => {
       if (mounted) {
         localStorage.setItem('bb_onboarded', '1');

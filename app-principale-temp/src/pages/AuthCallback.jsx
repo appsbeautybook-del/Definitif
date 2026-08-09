@@ -22,10 +22,23 @@ export default function AuthCallback() {
           const socialSignup = sessionStorage.getItem('bb_social_signup');
 
           if (socialSignup) {
+            sessionStorage.removeItem('bb_social_signup');
+            sessionStorage.setItem('bb_social_signup_processed', '1');
             navigate('/onboarding', { replace: true });
           } else {
-            localStorage.setItem('bb_onboarded', '1');
-            navigate('/', { replace: true });
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('id', session.user.id)
+              .single();
+
+            if (profile) {
+              localStorage.setItem('bb_onboarded', '1');
+              navigate('/', { replace: true });
+            } else {
+              sessionStorage.setItem('bb_social_signup', '1');
+              navigate('/onboarding', { replace: true });
+            }
           }
         } else {
           setStatus('Aucune session trouvée. Redirection...');
