@@ -160,15 +160,11 @@ export default function Connexion() {
   };
 
   const handleOAuth = async (provider) => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        skipBrowserRedirect: false,
-      },
-    });
-    if (error) {
-      console.error(`[${provider} Auth] Error:`, error);
+    try {
+      const { signInWithOAuthWeb } = await import('@/lib/oauth-mobile');
+      await signInWithOAuthWeb(provider);
+    } catch (e) {
+      console.error(`[${provider} Auth] Error:`, e);
       setError(`Erreur lors de la connexion avec ${provider === 'google' ? 'Google' : 'Apple'}.`);
     }
   };

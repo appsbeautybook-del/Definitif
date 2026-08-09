@@ -161,19 +161,12 @@ export default function Connexion() {
 
   const handleOAuth = async (provider) => {
     try {
-      const { isNativeApp, signInWithOAuthMobile } = await import('@/lib/oauth-mobile');
+      const { isNativeApp, signInWithOAuthMobile, signInWithOAuthWeb } = await import('@/lib/oauth-mobile');
       if (isNativeApp()) {
         setLoading(true);
         await signInWithOAuthMobile(provider);
       } else {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: {
-            redirectTo: `${window.location.origin}/auth/callback`,
-            skipBrowserRedirect: false,
-          },
-        });
-        if (error) throw error;
+        await signInWithOAuthWeb(provider);
       }
     } catch (e) {
       console.error(`[${provider} Auth] Error:`, e);

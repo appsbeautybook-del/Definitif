@@ -1,16 +1,25 @@
 import { supabase } from '@/api/supabaseClient';
 
-const REDIRECT_URL = 'com.appsbeautybook.app://auth/callback';
+const APP_SCHEME = 'com.appsbeautybook.app';
 
 export function isNativeApp() {
   return !!(window.Capacitor);
 }
 
+export function getRedirectUrl() {
+  if (isNativeApp()) {
+    return `${APP_SCHEME}://auth/callback`;
+  }
+  return `${window.location.origin}/auth/callback`;
+}
+
 export async function signInWithOAuthMobile(provider) {
+  const redirectTo = getRedirectUrl();
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: REDIRECT_URL,
+      redirectTo,
       skipBrowserRedirect: true,
     },
   });
@@ -21,8 +30,6 @@ export async function signInWithOAuthMobile(provider) {
     const { Browser } = await import('@capacitor/browser');
     await Browser.open({ url: data.url, presentationStyle: 'popover' });
 
-    // Session will be handled by appUrlOpen listener in capacitor-init.js
-    // Poll as fallback in case appUrlOpen doesn't fire
     const poll = setInterval(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
@@ -35,4 +42,18 @@ export async function signInWithOAuthMobile(provider) {
 
     setTimeout(() => clearInterval(poll), 60000);
   }
+}
+
+export async function signInWithOAuthWeb(provider) {
+  const redirectTo = getRedirectUrl();
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo,
+      skipBrowserRedirect: false,
+    },
+  });
+
+  if (error) throw error;
 }

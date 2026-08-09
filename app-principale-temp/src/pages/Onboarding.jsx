@@ -146,14 +146,10 @@ function StepSignup({ onNext, onBack }) {
       }));
     }
     sessionStorage.setItem("bb_social_signup", "1");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-        skipBrowserRedirect: false,
-      },
-    });
-    if (error) {
+    try {
+      const { signInWithOAuthWeb } = await import('@/lib/oauth-mobile');
+      await signInWithOAuthWeb(provider);
+    } catch (error) {
       console.error(`[${provider} Auth] Error:`, error);
     }
   };
