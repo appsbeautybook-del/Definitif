@@ -215,17 +215,33 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
   // Charger les messages
   const loadMessages = useCallback(async () => {
     try {
-      // Charger tous les messages entre les deux personnes
-      const { data: sent } = await supabase.from("MessageChat")
-        .select("*")
+      const COLS = 'id,conversation_id,sender_email,sender_name,sender_avatar,receiver_email,receiver_name,receiver_avatar,content,type,attachment_url,is_read,read,is_maria,created_at,updated_at';
+      let sent = null, received = null;
+
+      const r1 = await supabase.from("MessageChat")
+        .select(COLS)
         .eq("sender_email", currentUser.email)
         .eq("receiver_email", conversation.other_email)
         .order("created_at", { ascending: true });
-      const { data: received } = await supabase.from("MessageChat")
-        .select("*")
+      if (r1.error) {
+        const fb = await supabase.from("MessageChat").select("*")
+          .eq("sender_email", currentUser.email).eq("receiver_email", conversation.other_email)
+          .order("created_at", { ascending: true });
+        sent = fb.data;
+      } else { sent = r1.data; }
+
+      const r2 = await supabase.from("MessageChat")
+        .select(COLS)
         .eq("sender_email", conversation.other_email)
         .eq("receiver_email", currentUser.email)
         .order("created_at", { ascending: true });
+      if (r2.error) {
+        const fb = await supabase.from("MessageChat").select("*")
+          .eq("sender_email", conversation.other_email).eq("receiver_email", currentUser.email)
+          .order("created_at", { ascending: true });
+        received = fb.data;
+      } else { received = r2.data; }
+
       const allById = {};
       for (const m of [...(sent || []), ...(received || [])]) {
         if (m.type !== "typing") allById[m.id] = m;
@@ -998,29 +1014,47 @@ export default function Messages() {
     return () => unsub();
   }, [user]);
 
+  const MSG_COLS = 'id,conversation_id,sender_email,sender_name,sender_avatar,receiver_email,receiver_name,receiver_avatar,content,type,attachment_url,is_read,read,is_maria,created_at,updated_at';
+
   const loadConversations = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      // Load all messages where user is sender or receiver
-      const { data: sent, error: sentError } = await supabase
+      let sent = [], received = [], sentError = null, receivedError = null;
+
+      const r1 = await supabase
         .from("MessageChat")
-        .select("*")
+        .select(MSG_COLS)
         .eq("sender_email", user.email)
         .order("created_at", { ascending: false })
         .limit(200);
-      
-      const { data: received, error: receivedError } = await supabase
+      sent = r1.data || [];
+      sentError = r1.error;
+
+      if (sentError) {
+        console.warn("[Messages] sent query with MSG_COLS failed, retrying with *:", sentError.message);
+        const r1b = await supabase.from("MessageChat").select("*").eq("sender_email", user.email).order("created_at", { ascending: false }).limit(200);
+        sent = r1b.data || [];
+        if (r1b.error) console.error("[Messages] sent fallback error:", r1b.error);
+      }
+
+      const r2 = await supabase
         .from("MessageChat")
-        .select("*")
+        .select(MSG_COLS)
         .eq("receiver_email", user.email)
         .order("created_at", { ascending: false })
         .limit(200);
+      received = r2.data || [];
+      receivedError = r2.error;
 
-      if (sentError) console.error("[Messages] sent error:", sentError);
-      if (receivedError) console.error("[Messages] received error:", receivedError);
+      if (receivedError) {
+        console.warn("[Messages] received query with MSG_COLS failed, retrying with *:", receivedError.message);
+        const r2b = await supabase.from("MessageChat").select("*").eq("receiver_email", user.email).order("created_at", { ascending: false }).limit(200);
+        received = r2b.data || [];
+        if (r2b.error) console.error("[Messages] received fallback error:", r2b.error);
+      }
 
-      const allMessages = [...(sent || []), ...(received || [])];
+      const allMessages = [...sent, ...received];
       console.log("[Messages] Total messages loaded:", allMessages.length);
 
       // Grouper par l'autre personne (pas par conversation_id)
