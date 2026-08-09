@@ -7,18 +7,30 @@ export default function AuthCallback() {
   const [status, setStatus] = useState('Connexion en cours...');
 
   useEffect(() => {
+    let done = false;
+
     const handleCallback = async () => {
+      if (done) return;
+
       try {
+        const hash = window.location.hash;
+        if (hash && hash.includes('access_token')) {
+          await new Promise(r => setTimeout(r, 1500));
+        }
+
         const { data: { session }, error } = await supabase.auth.getSession();
+
+        if (done) return;
 
         if (error) {
           console.error('[AuthCallback] getSession error:', error);
           setStatus('Erreur de connexion. Redirection...');
-          setTimeout(() => navigate('/connexion', { replace: true }), 1500);
+          setTimeout(() => { if (!done) navigate('/connexion', { replace: true }); }, 1500);
           return;
         }
 
         if (session?.user) {
+          done = true;
           const socialSignup = sessionStorage.getItem('bb_social_signup');
 
           if (socialSignup) {
@@ -30,7 +42,9 @@ export default function AuthCallback() {
               .from('profiles')
               .select('id')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
+
+            if (done) return;
 
             if (profile) {
               localStorage.setItem('bb_onboarded', '1');
@@ -42,15 +56,27 @@ export default function AuthCallback() {
           }
         } else {
           setStatus('Aucune session trouvée. Redirection...');
-          setTimeout(() => navigate('/connexion', { replace: true }), 1500);
+          setTimeout(() => { if (!done) navigate('/connexion', { replace: true }); }, 1500);
         }
       } catch (e) {
         console.error('[AuthCallback] error:', e);
-        navigate('/connexion', { replace: true });
+        if (!done) navigate('/connexion', { replace: true });
       }
     };
 
     handleCallback();
+
+    const timeout = setTimeout(() => {
+      if (!done) {
+        done = true;
+        navigate('/connexion', { replace: true });
+      }
+    }, 8000);
+
+    return () => {
+      done = true;
+      clearTimeout(timeout);
+    };
   }, [navigate]);
 
   return (

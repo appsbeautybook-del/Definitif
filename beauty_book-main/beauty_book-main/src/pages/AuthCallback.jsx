@@ -7,57 +7,32 @@ export default function AuthCallback() {
   const [status, setStatus] = useState('Connexion en cours...');
 
   useEffect(() => {
-    let mounted = true;
+    let done = false;
 
     const handleCallback = async () => {
+      if (done) return;
+
       try {
         const hash = window.location.hash;
-        const hasTokens = hash && hash.includes('access_token');
+        if (hash && hash.includes('access_token')) {
+          await new Promise(r => setTimeout(r, 1500));
+        }
 
-        if (!hasTokens) {
-          const { data: { session }, error } = await supabase.auth.getSession();
-          
-          if (!mounted) return;
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-          if (session?.user) {
-            const socialSignup = sessionStorage.getItem('bb_social_signup');
-            
-            if (socialSignup) {
-              sessionStorage.removeItem('bb_social_signup');
-              sessionStorage.setItem('bb_social_signup_processed', '1');
-              navigate('/onboarding', { replace: true });
-            } else {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('id', session.user.id)
-                .single();
+        if (done) return;
 
-              if (profile) {
-                localStorage.setItem('bb_onboarded', '1');
-                navigate('/', { replace: true });
-              } else {
-                sessionStorage.setItem('bb_social_signup', '1');
-                navigate('/onboarding', { replace: true });
-              }
-            }
-          } else {
-            setStatus('Redirection vers l\'accueil...');
-            localStorage.setItem('bb_onboarded', '1');
-            navigate('/', { replace: true });
-          }
+        if (error) {
+          console.error('[AuthCallback] getSession error:', error);
+          setStatus('Erreur de connexion. Redirection...');
+          setTimeout(() => { if (!done) navigate('/connexion', { replace: true }); }, 1500);
           return;
         }
 
-        await new Promise(r => setTimeout(r, 500));
-
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-
         if (session?.user) {
+          done = true;
           const socialSignup = sessionStorage.getItem('bb_social_signup');
-          
+
           if (socialSignup) {
             sessionStorage.removeItem('bb_social_signup');
             sessionStorage.setItem('bb_social_signup_processed', '1');
@@ -67,7 +42,9 @@ export default function AuthCallback() {
               .from('profiles')
               .select('id')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
+
+            if (done) return;
 
             if (profile) {
               localStorage.setItem('bb_onboarded', '1');
@@ -78,58 +55,26 @@ export default function AuthCallback() {
             }
           }
         } else {
-          await new Promise(r => setTimeout(r, 1000));
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-          
-          if (!mounted) return;
-
-          if (retrySession?.user) {
-            const socialSignup = sessionStorage.getItem('bb_social_signup');
-            
-            if (socialSignup) {
-              sessionStorage.removeItem('bb_social_signup');
-              sessionStorage.setItem('bb_social_signup_processed', '1');
-              navigate('/onboarding', { replace: true });
-            } else {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('id', retrySession.user.id)
-                .single();
-
-              if (profile) {
-                localStorage.setItem('bb_onboarded', '1');
-                navigate('/', { replace: true });
-              } else {
-                sessionStorage.setItem('bb_social_signup', '1');
-                navigate('/onboarding', { replace: true });
-              }
-            }
-          } else {
-            localStorage.setItem('bb_onboarded', '1');
-            navigate('/', { replace: true });
-          }
+          setStatus('Aucune session trouvée. Redirection...');
+          setTimeout(() => { if (!done) navigate('/connexion', { replace: true }); }, 1500);
         }
       } catch (e) {
         console.error('[AuthCallback] error:', e);
-        if (mounted) {
-          localStorage.setItem('bb_onboarded', '1');
-          navigate('/', { replace: true });
-        }
+        if (!done) navigate('/connexion', { replace: true });
       }
     };
 
     handleCallback();
 
     const timeout = setTimeout(() => {
-      if (mounted) {
-        localStorage.setItem('bb_onboarded', '1');
-        navigate('/', { replace: true });
+      if (!done) {
+        done = true;
+        navigate('/connexion', { replace: true });
       }
-    }, 4000);
+    }, 8000);
 
     return () => {
-      mounted = false;
+      done = true;
       clearTimeout(timeout);
     };
   }, [navigate]);
