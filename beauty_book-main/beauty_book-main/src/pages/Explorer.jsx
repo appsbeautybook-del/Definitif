@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, X, Search, ChevronRight, SlidersHorizontal, RotateCcw, DollarSign, ArrowUpDown, Users, Clock, Scissors, Home, Store, CreditCard, Calendar } from "lucide-react";
+import { ArrowLeft, MapPin, Star, X, Search, ChevronRight, SlidersHorizontal, RotateCcw, DollarSign, ArrowUpDown, Users, Clock, Scissors, Home, Store, CreditCard, Calendar, Camera, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -165,6 +165,11 @@ export default function Explorer() {
   const [expanded, setExpanded] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [showMap, setShowMap] = useState(true);
+  const [searchImage, setSearchImage] = useState(null);
+  const [searchImagePreview, setSearchImagePreview] = useState(null);
+  const [imageSearchLoading, setImageSearchLoading] = useState(false);
+  const imageInputRef = useRef(null);
   const listRef = useRef(null);
 
   const [filterPrice, setFilterPrice] = useState("tous");
@@ -298,6 +303,84 @@ export default function Explorer() {
     return { lat: 48.866, lng: 2.333 };
   }, [userLocation, selectedPro]);
 
+  const handleToggleFilters = () => {
+    if (!showFilters) setShowMap(false);
+    setShowFilters(f => !f);
+  };
+
+  const handleToggleMap = () => {
+    if (!showMap) setShowFilters(false);
+    setShowMap(m => !m);
+  };
+
+  const handleImageSearch = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageSearchLoading(true);
+    const previewUrl = URL.createObjectURL(file);
+    setSearchImagePreview(previewUrl);
+
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const OR_KEY = __OPENROUTER_KEY__ || '';
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OR_KEY}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'BeautyBook Image Search',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.0-flash-001',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Analyze this image related to beauty/hairdressing services. Return ONLY a JSON object with: {"keywords": ["keyword1", "keyword2", "keyword3"], "category": "one of: Coiffure, Maquillage, Ongles, Soin, Barbe, Massage, Tresses, Défrisage, Colour, Extensions, Épilation", "description": "brief description in French"}. No markdown, no code blocks, just the JSON.' },
+                { type: 'image_url', image_url: { url: `data:image/${file.type.split('/')[1]};base64,${base64}` } },
+              ],
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 200,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.keywords?.length) {
+            setSearch(parsed.keywords.join(' '));
+          }
+          if (parsed.category && parsed.category !== 'Tous') {
+            setActiveCategory(parsed.category);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Explorer] Image search error:', err);
+    } finally {
+      setImageSearchLoading(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  const clearImageSearch = () => {
+    setSearchImagePreview(null);
+    setSearch('');
+    setActiveCategory('Tous');
+  };
+
   const handleSelectMarker = (proId) => {
     if (selected === proId) {
       const pro = allMapItems.find(p => p.id === proId);
@@ -323,17 +406,44 @@ export default function Explorer() {
             <ArrowLeft className="w-4 h-4 text-gray-700" />
           </button>
           <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-2xl px-3 py-2.5">
-            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            {searchImagePreview ? (
+              <div className="relative shrink-0">
+                <img src={searchImagePreview} alt="" className="w-7 h-7 rounded-lg object-cover" />
+                <button onClick={clearImageSearch} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                  <X className="w-2.5 h-2.5 text-white" />
+                </button>
+              </div>
+            ) : (
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            )}
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher un salon, une ville..."
+              placeholder={searchImagePreview ? "Résultats de la recherche par image..." : "Rechercher un salon, une ville..."}
               className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none"
             />
             {search && <button onClick={() => setSearch("")} className="text-gray-400 text-[14px]">✕</button>}
+            <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSearch} className="hidden" />
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              disabled={imageSearchLoading}
+              className="shrink-0 w-7 h-7 bg-gray-200 rounded-lg flex items-center justify-center active:scale-95 transition-all"
+            >
+              {imageSearchLoading ? (
+                <Loader2 className="w-3.5 h-3.5 text-gray-500 animate-spin" />
+              ) : (
+                <Camera className="w-3.5 h-3.5 text-gray-500" />
+              )}
+            </button>
           </div>
           <button
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={handleToggleMap}
+            className={`flex items-center gap-1.5 px-3 h-9 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${showMap ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            <MapPin className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleToggleFilters}
             className={`relative flex items-center gap-1.5 px-3 h-9 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${showFilters ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}
           >
             <SlidersHorizontal className="w-4 h-4" />
@@ -454,10 +564,60 @@ export default function Explorer() {
               </div>
             </div>
           </div>
+      </div>
+      )}
+
+      {/* List view when map is hidden */}
+      {!showMap && !loading && (
+        <div className="flex-1 overflow-y-auto bg-gray-50">
+          <div className="px-4 py-3 flex items-center justify-between">
+            <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider">
+              {filtered.length} prestataire{filtered.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <div className="px-4 pb-4 space-y-3">
+            {filtered.map(p => (
+              <button
+                key={p.id}
+                onClick={() => handleSelectCard(p)}
+                className="w-full bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 active:scale-[0.98] transition-all text-left"
+              >
+                <div className="flex items-center gap-3 p-3">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100">
+                    <img src={p.avatar_url || p.cover_url || "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=300"} alt={p.salon_name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-black text-gray-900 truncate">{p.salon_name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {p.city && <span className="text-[11px] text-gray-400 font-medium flex items-center gap-0.5"><MapPin className="w-2.5 h-2.5" />{p.city}</span>}
+                      {p.rating > 0 && <span className="text-[11px] font-black text-gray-600 flex items-center gap-0.5"><Star className="w-2.5 h-2.5 text-yellow-400 fill-yellow-400" />{p.rating}</span>}
+                    </div>
+                    {p.specialites?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {p.specialites.slice(0, 3).map(s => (
+                          <span key={s} className="text-[9px] font-black text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full uppercase">{s}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                    {minPricesMap[p.user_email] > 0 && <span className="text-[15px] font-black text-primary">dès {minPricesMap[p.user_email]}€</span>}
+                    <ChevronRight className="w-4 h-4 text-gray-300" />
+                  </div>
+                </div>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-[14px] font-bold text-gray-400">Aucun prestataire trouvé</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Map */}
+      {showMap && (
       <div className="flex-1 relative min-h-0">
         {loading ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -501,6 +661,7 @@ export default function Explorer() {
           </div>
         )}
       </div>
+      )}
 
       {/* Bottom panel */}
       <div
