@@ -80,12 +80,55 @@ function StepSplash({ onNext, onDiscover }) {
 }
 
 // ── STEP 1 — Inscription ──────────────────────────────────────────────────────
+const COUNTRIES = [
+  { code: "FR", flag: "🇫🇷", name: "France", dial: "+33" },
+  { code: "BE", flag: "🇧🇪", name: "Belgique", dial: "+32" },
+  { code: "CH", flag: "🇨🇭", name: "Suisse", dial: "+41" },
+  { code: "CA", flag: "🇨🇦", name: "Canada", dial: "+1" },
+  { code: "US", flag: "🇺🇸", name: "États-Unis", dial: "+1" },
+  { code: "GB", flag: "🇬🇧", name: "Royaume-Uni", dial: "+44" },
+  { code: "DE", flag: "🇩🇪", name: "Allemagne", dial: "+49" },
+  { code: "ES", flag: "🇪🇸", name: "Espagne", dial: "+34" },
+  { code: "IT", flag: "🇮🇹", name: "Italie", dial: "+39" },
+  { code: "PT", flag: "🇵🇹", name: "Portugal", dial: "+351" },
+  { code: "NL", flag: "🇳🇱", name: "Pays-Bas", dial: "+31" },
+  { code: "MA", flag: "🇲🇦", name: "Maroc", dial: "+212" },
+  { code: "SN", flag: "🇸🇳", name: "Sénégal", dial: "+221" },
+  { code: "CI", flag: "🇨🇮", name: "Côte d'Ivoire", dial: "+225" },
+  { code: "CM", flag: "🇨🇲", name: "Cameroun", dial: "+237" },
+  { code: "TG", flag: "🇹🇬", name: "Togo", dial: "+228" },
+  { code: "BJ", flag: "🇧🇯", name: "Bénin", dial: "+229" },
+  { code: "ML", flag: "🇲🇱", name: "Mali", dial: "+223" },
+  { code: "NE", flag: "🇳🇪", name: "Niger", dial: "+227" },
+  { code: "BF", flag: "🇧🇫", name: "Burkina Faso", dial: "+226" },
+  { code: "GN", flag: "🇬🇳", name: "Guinée", dial: "+224" },
+  { code: "CD", flag: "🇨🇩", name: "RD Congo", dial: "+243" },
+  { code: "CG", flag: "🇨🇬", name: "Congo", dial: "+242" },
+  { code: "GA", flag: "🇬🇦", name: "Gabon", dial: "+241" },
+  { code: "MG", flag: "🇲🇬", name: "Madagascar", dial: "+261" },
+  { code: "RE", flag: "🇷🇪", name: "Réunion", dial: "+262" },
+  { code: "GP", flag: "🇬🇵", name: "Guadeloupe", dial: "+590" },
+  { code: "MQ", flag: "🇲🇶", name: "Martinique", dial: "+596" },
+  { code: "NC", flag: "🇳🇨", name: "Nouvelle-Calédonie", dial: "+687" },
+  { code: "PF", flag: "🇵🇫", name: "Polynésie", dial: "+689" },
+  { code: "HT", flag: "🇭🇹", name: "Haïti", dial: "+509" },
+  { code: "MU", flag: "🇲🇺", name: "Maurice", dial: "+230" },
+  { code: "TN", flag: "🇹🇳", name: "Tunisie", dial: "+216" },
+  { code: "DZ", flag: "🇩🇿", name: "Algérie", dial: "+213" },
+  { code: "EG", flag: "🇪🇬", name: "Égypte", dial: "+20" },
+  { code: "AE", flag: "🇦🇪", name: "Émirats", dial: "+971" },
+  { code: "SA", flag: "🇸🇦", name: "Arabie Saoudite", dial: "+966" },
+];
+
 function StepSignup({ onNext, onBack }) {
   const [form, setForm] = useState({ prenom: "", nom: "", email: "", phone: "", password: "", confirm: "" });
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [mode, setMode] = useState("email");
   const [error, setError] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [countrySearch, setCountrySearch] = useState("");
 
   const inputClass = "w-full bg-gray-100 rounded-2xl px-4 py-3.5 text-[14px] font-medium text-gray-800 outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-gray-400";
   const labelClass = "text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block";
@@ -110,6 +153,10 @@ function StepSignup({ onNext, onBack }) {
     if (!isValid) return;
     setError("");
 
+    const phone = mode === "phone" ? `${selectedCountry.dial}${form.phone.replace(/\s/g, "")}` : "";
+    const syntheticEmail = mode === "phone" ? `phone_${form.phone.replace(/\s/g, "")}@appsbeautybook.app` : form.email;
+
+    // Vérifier si un compte existe déjà
     if (mode === "email" && form.email) {
       const { data: existingProfile } = await supabase
         .from('profiles')
@@ -123,12 +170,65 @@ function StepSignup({ onNext, onBack }) {
       }
     }
 
-    const contact = mode === "email" ? form.email : `+33${form.phone.replace(/\s/g, "")}`;
+    // Mode téléphone : créer le compte puis envoyer OTP
+    if (mode === "phone" && phone) {
+      try {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: syntheticEmail,
+          password: form.password,
+          options: {
+            data: {
+              full_name: `${form.prenom} ${form.nom}`,
+              phone: phone,
+            },
+          },
+        });
+
+        if (signUpError) {
+          if (signUpError.message?.includes('already registered')) {
+            setError("Ce numéro de téléphone possède déjà un compte.");
+            return;
+          }
+          throw signUpError;
+        }
+
+        // Stocker les données pour l'étape suivante
+        sessionStorage.setItem("bb_signup_data", JSON.stringify({
+          prenom: form.prenom,
+          nom: form.nom,
+          email: syntheticEmail,
+          phone: phone,
+          mode,
+        }));
+
+        // Créer le profil avec le numéro de téléphone
+        if (signUpData?.user) {
+          await supabase.from('profiles').upsert({
+            id: signUpData.user.id,
+            email: syntheticEmail,
+            phone: phone,
+            full_name: `${form.prenom} ${form.nom}`,
+            role: 'user',
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+        }
+
+        // Aller à l'étape de vérification (qui gère le téléphone maintenant)
+        onNext();
+        return;
+      } catch (e) {
+        console.error('[StepSignup] Phone signup error:', e);
+        setError("Erreur lors de l'inscription. Réessayez.");
+        return;
+      }
+    }
+
+    // Mode email : stocker et passer à la vérification OTP
     sessionStorage.setItem("bb_signup_data", JSON.stringify({
       prenom: form.prenom,
       nom: form.nom,
       email: form.email,
-      phone: contact,
+      phone: "",
       mode,
     }));
     onNext();
@@ -136,7 +236,7 @@ function StepSignup({ onNext, onBack }) {
 
   const handleSocialLogin = async (provider) => {
     if (form.email || form.prenom || form.nom) {
-      const contact = mode === "email" ? form.email : `+33${form.phone.replace(/\s/g, "")}`;
+      const contact = mode === "email" ? form.email : `${selectedCountry.dial}${form.phone.replace(/\s/g, "")}`;
       sessionStorage.setItem("bb_signup_data", JSON.stringify({
         prenom: form.prenom,
         nom: form.nom,
@@ -194,14 +294,68 @@ function StepSignup({ onNext, onBack }) {
             <input className={inputClass} type="email" placeholder="sophie.martin@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
           </div>
         ) : (
-          <div>
+          <div className="relative">
             <label className={labelClass}>Numéro de téléphone</label>
             <div className="flex items-center gap-2 bg-gray-100 rounded-2xl px-4 py-3.5 focus-within:ring-2 focus-within:ring-primary/40">
-              <span className="text-[16px]">🇫🇷</span>
-              <span className="text-[14px] font-black text-gray-500">+33</span>
+              <button
+                type="button"
+                onClick={() => setShowCountryPicker(!showCountryPicker)}
+                className="flex items-center gap-1.5 shrink-0 active:scale-95 transition-all"
+              >
+                <span className="text-[18px]">{selectedCountry.flag}</span>
+                <span className="text-[13px] font-black text-gray-500">{selectedCountry.dial}</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-gray-400">
+                  <path d="M6 9l6 6 6-6"/>
+                </svg>
+              </button>
               <div className="w-px h-4 bg-gray-300" />
-              <input type="tel" placeholder="6 12 34 56 78" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="flex-1 bg-transparent text-[14px] font-medium text-gray-800 outline-none placeholder:text-gray-400" />
+              <input
+                type="tel"
+                placeholder="6 12 34 56 78"
+                value={form.phone}
+                onChange={e => setForm({ ...form, phone: e.target.value })}
+                className="flex-1 bg-transparent text-[14px] font-medium text-gray-800 outline-none placeholder:text-gray-400"
+              />
             </div>
+
+            {showCountryPicker && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white rounded-2xl shadow-xl border border-gray-100 z-50 max-h-[280px] flex flex-col overflow-hidden">
+                <div className="p-2 border-b border-gray-100">
+                  <input
+                    type="text"
+                    placeholder="Rechercher un pays..."
+                    value={countrySearch}
+                    onChange={e => setCountrySearch(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-50 rounded-xl text-[13px] font-medium outline-none"
+                    autoFocus
+                  />
+                </div>
+                <div className="overflow-y-auto flex-1">
+                  {COUNTRIES.filter(c =>
+                    c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
+                    c.dial.includes(countrySearch) ||
+                    c.code.toLowerCase().includes(countrySearch.toLowerCase())
+                  ).map(c => (
+                    <button
+                      key={c.code}
+                      onClick={() => {
+                        setSelectedCountry(c);
+                        setShowCountryPicker(false);
+                        setCountrySearch("");
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left active:bg-gray-50 transition-colors ${selectedCountry.code === c.code ? "bg-orange-50" : ""}`}
+                    >
+                      <span className="text-[20px]">{c.flag}</span>
+                      <span className="flex-1 text-[13px] font-semibold text-gray-800">{c.name}</span>
+                      <span className="text-[13px] font-bold text-gray-400">{c.dial}</span>
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => { setShowCountryPicker(false); setCountrySearch(""); }} className="p-2 border-t border-gray-100 text-[13px] font-black text-primary">
+                  Fermer
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -283,14 +437,6 @@ function StepSignup({ onNext, onBack }) {
             <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
             <span className="text-[12px] font-black text-gray-700">Google</span>
           </button>
-
-          <button
-            onClick={() => handleSocialLogin('apple')}
-            className="flex-1 flex items-center justify-center gap-2 bg-black rounded-2xl py-3.5 active:scale-95 transition-all"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-            <span className="text-[12px] font-black text-white">Apple</span>
-          </button>
         </div>
 
         <p className="text-center text-[12px] text-gray-400 font-medium">
@@ -305,7 +451,9 @@ function StepSignup({ onNext, onBack }) {
   );
 }
 
-// ── STEP 1.5 — Vérification du code ──────────────────────────────────────────
+// ── STEP 1b — Vérifiez vos SMS (supprimé — fusionné dans StepVerification) ───
+
+// ── STEP 2 — Vérification du code (email OU téléphone) ──────────────────────
 function StepVerification({ onNext, onBack }) {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
@@ -359,13 +507,17 @@ function StepVerification({ onNext, onBack }) {
     setTimeout(tryReadClipboard, 600);
   }, []);
 
+  const [smsSent, setSmsSent] = useState(false);
+  const [fallbackCode, setFallbackCode] = useState("");
+  const [showCode, setShowCode] = useState(false);
+
   // Envoyer le code automatiquement à l'arrivée sur cette étape
   useEffect(() => {
     const sendCode = async () => {
       let currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
       const isSocial = sessionStorage.getItem("bb_social_signup_processed") === "1";
 
-      // Pour OAuth social : TOUJOURS l'email du compte Google sélectionné, pas celui du formulaire
+      // Pour OAuth social : TOUJOURS l'email du compte Google sélectionné
       if (isSocial) {
         let user = null;
         for (let i = 0; i < 8; i++) {
@@ -378,7 +530,36 @@ function StepVerification({ onNext, onBack }) {
           sessionStorage.setItem("bb_signup_data", JSON.stringify(currentData));
           setData(currentData);
         }
-      } else if (!currentData.email) {
+      }
+
+      const isPhone = currentData.mode === "phone";
+
+      // Mode téléphone : essayer SMS réel, fallback code client
+      if (isPhone && currentData.phone) {
+        try {
+          const { error } = await supabase.auth.signInWithOtp({ phone: currentData.phone });
+          if (error) {
+            console.warn('[Verification] SMS failed:', error.message);
+            const code = String(Math.floor(100000 + Math.random() * 900000));
+            sessionStorage.setItem("bb_otp_phone_code", code);
+            setFallbackCode(code);
+            setShowCode(true);
+          } else {
+            setSmsSent(true);
+            console.log('[Verification] SMS envoyé à:', currentData.phone);
+          }
+        } catch (e) {
+          console.warn('[Verification] SMS error:', e);
+          const code = String(Math.floor(100000 + Math.random() * 900000));
+          sessionStorage.setItem("bb_otp_phone_code", code);
+          setFallbackCode(code);
+          setShowCode(true);
+        }
+        return;
+      }
+
+      // Mode email : envoyer via Supabase
+      if (!currentData.email) {
         let user = null;
         for (let i = 0; i < 8; i++) {
           user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
@@ -393,19 +574,24 @@ function StepVerification({ onNext, onBack }) {
       }
 
       const contact = currentData.mode === "email" ? currentData.email : currentData.phone;
-      if (!contact) return;
+      if (!contact || (currentData.mode === "email" && !contact.includes('@'))) {
+        console.warn('[StepVerification] No valid contact to send OTP to');
+        return;
+      }
 
       try {
-        const res = await apiClient.callFunction("sendVerificationCode", {
-          mode: currentData.mode || "email",
+        const { error: otpError } = await supabase.auth.signInWithOtp({
           email: currentData.email,
-          phone: currentData.phone,
         });
-        if (!res.data?.success) {
-          console.error('[StepVerification] Send code failed:', res.data);
+        if (otpError) {
+          console.error('[StepVerification] Send OTP error:', otpError);
+          setError("Impossible d'envoyer le code. Vérifiez votre connexion et réessayez.");
+        } else {
+          console.log('[StepVerification] OTP sent to:', currentData.email);
         }
       } catch (e) {
         console.error('[StepVerification] Send code error:', e);
+        setError("Erreur lors de l'envoi du code. Réessayez.");
       }
     };
 
@@ -441,6 +627,25 @@ function StepVerification({ onNext, onBack }) {
     setLoading(true);
     setError("");
     const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
+
+    // Mode téléphone : vérification locale (code généré côté client)
+    if (currentData.mode === "phone") {
+      const storedCode = sessionStorage.getItem("bb_otp_phone_code");
+      if (storedCode && fullCode === storedCode) {
+        sessionStorage.removeItem("bb_otp_phone_code");
+        onNext();
+        setLoading(false);
+        return;
+      } else {
+        setError("Code incorrect. Réessayez.");
+        setCode(["", "", "", "", "", ""]);
+        inputs.current[0]?.focus();
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Mode email : vérification via Supabase
     const email = currentData.email;
     if (!email) { setError("Email introuvable. Recommencez depuis le début."); setLoading(false); return; }
 
@@ -451,7 +656,8 @@ function StepVerification({ onNext, onBack }) {
     });
 
     if (verifyError) {
-      setError("Code incorrect ou expiré.");
+      console.error('[StepVerification] verifyOtp error:', verifyError);
+      setError("Code incorrect ou expiré. Vérifiez le code reçu par email.");
       setCode(["", "", "", "", "", ""]);
       inputs.current[0]?.focus();
     } else {
@@ -465,7 +671,27 @@ function StepVerification({ onNext, onBack }) {
     setResending(true);
     setError("");
     const currentData = JSON.parse(sessionStorage.getItem("bb_signup_data") || "{}");
-    await apiClient.callFunction("sendVerificationCode", { mode: currentData.mode || "email", email: currentData.email, phone: currentData.phone });
+    if (currentData.mode === "phone") {
+      try {
+        const { error } = await supabase.auth.signInWithOtp({ phone: currentData.phone });
+        if (error) {
+          const phoneCode = String(Math.floor(100000 + Math.random() * 900000));
+          sessionStorage.setItem("bb_otp_phone_code", phoneCode);
+          setFallbackCode(phoneCode);
+          setShowCode(true);
+        } else {
+          setSmsSent(true);
+          setShowCode(false);
+        }
+      } catch {
+        const phoneCode = String(Math.floor(100000 + Math.random() * 900000));
+        sessionStorage.setItem("bb_otp_phone_code", phoneCode);
+        setFallbackCode(phoneCode);
+        setShowCode(true);
+      }
+    } else if (currentData.email) {
+      await supabase.auth.signInWithOtp({ email: currentData.email });
+    }
     setResending(false);
     setResendTimer(45);
     clearInterval(timerRef.current);
@@ -504,6 +730,25 @@ function StepVerification({ onNext, onBack }) {
         {clipboardToast && (
           <div className="bg-green-500 text-white text-[12px] font-black px-4 py-2.5 rounded-2xl flex items-center gap-2 shadow-lg">
             <span>📋</span> Code collé depuis le presse-papier !
+          </div>
+        )}
+
+        {/* Fallback téléphone : afficher le code */}
+        {data.mode === "phone" && showCode && fallbackCode && (
+          <div className="bg-orange-50 border-2 border-orange-200 rounded-3xl px-6 py-5 w-full max-w-[320px]">
+            <p className="text-[11px] font-bold text-orange-600 uppercase tracking-widest mb-2">📱 Votre code de vérification</p>
+            <p className="text-[36px] font-black text-[#E8732A] tracking-[0.3em] font-mono">{fallbackCode}</p>
+            <p className="text-[10px] text-orange-400 font-medium mt-2">
+              Mode développement. Configurez Twilio dans Supabase pour recevoir de vrais SMS.
+            </p>
+          </div>
+        )}
+
+        {/* SMS envoyé avec succès */}
+        {data.mode === "phone" && smsSent && !showCode && (
+          <div className="flex items-center gap-2 text-green-600 bg-green-50 rounded-2xl px-4 py-3">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+            <span className="text-[13px] font-bold">SMS envoyé avec succès</span>
           </div>
         )}
 
@@ -677,6 +922,7 @@ function StepPhoto({ onNext, onBack }) {
         gender: data.gender || null,
         beauty_interests: data.interests || [],
         full_name: [data.prenom, data.nom].filter(Boolean).join(' ') || user.user_metadata?.full_name || '',
+        role: 'user',
         updated_at: new Date().toISOString(),
       };
 
@@ -1057,15 +1303,20 @@ export default function Onboarding() {
 
   const done = () => {
     localStorage.setItem("bb_onboarded", "1");
+    localStorage.removeItem("bb_is_pro");
     sessionStorage.removeItem("bb_signup_data");
     sessionStorage.removeItem("bb_social_signup_processed");
     window.location.href = "/";
   };
 
+  const handleSignupNext = () => {
+    setStep(2); // → StepVerification (email OU téléphone)
+  };
+
   return (
     <div className="font-display relative">
       {step === 0 && <StepSplash onNext={() => setStep(1)} onDiscover={done} />}
-      {step === 1 && <StepSignup onNext={() => setStep(2)} onBack={() => setStep(0)} />}
+      {step === 1 && <StepSignup onNext={handleSignupNext} onBack={() => setStep(0)} />}
       {step === 2 && <StepVerification onNext={() => setStep(3)} onBack={() => setStep(1)} />}
       {step === 3 && <StepBeautyProfile onNext={() => setStep(4)} onBack={() => setStep(2)} />}
       {step === 4 && <StepPhoto onNext={() => setStep(5)} onBack={() => setStep(3)} />}

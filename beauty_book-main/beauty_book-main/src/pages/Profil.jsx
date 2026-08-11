@@ -277,11 +277,8 @@ export default function Profil() {
   const totalLikes = publications.reduce((sum, p) => sum + (p.likes || 0), 0);
   const totalFavoris = favorisList.length;
 
-  // Redirect immediately — never render client profile when demand is pending
-  if (demandeStatus === 'en_attente') {
-    navigate("/profil-pro", { replace: true });
-    return null;
-  }
+  // Si la demande est en attente, on reste sur le profil client avec une info
+  // Plus de redirect automatique vers profil-pro pour une demande en attente
 
   return (
     <div className="font-display pb-4 min-h-full" style={{ background: getPageBg(theme) }}>

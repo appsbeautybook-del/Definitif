@@ -13,11 +13,13 @@ export default function AuthCallback() {
       if (done) return;
 
       try {
+        // Attendre que les tokens dans le hash soient traités
         const hash = window.location.hash;
         if (hash && hash.includes('access_token')) {
-          await new Promise(r => setTimeout(r, 1500));
+          await new Promise(r => setTimeout(r, 2500));
         }
 
+        // Forcer la récupération de la session pour s'assurer qu'elle est à jour
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (done) return;
@@ -29,36 +31,96 @@ export default function AuthCallback() {
           return;
         }
 
-        if (session?.user) {
-          done = true;
-          const socialSignup = sessionStorage.getItem('bb_social_signup');
-
-          if (socialSignup) {
-            navigate('/onboarding', { replace: true });
-          } else {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('id', session.user.id)
-              .maybeSingle();
-
-            if (done) return;
-
-            if (profile) {
-              localStorage.setItem('bb_onboarded', '1');
-              navigate('/', { replace: true });
-            } else {
-              sessionStorage.setItem('bb_social_signup', '1');
-              navigate('/onboarding', { replace: true });
-            }
+        if (!session?.user) {
+          // Pas de session → essayer avec getUser
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          if (userError || !user) {
+            console.error('[AuthCallback] No user found:', userError);
+            setStatus('Aucune session trouvée. Redirection...');
+            setTimeout(() => { if (!done) navigate('/connexion', { replace: true }); }, 1500);
+            return;
           }
-        } else {
-          setStatus('Aucune session trouvée. Redirection...');
-          setTimeout(() => { if (!done) navigate('/connexion', { replace: true }); }, 1500);
+          // Utiliser le user trouvé par getUser
+          await handleUserAuth(user);
+          return;
         }
+
+        await handleUserAuth(session.user);
+
       } catch (e) {
         console.error('[AuthCallback] error:', e);
         if (!done) navigate('/connexion', { replace: true });
+      }
+    };
+
+    const handleUserAuth = async (user) => {
+      setStatus('Vérification du compte...');
+      console.log('[AuthCallback] User authentifié:', user.email, user.id);
+
+      // Vérifier si le profil existe dans la table profiles (par ID ET par email)
+      let profile = null;
+
+      // Méthode 1: par ID
+      const { data: profileById, error: errorById } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileById) {
+        profile = profileById;
+      } else {
+        // Méthode 2: par email (au cas où l'ID ne matche pas)
+        const { data: profileByEmail } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (profileByEmail) {
+          profile = profileByEmail;
+        }
+      }
+
+      console.log('[AuthCallback] Profile trouvé:', !!profile, '| Erreur ID:', errorById?.message);
+
+      if (done) return;
+
+      if (profile) {
+        // COMPTE EXISTANT → Accueil
+        console.log('[AuthCallback] → Redirection vers accueil');
+        localStorage.setItem('bb_onboarded', '1');
+        navigate('/', { replace: true });
+      } else {
+        // PAS DE PROFIL → Vérifier la source
+        const fromSignup = sessionStorage.getItem('bb_social_signup');
+
+        if (fromSignup) {
+          // Vient de l'onboarding → continuer
+          console.log('[AuthCallback] → Onboarding (depuis inscription)');
+          navigate('/onboarding', { replace: true });
+        } else {
+          // Vient de la connexion → le compte n'existe pas encore dans profiles
+          // MAIS l'utilisateur a un compte Supabase Auth → créer le profil et aller à l'accueil
+          console.log('[AuthCallback] → Nouveau profil, création automatique');
+
+          const { error: insertError } = await supabase.from('profiles').upsert({
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+            avatar_url: user.user_metadata?.avatar_url || user.user_metadata?.picture || '',
+            role: 'user',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: 'id' });
+
+          if (insertError) {
+            console.error('[AuthCallback] Profile insert error:', insertError);
+          }
+
+          localStorage.setItem('bb_onboarded', '1');
+          navigate('/', { replace: true });
+        }
       }
     };
 
@@ -69,7 +131,7 @@ export default function AuthCallback() {
         done = true;
         navigate('/connexion', { replace: true });
       }
-    }, 8000);
+    }, 15000);
 
     return () => {
       done = true;
