@@ -1,94 +1,192 @@
-import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, X, Search, ChevronRight, Navigation } from "lucide-react";
-import { APIProvider, Map, AdvancedMarker, useMap } from "@vis.gl/react-google-maps";
+import { ArrowLeft, MapPin, Star, X, Search, ChevronRight, SlidersHorizontal, RotateCcw, DollarSign, ArrowUpDown, Users, Clock, Scissors, Home, Store, CreditCard, Calendar } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { entities } from '@/api/entities';
-import { supabase } from '@/api/supabaseClient';
 import { useLocation } from '@/contexts/LocationContext';
 
-const CATEGORIES = ["Tous", "Coiffure", "Maquillage", "Ongles", "Soin", "Barbe", "Massage"];
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
+const CATEGORIES = [
+  "Tous", "Coiffure", "Maquillage", "Ongles", "Soin", "Barbe", "Massage",
+  "Tresses", "Défrisage", "Colour", "Extensions", "Permanente", "Épilation",
+];
 
-function PriceMarker({ pro, price, isSelected, onClick }) {
-  const bg = isSelected ? "#E8732A" : "white";
-  const color = isSelected ? "white" : "#1a1a1a";
-  const border = isSelected ? "#E8732A" : "#e5e7eb";
+const PRICE_RANGES = [
+  { id: "tous", label: "Tous les prix", min: 0, max: Infinity },
+  { id: "0-30", label: "< 30 €", min: 0, max: 30 },
+  { id: "30-60", label: "30 – 60 €", min: 30, max: 60 },
+  { id: "60-100", label: "60 – 100 €", min: 60, max: 100 },
+  { id: "100+", label: "100 €+", min: 100, max: Infinity },
+];
 
+const DISTANCE_OPTIONS = [
+  { id: "5", label: "5 km", value: 5 },
+  { id: "10", label: "10 km", value: 10 },
+  { id: "25", label: "25 km", value: 25 },
+  { id: "50", label: "50 km", value: 50 },
+  { id: "100", label: "100 km", value: 100 },
+];
+
+const RATING_OPTIONS = [
+  { id: "tous", label: "Tous", value: 0 },
+  { id: "4", label: "4+ ★", value: 4 },
+  { id: "4.5", label: "4.5+ ★", value: 4.5 },
+];
+
+const SORT_OPTIONS = [
+  { id: "recent", label: "Plus récent" },
+  { id: "price-asc", label: "Prix croissant" },
+  { id: "price-desc", label: "Prix décroissant" },
+  { id: "rating", label: "Mieux notés" },
+  { id: "distance", label: "Plus proche" },
+];
+
+const GENDER_OPTIONS = ["Tous", "Femme", "Homme", "Mixte", "Enfant"];
+
+const SERVICE_TYPE_OPTIONS = ["Tous", "Salon", "À domicile", "Mobile"];
+
+const PAYMENT_OPTIONS = ["Tous", "Espèces", "Carte bancaire", "Chèques", "Mobile"];
+
+const OPEN_NOW_OPTIONS = [
+  { id: "tous", label: "Tous", value: false },
+  { id: "ouvert", label: "Ouvert maintenant", value: true },
+];
+
+function FilterChip({ active, onClick, children, icon: Icon }) {
   return (
-    <AdvancedMarker
-      position={{ lat: pro.mapLat, lng: pro.mapLng }}
+    <button
       onClick={onClick}
+      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black transition-all active:scale-95 border ${
+        active
+          ? "bg-gray-900 text-white border-gray-900"
+          : "bg-white text-gray-600 border-gray-200"
+      }`}
     >
-      <div
-        style={{
-          background: bg,
-          color: color,
-          border: `2px solid ${border}`,
-          borderRadius: "24px",
-          padding: "6px 12px",
-          fontSize: "12px",
-          fontWeight: 800,
-          fontFamily: "'Plus Jakarta Sans', sans-serif",
-          whiteSpace: "nowrap",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.22)",
-          transform: isSelected ? "scale(1.2) translateY(-2px)" : "scale(1)",
-          transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {price > 0 ? `${price}€` : "Pro"}
-      </div>
-    </AdvancedMarker>
+      {Icon && <Icon className="w-3 h-3" />}
+      {children}
+    </button>
   );
 }
 
-function UserMarker({ lat, lng }) {
-  return (
-    <AdvancedMarker position={{ lat, lng }}>
-      <div style={{ position: "relative" }}>
-        <div style={{
-          width: 20, height: 20, borderRadius: "50%", background: "#4285F4",
-          border: "3px solid white", boxShadow: "0 0 0 2px rgba(66,133,244,0.3), 0 2px 8px rgba(0,0,0,0.3)",
-          position: "relative", zIndex: 2,
-        }} />
-        <div style={{
-          position: "absolute", top: -6, left: -6, width: 32, height: 32,
-          borderRadius: "50%", background: "rgba(66,133,244,0.15)",
-          animation: "pulse 2s ease-in-out infinite",
-        }} />
-      </div>
-    </AdvancedMarker>
-  );
+function priceIcon(price, isSelected) {
+  return L.divIcon({
+    className: "",
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+    html: `<div style="
+      background: ${isSelected ? "#222222" : "white"};
+      color: ${isSelected ? "white" : "#222222"};
+      border-radius: 24px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1);
+      transform: ${isSelected ? "scale(1.1) translateY(-2px)" : "scale(1)"};
+      transition: all 0.2s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid ${isSelected ? "#222222" : "#e0e0e0"};
+      letter-spacing: -0.2px;
+    ">${price > 0 ? price + "€" : "Pro"}</div>`,
+  });
 }
 
-function MapController({ center, zoom }) {
+const userIcon = L.divIcon({
+  className: "",
+  iconSize: [28, 36],
+  iconAnchor: [14, 32],
+  html: `<div style="position: relative; width: 28px; height: 36px;">
+    <div style="
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #4285F4;
+      border: 3px solid white;
+      box-shadow: 0 0 0 3px rgba(66,133,244,0.3), 0 2px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 20L12 16L20 20L12 2Z" fill="white" stroke="white" stroke-width="1" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div style="
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #4285F4;
+    "></div>
+  </div>`,
+});
+
+function FlyToLocation({ center }) {
   const map = useMap();
-  const didCenter = useRef(false);
   useEffect(() => {
-    if (map && center) {
-      if (!didCenter.current) {
-        map.panTo(center);
-        if (zoom) map.setZoom(zoom);
-        didCenter.current = true;
-      }
+    if (center) {
+      map.flyTo(center, map.getZoom(), { duration: 0.5 });
     }
-  }, [map, center, zoom]);
+  }, [center, map]);
   return null;
+}
+
+function getDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export default function Explorer() {
   const navigate = useNavigate();
-  const { filterByRadius, sortByDistance, hasLocation, latitude, longitude } = useLocation();
+  const { filterByRadius, hasLocation, latitude, longitude } = useLocation();
   const [profils, setProfils] = useState([]);
   const [minPricesMap, setMinPricesMap] = useState({});
+  const [servicesMap, setServicesMap] = useState({});
   const [selected, setSelected] = useState(null);
   const [activeCategory, setActiveCategory] = useState("Tous");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
   const listRef = useRef(null);
+
+  const [filterPrice, setFilterPrice] = useState("tous");
+  const [filterDistance, setFilterDistance] = useState("25");
+  const [filterRating, setFilterRating] = useState("tous");
+  const [filterGender, setFilterGender] = useState("Tous");
+  const [filterServiceType, setFilterServiceType] = useState("Tous");
+  const [filterPayment, setFilterPayment] = useState("Tous");
+  const [filterOpenNow, setFilterOpenNow] = useState("tous");
+  const [sortBy, setSortBy] = useState("recent");
+
+  useEffect(() => {
+    if (hasLocation && latitude && longitude) {
+      setUserLocation({ lat: latitude, lng: longitude });
+    } else if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => setUserLocation(null),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  }, [hasLocation, latitude, longitude]);
 
   useEffect(() => {
     entities.ProfilPro.filter({ status: "actif" }, "-created_at", 100)
@@ -98,26 +196,94 @@ export default function Explorer() {
         const servicesArr = await Promise.all(
           emails.map(e => entities.Service.filter({ pro_email: e, status: "actif" }, "price", 5).catch(() => []))
         );
-        const map = {};
+        const pMap = {};
+        const sMap = {};
         emails.forEach((e, i) => {
+          sMap[e] = servicesArr[i] || [];
           const prices = servicesArr[i].map(s => s.price).filter(p => p > 0);
-          if (prices.length > 0) map[e] = Math.min(...prices);
+          if (prices.length > 0) pMap[e] = Math.min(...prices);
         });
-        setMinPricesMap(map);
+        setMinPricesMap(pMap);
+        setServicesMap(sMap);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  let filtered = profils.filter(p => {
-    const matchCat = activeCategory === "Tous" || p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase()));
-    const matchSearch = !search || p.salon_name?.toLowerCase().includes(search.toLowerCase()) || p.city?.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
-  });
+  const activeFilterCount = useMemo(() => {
+    let c = 0;
+    if (filterPrice !== "tous") c++;
+    if (filterDistance !== "25") c++;
+    if (filterRating !== "tous") c++;
+    if (filterGender !== "Tous") c++;
+    if (filterServiceType !== "Tous") c++;
+    if (filterPayment !== "Tous") c++;
+    if (filterOpenNow !== "tous") c++;
+    return c;
+  }, [filterPrice, filterDistance, filterRating, filterGender, filterServiceType, filterPayment, filterOpenNow]);
 
-  if (hasLocation) {
-    filtered = filterByRadius(filtered, 100);
-  }
+  const resetFilters = () => {
+    setFilterPrice("tous");
+    setFilterDistance("25");
+    setFilterRating("tous");
+    setFilterGender("Tous");
+    setFilterServiceType("Tous");
+    setFilterPayment("Tous");
+    setFilterOpenNow("tous");
+  };
+
+  let filtered = useMemo(() => {
+    let result = profils.filter(p => {
+      const matchCat = activeCategory === "Tous" || p.specialites?.some(s => s.toLowerCase().includes(activeCategory.toLowerCase()));
+      const matchSearch = !search || p.salon_name?.toLowerCase().includes(search.toLowerCase()) || p.city?.toLowerCase().includes(search.toLowerCase());
+
+      const priceRange = PRICE_RANGES.find(r => r.id === filterPrice);
+      const minPrice = minPricesMap[p.user_email] || 0;
+      const matchPrice = !priceRange || filterPrice === "tous" || (minPrice >= priceRange.min && minPrice < priceRange.max);
+
+      const matchRating = filterRating === "tous" || (p.rating || 0) >= parseFloat(filterRating);
+
+      const matchGender = filterGender === "Tous" || p.specialites?.some(s => s.toLowerCase().includes(filterGender.toLowerCase())) || p.gender?.toLowerCase().includes(filterGender.toLowerCase());
+
+      const matchServiceType = filterServiceType === "Tous" || 
+        (filterServiceType === "Salon" && !p.home_service) ||
+        (filterServiceType === "À domicile" && p.home_service) ||
+        (filterServiceType === "Mobile" && p.mobile_service);
+
+      const matchOpenNow = filterOpenNow === "tous" || 
+        (filterOpenNow === "ouvert" && p.is_open);
+
+      return matchCat && matchSearch && matchPrice && matchRating && matchGender && matchServiceType && matchOpenNow;
+    });
+
+    if (hasLocation) {
+      const dist = parseFloat(filterDistance) || 100;
+      result = result.filter(p => {
+        const lat = p.latitude || p.lat;
+        const lng = p.longitude || p.lng;
+        if (!lat || !lng) return true;
+        return getDistance(userLocation?.lat || 48.866, userLocation?.lng || 2.333, lat, lng) <= dist;
+      });
+    }
+
+    switch (sortBy) {
+      case "price-asc": result.sort((a, b) => (minPricesMap[a.user_email] || 0) - (minPricesMap[b.user_email] || 0)); break;
+      case "price-desc": result.sort((a, b) => (minPricesMap[b.user_email] || 0) - (minPricesMap[a.user_email] || 0)); break;
+      case "rating": result.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
+      case "distance":
+        if (userLocation) {
+          result.sort((a, b) => {
+            const dA = getDistance(userLocation.lat, userLocation.lng, a.latitude || 48.866, a.longitude || 2.333);
+            const dB = getDistance(userLocation.lat, userLocation.lng, b.latitude || 48.866, b.longitude || 2.333);
+            return dA - dB;
+          });
+        }
+        break;
+      default: break;
+    }
+
+    return result;
+  }, [profils, activeCategory, search, filterPrice, filterDistance, filterRating, filterGender, filterServiceType, filterOpenNow, sortBy, minPricesMap, hasLocation, userLocation]);
 
   const allMapItems = filtered.map((p) => ({
     ...p,
@@ -127,12 +293,10 @@ export default function Explorer() {
 
   const selectedPro = allMapItems.find(p => p.id === selected);
   const mapCenter = useMemo(() => {
+    if (userLocation) return userLocation;
     if (selectedPro) return { lat: selectedPro.mapLat, lng: selectedPro.mapLng };
-    if (hasLocation) return { lat: latitude, lng: longitude };
     return { lat: 48.866, lng: 2.333 };
-  }, [selectedPro, hasLocation, latitude, longitude]);
-
-  const mapId = useMemo(() => "explorer-map-" + Date.now(), []);
+  }, [userLocation, selectedPro]);
 
   const handleSelectMarker = (proId) => {
     if (selected === proId) {
@@ -152,7 +316,7 @@ export default function Explorer() {
   return (
     <div className="font-display flex flex-col" style={{ height: "100dvh" }}>
 
-      {/* Header */}
+      {/* Header - Search + Categories only */}
       <div className="bg-white px-4 pt-4 pb-3 border-b border-gray-100 z-40 flex-shrink-0">
         <div className="flex items-center gap-3 mb-3">
           <button onClick={() => navigate(-1)} className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center active:scale-95 shrink-0">
@@ -168,6 +332,15 @@ export default function Explorer() {
             />
             {search && <button onClick={() => setSearch("")} className="text-gray-400 text-[14px]">✕</button>}
           </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`relative flex items-center gap-1.5 px-3 h-9 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${showFilters ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center">{activeFilterCount}</span>
+            )}
+          </button>
         </div>
 
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
@@ -180,51 +353,148 @@ export default function Explorer() {
         </div>
       </div>
 
-      {/* Carte */}
+      {/* Advanced Filters - separate section, scrollable */}
+      {showFilters && (
+        <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex-shrink-0 max-h-[45vh] overflow-y-auto relative z-[550]">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[12px] font-black text-gray-900 uppercase tracking-wider">Filtres détaillés</p>
+            {activeFilterCount > 0 && (
+              <button onClick={resetFilters} className="flex items-center gap-1 text-[11px] font-black text-gray-900">
+                <RotateCcw className="w-3 h-3" /> Tout effacer
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Budget (par service)</p>
+              <div className="flex flex-wrap gap-2">
+                {PRICE_RANGES.map(r => (
+                  <FilterChip key={r.id} active={filterPrice === r.id} onClick={() => setFilterPrice(r.id)} icon={DollarSign}>
+                    {r.label}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Distance</p>
+              <div className="flex flex-wrap gap-2">
+                {DISTANCE_OPTIONS.map(d => (
+                  <FilterChip key={d.id} active={filterDistance === d.id} onClick={() => setFilterDistance(d.id)} icon={MapPin}>
+                    {d.label}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Note minimum</p>
+              <div className="flex flex-wrap gap-2">
+                {RATING_OPTIONS.map(r => (
+                  <FilterChip key={r.id} active={filterRating === r.id} onClick={() => setFilterRating(r.id)} icon={Star}>
+                    {r.label}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Clientèle</p>
+              <div className="flex flex-wrap gap-2">
+                {GENDER_OPTIONS.map(g => (
+                  <FilterChip key={g} active={filterGender === g} onClick={() => setFilterGender(g)} icon={Users}>
+                    {g}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Type de service</p>
+              <div className="flex flex-wrap gap-2">
+                {SERVICE_TYPE_OPTIONS.map(t => (
+                  <FilterChip key={t} active={filterServiceType === t} onClick={() => setFilterServiceType(t)} icon={t === "À domicile" ? Home : Store}>
+                    {t}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Disponibilité</p>
+              <div className="flex flex-wrap gap-2">
+                {OPEN_NOW_OPTIONS.map(o => (
+                  <FilterChip key={o.id} active={filterOpenNow === o.id} onClick={() => setFilterOpenNow(o.id)} icon={Calendar}>
+                    {o.label}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Moyen de paiement</p>
+              <div className="flex flex-wrap gap-2">
+                {PAYMENT_OPTIONS.map(p => (
+                  <FilterChip key={p} active={filterPayment === p} onClick={() => setFilterPayment(p)} icon={CreditCard}>
+                    {p}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Trier par</p>
+              <div className="flex flex-wrap gap-2">
+                {SORT_OPTIONS.map(s => (
+                  <FilterChip key={s.id} active={sortBy === s.id} onClick={() => setSortBy(s.id)} icon={ArrowUpDown}>
+                    {s.label}
+                  </FilterChip>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Map */}
       <div className="flex-1 relative min-h-0">
         {loading ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <div className="w-8 h-8 border-4 border-gray-200 border-t-primary rounded-full animate-spin" />
           </div>
-        ) : !GOOGLE_MAPS_API_KEY ? (
-          <div className="w-full h-full flex items-center justify-center bg-gray-50">
-            <div className="text-center px-4">
-              <p className="text-gray-400 text-[12px] font-medium">Google Maps non configuré</p>
-              <p className="text-gray-300 text-[10px] mt-1">Ajoutez VITE_GOOGLE_MAPS_API_KEY</p>
-            </div>
-          </div>
         ) : (
-          <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-            <Map
-              center={mapCenter}
-              defaultZoom={13}
-              mapId={mapId}
-              gestureHandling="greedy"
-              disableDefaultUI={true}
-              style={{ width: "100%", height: "100%" }}
-            >
-              {/* Marqueur localisation utilisateur */}
-              {hasLocation && <UserMarker lat={latitude} lng={longitude} />}
-              {allMapItems.map((p) => (
-                <PriceMarker
-                  key={p.id}
-                  pro={p}
-                  price={minPricesMap[p.user_email] || 0}
-                  isSelected={selected === p.id}
-                  onClick={() => handleSelectMarker(p.id)}
-                />
-              ))}
-            </Map>
-          </APIProvider>
+          <MapContainer
+            center={mapCenter}
+            zoom={13}
+            style={{ width: "100%", height: "100%" }}
+            zoomControl={false}
+            attributionControl={false}
+          >
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>' maxZoom={19} />
+            <FlyToLocation center={mapCenter} />
+            {userLocation && (
+              <Marker position={userLocation} icon={userIcon} />
+            )}
+            {allMapItems.map((p) => (
+              <Marker
+                key={p.id}
+                position={[p.mapLat, p.mapLng]}
+                icon={priceIcon(minPricesMap[p.user_email] || 0, selected === p.id)}
+                eventHandlers={{
+                  click: () => handleSelectMarker(p.id),
+                }}
+              />
+            ))}
+          </MapContainer>
         )}
 
-        {/* Compteur */}
+        {/* Counter */}
         <div className="absolute top-3 left-3 z-[500] bg-white rounded-full px-3 py-1.5 shadow-lg flex items-center gap-1.5">
           <div className="w-2 h-2 bg-green-500 rounded-full" />
           <span className="text-[11px] font-black text-gray-800">{filtered.length} prestataire{filtered.length !== 1 ? "s" : ""}</span>
         </div>
 
-        {/* Indication tap */}
         {selectedPro && !expanded && (
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[500] bg-black/80 backdrop-blur-sm rounded-full px-4 py-2">
             <span className="text-white text-[11px] font-medium">Tapotez le marqueur pour ouvrir le profil</span>
@@ -232,7 +502,7 @@ export default function Explorer() {
         )}
       </div>
 
-      {/* Panneau inférieur coulissant */}
+      {/* Bottom panel */}
       <div
         className="bg-white border-t border-gray-100 shadow-2xl flex-shrink-0 z-[600] overflow-hidden transition-all duration-300 ease-out"
         style={{ maxHeight: expanded ? "58vh" : "0px" }}
@@ -290,6 +560,50 @@ export default function Explorer() {
             </div>
 
             <div ref={listRef} className="overflow-y-auto hide-scrollbar" style={{ maxHeight: "calc(58vh - 150px)" }}>
+              {/* Services du pro sélectionné */}
+              {servicesMap[selectedPro.user_email]?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">Services</p>
+                  <div className="space-y-2">
+                    {servicesMap[selectedPro.user_email].slice(0, 5).map(s => {
+                      let serviceImg = s.image_url || null;
+                      if (!serviceImg && s.images) {
+                        const imgs = typeof s.images === "string" ? JSON.parse(s.images) : s.images;
+                        if (Array.isArray(imgs) && imgs.length > 0) serviceImg = imgs[0];
+                      }
+                      return (
+                      <div key={s.id} className="flex items-center gap-3 bg-gray-50 rounded-2xl p-3">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-gray-200">
+                          {serviceImg ? (
+                            <img src={serviceImg} alt={s.title || s.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Scissors className="w-5 h-5 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-black text-gray-900 truncate">{s.title || s.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {s.duration && (
+                              <span className="text-[10px] text-gray-400 font-medium flex items-center gap-0.5">
+                                <Clock className="w-2.5 h-2.5" />{s.duration} min
+                              </span>
+                            )}
+                            {s.category && (
+                              <span className="text-[10px] text-gray-400 font-medium">{s.category}</span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="text-[14px] font-black text-primary shrink-0">{s.price}€</span>
+                      </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Autres pros à proximité */}
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 px-1">
                 {filtered.length - 1} autre{filtered.length - 1 !== 1 ? "s" : ""} à proximité
               </p>
