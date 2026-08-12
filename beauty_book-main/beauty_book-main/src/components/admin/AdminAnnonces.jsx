@@ -12,10 +12,18 @@ export default function AdminAnnonces() {
   const [uploadingImg, setUploadingImg] = useState(false);
   const imgInputRef = useRef(null);
 
+  const PAGES_OPTIONS = [
+    { value: "reels", label: "Réels" },
+    { value: "styles", label: "Styles" },
+    { value: "services", label: "Services" },
+    { value: "explorer", label: "Explorer" },
+    { value: "social", label: "Social" },
+  ];
+
   const [form, setForm] = useState({
     title: "", sponsor_name: "", image_url: "",
     cta_label: "En savoir plus", cta_url: "",
-    type: "feed", status: "actif",
+    pages: ["reels"], status: "actif",
   });
 
   useEffect(() => {
@@ -55,7 +63,7 @@ export default function AdminAnnonces() {
       const created = await adminApi.createAnnonce(form);
       setAnnonces(prev => [created, ...prev]);
       setCreating(false);
-      setForm({ title: "", sponsor_name: "", image_url: "", cta_label: "En savoir plus", cta_url: "", type: "feed", status: "actif" });
+      setForm({ title: "", sponsor_name: "", image_url: "", cta_label: "En savoir plus", cta_url: "", pages: ["reels"], status: "actif" });
     } catch {}
     setSaving(false);
   };
@@ -98,12 +106,24 @@ export default function AdminAnnonces() {
             )}
           </div>
 
-          <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-            className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none">
-            <option value="feed">Feed Réels</option>
-            <option value="story">Story</option>
-            <option value="banner">Bannière Services</option>
-          </select>
+          <div>
+            <label className="text-gray-700 text-[12px] font-black mb-2 block">Afficher sur *</label>
+            <div className="flex flex-wrap gap-2">
+              {PAGES_OPTIONS.map(opt => {
+                const selected = form.pages.includes(opt.value);
+                return (
+                  <button key={opt.value} type="button"
+                    onClick={() => setForm(f => ({
+                      ...f,
+                      pages: selected ? f.pages.filter(p => p !== opt.value) : [...f.pages, opt.value]
+                    }))}
+                    className={`px-3 py-2 rounded-xl text-[12px] font-black border transition-all ${selected ? "bg-primary text-white border-primary" : "bg-gray-50 text-gray-600 border-gray-200"}`}>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           <input value={form.cta_url} onChange={e => setForm(f => ({ ...f, cta_url: e.target.value }))}
             placeholder="Lien CTA (ex: https://...)"
@@ -129,7 +149,7 @@ export default function AdminAnnonces() {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-gray-900 text-[13px] font-black truncate">{a.title}</p>
-              <p className="text-gray-500 text-[11px]">{a.sponsor_name} · {a.type}</p>
+              <p className="text-gray-500 text-[11px]">{a.sponsor_name} · {(a.pages || [a.type || "reels"]).join(", ")}</p>
               <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${a.status === "actif" ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}>
                 {a.status === "actif" ? "Actif" : "Pausé"}
               </span>

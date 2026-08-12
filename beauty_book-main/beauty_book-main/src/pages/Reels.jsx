@@ -954,8 +954,14 @@ export default function Reels() {
       })
       .catch(() => setReelsData([]));
 
-    entities.Annonce.filter({ status: 'actif' }, '-created_at', 10)
-      .then(data => setAnnonces(data || []))
+    entities.Annonce.filter({ status: 'actif' }, '-created_at', 20)
+      .then(data => {
+        const filtered = (data || []).filter(a => {
+          const pages = a.pages || (a.type ? [a.type] : []);
+          return pages.includes('reels');
+        });
+        setAnnonces(filtered.length > 0 ? filtered : (data || []));
+      })
       .catch(() => {});
   }, [activeTab]);
 

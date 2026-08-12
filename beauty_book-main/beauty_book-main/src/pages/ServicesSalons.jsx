@@ -410,8 +410,15 @@ function StylesTab({ activeCategory }) {
   }, []);
 
   useEffect(() => {
-    /* TODO: migrate to Supabase Edge Function */ (async () => ({ data: { success: true } }))("getAnnonces", { type: "feed" })
-      .then(res => setAnnonces(res.data?.annonces || [])).catch(() => {});
+    entities.Annonce.filter({ status: 'actif' }, '-created_at', 20)
+      .then(data => {
+        const filtered = (data || []).filter(a => {
+          const pages = a.pages || (a.type ? [a.type] : []);
+          return pages.includes('styles');
+        });
+        setAnnonces(filtered.length > 0 ? filtered : (data || []));
+      })
+      .catch(() => {});
 
     fetchStyles().finally(() => setLoading(false));
 
@@ -487,7 +494,7 @@ function StylesTab({ activeCategory }) {
               <div style={{ scrollSnapAlign: "start", scrollSnapStop: "always", height: "calc(100dvh - 180px - env(safe-area-inset-bottom, 60px))" }}
                 className="bg-gray-50 flex flex-col items-center px-4 pt-4 pb-8 overflow-y-auto">
                 <div className="w-full max-w-sm">
-                  <SponsoredCard annonce={annonces[Math.floor(idx / 5 - 1) % annonces.length]} onClose={() => setHiddenAds(h => [...h, idx])} />
+                  <SponsoredCard annonce={annonces[Math.floor(idx / 5 - 1) % annonces.length]} onClose={() => setHiddenAds(h => [...h, idx])} variant="styles" />
                 </div>
               </div>
             )}
