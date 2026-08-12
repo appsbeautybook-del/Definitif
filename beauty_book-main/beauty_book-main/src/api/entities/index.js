@@ -31,7 +31,8 @@ const parseOrder = (orderBy) => {
 };
 
 const KNOWN_COLUMNS = {
-  Reel: ['id','title','description','video_url','thumbnail_url','images','category','tags','status','likes','views','comments_count','author_email','author_name','author_avatar','created_at','updated_at','created_by_id'],
+  Reel: ['id','title','description','video_url','thumbnail_url','images','category','tags','status','likes','views','comments_count','author_email','author_name','author_avatar','sound','sound_preview_url','sound_duration','sound_trim_start','sound_trim_end','created_at','updated_at','created_by_id'],
+  Repub: ['id','user_email','user_name','reel_id','reel_title','reel_thumbnail','reel_images','original_author','original_author_avatar','category','created_at'],
   Style: ['id','title','description','category','subcategory','category_id','subcategory_id','images','image_url','video_url','tags','pro_email','status','likes','views','featured','author_email','author_name','author_avatar','produits_utilises','outils_utilises','type_cheveux','type_peau','type_prestation','temps_moyen','niveau_difficulte','mots_cles','created_at','updated_at'],
   StyleCategory: ['id','name','slug','description','icon','color','is_active','styles_count','subcategories_count','created_at','updated_at'],
   StyleSubCategory: ['id','name','slug','category_id','description','is_active','styles_count','created_at','updated_at'],

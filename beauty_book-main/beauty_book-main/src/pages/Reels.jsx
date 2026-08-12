@@ -812,10 +812,14 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
           <p className="text-white text-[16px] font-black leading-tight flex-1 line-clamp-2">{reel.title}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
-            <Music className="w-3 h-3 text-white" />
-          </div>
-          <p className="text-white/80 text-[12px] font-medium truncate">{reel.sound || "Son original - BeautyBook"}</p>
+          {reel.sound && (
+            <>
+              <div className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center">
+                <Music className="w-3 h-3 text-white" />
+              </div>
+              <p className="text-white/80 text-[12px] font-medium truncate">{reel.sound}</p>
+            </>
+          )}
         </div>
       </div>
 
@@ -950,7 +954,7 @@ export default function Reels() {
       })
       .catch(() => setReelsData([]));
 
-    entities.Annonce.filter({ status: 'active' }, '-created_at', 10)
+    entities.Annonce.filter({ status: 'actif' }, '-created_at', 10)
       .then(data => setAnnonces(data || []))
       .catch(() => {});
   }, [activeTab]);
@@ -1124,7 +1128,7 @@ export default function Reels() {
     author_email: r.author_email || "",
     thumbnail_url: r.thumbnail_url || (r.images && r.images[0]) || "",
     images: r.images || [], video_url: r.video_url || null,
-    title: r.title, sound: r.sound || "Son original - BeautyBook",
+    title: r.title, sound: r.sound || null,
     sound_preview_url: r.sound_preview_url || null,
     likes: reelLikeCounts[String(r.id)] ?? reelLikeCounts[r.id] ?? r.likes ?? 0,
     realLikes: reelLikeCounts[String(r.id)] ?? reelLikeCounts[r.id] ?? r.likes ?? 0,

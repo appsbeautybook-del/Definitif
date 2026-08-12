@@ -274,7 +274,7 @@ export default function Profil() {
 
   const postsCount = publications.length;
   const repubsCount = repubsList.length;
-  const totalLikes = publications.reduce((sum, p) => sum + (p.likes || 0), 0);
+  const totalLikes = favorisList.length;
   const totalFavoris = favorisList.length;
 
   // Si la demande est en attente, on reste sur le profil client avec une info
