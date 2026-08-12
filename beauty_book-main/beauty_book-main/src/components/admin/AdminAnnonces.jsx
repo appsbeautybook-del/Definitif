@@ -84,7 +84,14 @@ export default function AdminAnnonces() {
   };
 
   const getMediaPreview = (a) => {
-    if (a.video_url) return <Film className="w-5 h-5 text-primary" />;
+    if (a.video_url) return (
+      <div className="w-full h-full relative bg-gray-900">
+        <video src={a.video_url} className="w-full h-full object-cover" muted preload="metadata" />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+          <Film className="w-5 h-5 text-white" />
+        </div>
+      </div>
+    );
     if (a.image_url) return <img src={a.image_url} alt={a.title} className="w-full h-full object-cover" />;
     return <div className="w-full h-full flex items-center justify-center text-[20px]">📢</div>;
   };
@@ -129,7 +136,12 @@ export default function AdminAnnonces() {
                 {(form.image_url || form.video_url) ? (
                   <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
                     {form.video_url ? (
-                      <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center shrink-0"><Film className="w-5 h-5 text-primary" /></div>
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-900 flex items-center justify-center shrink-0 relative">
+                        <video src={form.video_url} className="w-full h-full object-cover" muted preload="metadata" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Film className="w-4 h-4 text-white" />
+                        </div>
+                      </div>
                     ) : (
                       <img src={form.image_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
                     )}
@@ -159,11 +171,12 @@ export default function AdminAnnonces() {
 
           {/* Preview */}
           {(form.image_url || form.video_url) && (
-            <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+            <div className="rounded-xl overflow-hidden border border-gray-200 bg-black">
               {form.video_url ? (
-                <video src={form.video_url} className="w-full h-40 object-cover" controls muted />
+                <video src={form.video_url} poster={form.image_url} className="w-full object-cover" style={{ maxHeight: "280px" }}
+                  controls muted preload="metadata" />
               ) : form.image_url ? (
-                <img src={form.image_url} alt="Preview" className="w-full h-40 object-cover" />
+                <img src={form.image_url} alt="Preview" className="w-full object-cover" style={{ maxHeight: "280px" }} />
               ) : null}
             </div>
           )}
