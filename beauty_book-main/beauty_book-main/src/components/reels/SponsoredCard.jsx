@@ -189,8 +189,8 @@ function StylesAd({ annonce, onClose }) {
         )}
       </div>
 
-      {/* CTA — directement au-dessus du menu navigation */}
-      <div className="px-4 py-3 bg-white">
+      {/* CTA — sticky bottom pour rester juste au-dessus du menu navigation */}
+      <div className="sticky bottom-0 px-4 py-3 bg-white z-10">
         <button
           onClick={() => { if (annonce.cta_url) window.open(annonce.cta_url, "_blank"); }}
           className="w-full flex items-center justify-between bg-primary rounded-2xl px-4 py-3 active:scale-[0.98] transition-all shadow-md shadow-primary/20"
