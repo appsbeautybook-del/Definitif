@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { ExternalLink, X, Play } from "lucide-react";
 
 export default function SponsoredCard({ annonce, onClose, variant = "reels" }) {
@@ -15,34 +15,81 @@ export default function SponsoredCard({ annonce, onClose, variant = "reels" }) {
   );
 }
 
-/* ── REELS: plein écran, sponsor en haut, CTA en bas, countdown 5s pour vidéo ── */
-function ReelsAd({ annonce, onClose }) {
-  const [countdown, setCountdown] = useState(5);
-  const [showSkip, setShowSkip] = useState(false);
-  const videoRef = useRef(null);
-  const isVideo = !!annonce.video_url;
+function VideoPlayer({ src, poster, className, style }) {
+  const ref = useRef(null);
+  const [failed, setFailed] = useState(false);
+
+  const tryPlay = useCallback(() => {
+    if (!ref.current) return;
+    ref.current.play().catch(() => setFailed(true));
+  }, []);
 
   useEffect(() => {
-    if (!isVideo) return;
-    if (countdown <= 0) { setShowSkip(true); return; }
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown, isVideo]);
+    if (!src || failed) return;
+    const el = ref.current;
+    if (!el) return;
+    el.load();
+    const onCanPlay = () => tryPlay();
+    el.addEventListener("canplay", onCanPlay);
+    return () => el.removeEventListener("canplay", onCanPlay);
+  }, [src, failed, tryPlay]);
+
+  if (failed) {
+    return (
+      <div className={`relative ${className}`} style={style}>
+        {poster && <img src={poster} alt="" className="w-full h-full object-cover" />}
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+          <button onClick={tryPlay} className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-2xl active:scale-95 transition-all">
+            <Play className="w-8 h-8 text-gray-900 ml-1" fill="currentColor" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <video ref={ref} src={src} poster={poster} className={className} style={style}
+      muted playsInline preload="auto" controls={false} />
+  );
+}
+
+function AdCountdown({ total = 5, onSkip }) {
+  const [count, setCount] = useState(total);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (done) { onSkip(); return; }
+    if (count <= 0) { setDone(true); return; }
+    const t = setTimeout(() => setCount(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [count, done, onSkip]);
+
+  if (done) return null;
+  return (
+    <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5">
+      <div className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+      <span className="text-white text-[12px] font-black">{count}s</span>
+    </div>
+  );
+}
+
+/* ── REELS ── */
+function ReelsAd({ annonce, onClose }) {
+  const [showSkip, setShowSkip] = useState(false);
+  const isVideo = !!annonce.video_url;
 
   return (
     <div className="relative w-full h-full flex flex-col bg-black overflow-hidden">
       <div className="flex-1 relative">
-        {/* Media */}
         {isVideo ? (
-          <video ref={videoRef} src={annonce.video_url} className="w-full h-full object-cover" autoPlay muted playsInline />
+          <VideoPlayer src={annonce.video_url} poster={annonce.image_url} className="w-full h-full object-cover" style={{ width: "100%", height: "100%" }} />
         ) : (
           <img src={annonce.image_url} alt={annonce.title} className="w-full h-full object-cover" />
         )}
 
-        {/* Gradient overlays */}
         <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
-        {/* Header sponsorisé */}
+        {/* Header */}
         <div className="absolute top-0 inset-x-0 flex items-center justify-between px-4 pt-4 pb-2 bg-gradient-to-b from-black/50 to-transparent" style={{ paddingTop: "calc(16px + env(safe-area-inset-top, 0px))" }}>
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {annonce.sponsor_logo ? (
@@ -58,30 +105,24 @@ function ReelsAd({ annonce, onClose }) {
             </div>
           </div>
 
-          {/* Skip button / countdown */}
-          {isVideo && (
+          {isVideo ? (
             <div className="flex items-center gap-2 shrink-0">
               {!showSkip ? (
-                <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
-                  <div className="w-5 h-5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                  <span className="text-white text-[12px] font-black">{countdown}s</span>
-                </div>
+                <AdCountdown total={5} onSkip={() => setShowSkip(true)} />
               ) : (
                 <button onClick={onClose} className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-2 text-[12px] font-black text-gray-900 active:scale-95 transition-all shadow-lg">
                   Ignorer
                 </button>
               )}
             </div>
-          )}
-
-          {!isVideo && (
+          ) : (
             <button onClick={onClose} className="w-8 h-8 flex items-center justify-center text-white/60 shrink-0">
               <X className="w-5 h-5" />
             </button>
           )}
         </div>
 
-        {/* Bottom content */}
+        {/* Bottom */}
         <div className="absolute bottom-0 inset-x-0 px-4 pb-6">
           <h3 className="text-white text-[18px] font-black mb-1 drop-shadow-lg">{annonce.title}</h3>
           {annonce.description && (
@@ -100,56 +141,41 @@ function ReelsAd({ annonce, onClose }) {
   );
 }
 
-/* ── STYLES: sponsor en bas avec catégories, CTA au-dessus nav, vidéo 5s countdown ── */
+/* ── STYLES ── */
 function StylesAd({ annonce, onClose }) {
-  const [countdown, setCountdown] = useState(5);
   const [showSkip, setShowSkip] = useState(false);
-  const videoRef = useRef(null);
   const isVideo = !!annonce.video_url;
-
-  useEffect(() => {
-    if (!isVideo) return;
-    if (countdown <= 0) { setShowSkip(true); return; }
-    const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown, isVideo]);
 
   return (
     <div className="relative w-full h-full flex flex-col bg-white overflow-hidden rounded-none">
-      {/* Skip button for video */}
-      {isVideo && (
-        <div className="absolute top-3 right-3 z-20" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-          {!showSkip ? (
-            <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-3 py-1.5">
-              <div className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-              <span className="text-white text-[11px] font-black">{countdown}s</span>
-            </div>
+      {/* Skip / Close buttons */}
+      <div className="absolute top-3 right-3 z-20" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        {isVideo ? (
+          !showSkip ? (
+            <AdCountdown total={5} onSkip={() => setShowSkip(true)} />
           ) : (
             <button onClick={onClose} className="bg-white/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-[11px] font-black text-gray-900 active:scale-95 transition-all shadow-lg">
               Ignorer
             </button>
-          )}
-        </div>
-      )}
+          )
+        ) : (
+          <button onClick={onClose} className="w-7 h-7 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center text-white/80 shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
 
-      {/* Close button for image */}
-      {!isVideo && (
-        <button onClick={onClose} className="absolute top-3 right-3 z-20 w-7 h-7 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center text-white/80 shrink-0">
-          <X className="w-4 h-4" />
-        </button>
-      )}
-
-      {/* Media — takes all available space above bottom sections */}
+      {/* Media */}
       <div className="flex-1 relative overflow-hidden">
         {isVideo ? (
-          <video ref={videoRef} src={annonce.video_url} className="w-full h-full object-cover" autoPlay muted playsInline />
+          <VideoPlayer src={annonce.video_url} poster={annonce.image_url} className="w-full h-full object-cover" style={{ width: "100%", height: "100%" }} />
         ) : (
           <img src={annonce.image_url} alt={annonce.title} className="w-full h-full object-cover" />
         )}
         <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/60 to-transparent" />
       </div>
 
-      {/* CTA button — au-dessus du menu navigation */}
+      {/* CTA */}
       <div className="px-4 py-3 bg-white border-b border-gray-100">
         <button
           onClick={() => { if (annonce.cta_url) window.open(annonce.cta_url, "_blank"); }}
@@ -160,7 +186,7 @@ function StylesAd({ annonce, onClose }) {
         </button>
       </div>
 
-      {/* Sponsor + title en bas */}
+      {/* Sponsor */}
       <div className="px-4 py-3 bg-white">
         <div className="flex items-center gap-3">
           {annonce.sponsor_logo ? (
@@ -175,9 +201,7 @@ function StylesAd({ annonce, onClose }) {
             <p className="text-[11px] text-gray-400 font-medium">Sponsorisé</p>
           </div>
         </div>
-        {annonce.title && (
-          <p className="text-[13px] text-gray-700 font-semibold mt-2 line-clamp-1">{annonce.title}</p>
-        )}
+        {annonce.title && <p className="text-[13px] text-gray-700 font-semibold mt-2 line-clamp-1">{annonce.title}</p>}
       </div>
     </div>
   );
