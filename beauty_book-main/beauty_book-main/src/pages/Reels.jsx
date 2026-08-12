@@ -1186,7 +1186,7 @@ export default function Reels() {
           const { reel, idx } = item;
           return (
             <div key={reel.id} data-idx={feedIdx}
-              style={{ height: "100dvh", scrollSnapAlign: "start", scrollSnapStop: "always" }}>
+              style={{ height: "100dvh" }}>
               <ReelCard
                 reel={reel}
                 isActive={currentIdx === feedIdx}
