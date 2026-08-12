@@ -2,15 +2,17 @@ import { useState, useEffect, useRef } from "react";
 import { adminApi } from "@/lib/adminApiClient";
 import { uploadFile } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
-import { Trash2, Plus, Eye, EyeOff, Upload, Loader2 } from "lucide-react";
+import { Trash2, Plus, Eye, EyeOff, Upload, Loader2, Film, Image, Link } from "lucide-react";
 
 export default function AdminAnnonces() {
   const [annonces, setAnnonces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [uploadingImg, setUploadingImg] = useState(false);
-  const imgInputRef = useRef(null);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [mediaMode, setMediaMode] = useState("upload");
+  const mediaInputRef = useRef(null);
 
   const PAGES_OPTIONS = [
     { value: "reels", label: "Réels" },
@@ -21,7 +23,7 @@ export default function AdminAnnonces() {
   ];
 
   const [form, setForm] = useState({
-    title: "", sponsor_name: "", image_url: "",
+    title: "", sponsor_name: "", image_url: "", video_url: "",
     cta_label: "En savoir plus", cta_url: "",
     pages: ["reels"], status: "actif",
   });
@@ -30,15 +32,26 @@ export default function AdminAnnonces() {
     adminApi.listAnnonces().then(setAnnonces).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const uploadImg = async (e) => {
+  const isVideoUrl = (url) => url && (url.includes(".mp4") || url.includes(".webm") || url.includes(".mov") || url.includes("video"));
+
+  const uploadMedia = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    setUploadingImg(true);
+    setUploadingMedia(true);
+    setUploadError("");
     try {
       const { file_url } = await uploadFile({ file });
-      setForm(f => ({ ...f, image_url: file_url }));
-    } catch (err) { console.error('[AdminAnnonces] Upload error:', err); }
-    setUploadingImg(false);
+      if (isVideoUrl(file.name) || file.type?.startsWith("video/")) {
+        setForm(f => ({ ...f, video_url: file_url, image_url: f.image_url || "" }));
+      } else {
+        setForm(f => ({ ...f, image_url: file_url }));
+      }
+    } catch (err) {
+      console.error('[AdminAnnonces] Upload error:', err);
+      setUploadError("Upload échoué — collez un lien URL en alternative");
+      setMediaMode("url");
+    }
+    setUploadingMedia(false);
     e.target.value = "";
   };
 
@@ -57,15 +70,23 @@ export default function AdminAnnonces() {
 
   const createAnnonce = async (e) => {
     e.preventDefault();
-    if (!form.title || !form.sponsor_name || !form.image_url) return;
+    if (!form.title || !form.sponsor_name || (!form.image_url && !form.video_url)) return;
     setSaving(true);
     try {
       const created = await adminApi.createAnnonce(form);
       setAnnonces(prev => [created, ...prev]);
       setCreating(false);
-      setForm({ title: "", sponsor_name: "", image_url: "", cta_label: "En savoir plus", cta_url: "", pages: ["reels"], status: "actif" });
+      setForm({ title: "", sponsor_name: "", image_url: "", video_url: "", cta_label: "En savoir plus", cta_url: "", pages: ["reels"], status: "actif" });
+      setUploadError("");
+      setMediaMode("upload");
     } catch {}
     setSaving(false);
+  };
+
+  const getMediaPreview = (a) => {
+    if (a.video_url) return <Film className="w-5 h-5 text-primary" />;
+    if (a.image_url) return <img src={a.image_url} alt={a.title} className="w-full h-full object-cover" />;
+    return <div className="w-full h-full flex items-center justify-center text-[20px]">📢</div>;
   };
 
   if (loading) return <div className="flex justify-center py-16"><div className="w-7 h-7 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
@@ -89,22 +110,63 @@ export default function AdminAnnonces() {
             placeholder="Nom du sponsor *" required
             className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary" />
 
+          {/* Media selector */}
           <div>
-            <input ref={imgInputRef} type="file" accept="image/*" className="hidden" onChange={uploadImg} />
-            {form.image_url ? (
-              <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
-                <img src={form.image_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
-                <span className="text-green-600 text-[12px] flex-1">✓ Image uploadée</span>
-                <button type="button" onClick={() => setForm(f => ({ ...f, image_url: "" }))} className="text-gray-400 text-[11px]">Changer</button>
-              </div>
-            ) : (
-              <button type="button" onClick={() => imgInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-2 bg-gray-50 border border-dashed border-gray-300 rounded-xl py-4 text-gray-400 text-[13px] hover:border-primary transition-all">
-                {uploadingImg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                {uploadingImg ? "Upload..." : "Choisir une image *"}
+            <div className="flex gap-2 mb-2">
+              <button type="button" onClick={() => setMediaMode("upload")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${mediaMode === "upload" ? "bg-primary text-white" : "bg-gray-100 text-gray-500"}`}>
+                <Upload className="w-3 h-3" /> Upload
               </button>
+              <button type="button" onClick={() => setMediaMode("url")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${mediaMode === "url" ? "bg-primary text-white" : "bg-gray-100 text-gray-500"}`}>
+                <Link className="w-3 h-3" /> URL
+              </button>
+            </div>
+
+            {mediaMode === "upload" ? (
+              <>
+                <input ref={mediaInputRef} type="file" accept="image/*,video/*" className="hidden" onChange={uploadMedia} />
+                {(form.image_url || form.video_url) ? (
+                  <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
+                    {form.video_url ? (
+                      <div className="w-12 h-12 rounded-lg bg-gray-200 flex items-center justify-center shrink-0"><Film className="w-5 h-5 text-primary" /></div>
+                    ) : (
+                      <img src={form.image_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
+                    )}
+                    <span className="text-green-600 text-[12px] flex-1">✓ {form.video_url ? "Vidéo" : "Image"} uploadée</span>
+                    <button type="button" onClick={() => setForm(f => ({ ...f, image_url: "", video_url: "" }))} className="text-gray-400 text-[11px]">Changer</button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => mediaInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 bg-gray-50 border border-dashed border-gray-300 rounded-xl py-4 text-gray-400 text-[13px] hover:border-primary transition-all">
+                    {uploadingMedia ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {uploadingMedia ? "Upload..." : "Image ou Vidéo *"}
+                  </button>
+                )}
+                {uploadError && <p className="text-red-500 text-[11px] mt-1">{uploadError}</p>}
+              </>
+            ) : (
+              <div className="space-y-2">
+                <input value={form.image_url} onChange={e => setForm(f => ({ ...f, image_url: e.target.value }))}
+                  placeholder="URL image (https://...)"
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary" />
+                <input value={form.video_url} onChange={e => setForm(f => ({ ...f, video_url: e.target.value }))}
+                  placeholder="URL vidéo (https://...mp4)"
+                  className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary" />
+              </div>
             )}
           </div>
+
+          {/* Preview */}
+          {(form.image_url || form.video_url) && (
+            <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+              {form.video_url ? (
+                <video src={form.video_url} className="w-full h-40 object-cover" controls muted />
+              ) : form.image_url ? (
+                <img src={form.image_url} alt="Preview" className="w-full h-40 object-cover" />
+              ) : null}
+            </div>
+          )}
 
           <div>
             <label className="text-gray-700 text-[12px] font-black mb-2 block">Afficher sur *</label>
@@ -125,6 +187,10 @@ export default function AdminAnnonces() {
             </div>
           </div>
 
+          <input value={form.cta_label} onChange={e => setForm(f => ({ ...f, cta_label: e.target.value }))}
+            placeholder="Texte du bouton CTA"
+            className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary" />
+
           <input value={form.cta_url} onChange={e => setForm(f => ({ ...f, cta_url: e.target.value }))}
             placeholder="Lien CTA (ex: https://...)"
             className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary" />
@@ -134,7 +200,7 @@ export default function AdminAnnonces() {
               className="flex-1 bg-primary text-white py-3 rounded-xl text-[13px] font-black disabled:opacity-60 flex items-center justify-center gap-2">
               {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Création...</> : "Créer →"}
             </button>
-            <button type="button" onClick={() => setCreating(false)}
+            <button type="button" onClick={() => { setCreating(false); setUploadError(""); setMediaMode("upload"); }}
               className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl text-[13px] font-black">Annuler</button>
           </div>
         </form>
@@ -145,7 +211,7 @@ export default function AdminAnnonces() {
         {annonces.map(a => (
           <div key={a.id} className="bg-white rounded-2xl p-4 border border-gray-200 flex items-center gap-4 shadow-sm">
             <div className="w-14 h-14 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-              {a.image_url ? <img src={a.image_url} alt={a.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[20px]">📢</div>}
+              {getMediaPreview(a)}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-gray-900 text-[13px] font-black truncate">{a.title}</p>

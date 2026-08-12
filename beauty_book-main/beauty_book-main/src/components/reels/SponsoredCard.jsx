@@ -1,12 +1,18 @@
 import { ExternalLink, X } from "lucide-react";
 
+const MediaRenderer = ({ annonce, className, style }) => {
+  if (annonce.video_url) {
+    return <video src={annonce.video_url} className={className} style={style} autoPlay loop muted playsInline />;
+  }
+  return <img src={annonce.image_url} alt={annonce.title} className={className} style={style} />;
+};
+
 export default function SponsoredCard({ annonce, onClose, variant = "reels" }) {
-  if (!annonce) return null;
+  if (!annonce || (!annonce.image_url && !annonce.video_url)) return null;
 
   if (variant === "styles") {
     return (
       <div className="relative w-full rounded-2xl overflow-hidden shadow-md border border-gray-100 bg-white mb-1">
-        {/* Header sponsorisé */}
         <div className="flex items-center justify-between px-3 py-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {annonce.sponsor_logo ? (
@@ -26,12 +32,10 @@ export default function SponsoredCard({ annonce, onClose, variant = "reels" }) {
           </button>
         </div>
 
-        {/* Image */}
         <div className="relative w-full" style={{ aspectRatio: "4/5" }}>
-          <img src={annonce.image_url} alt={annonce.title} className="w-full h-full object-cover" />
+          <MediaRenderer annonce={annonce} className="w-full h-full object-cover" />
         </div>
 
-        {/* Body */}
         <div className="px-3 py-3">
           <h3 className="text-[14px] font-black text-gray-900 mb-0.5">{annonce.title}</h3>
           {annonce.description && (
@@ -51,14 +55,11 @@ export default function SponsoredCard({ annonce, onClose, variant = "reels" }) {
 
   return (
     <div className="relative w-full h-full flex flex-col bg-black overflow-hidden">
-      {/* Image full screen */}
       <div className="flex-1 relative">
-        <img src={annonce.image_url} alt={annonce.title} className="w-full h-full object-cover" />
+        <MediaRenderer annonce={annonce} className="w-full h-full object-cover" />
 
-        {/* Overlay gradient bottom */}
         <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-        {/* Header sponsorisé overlay */}
         <div className="absolute top-0 inset-x-0 flex items-center justify-between px-4 pt-4 pb-2 bg-gradient-to-b from-black/40 to-transparent" style={{ paddingTop: "calc(16px + env(safe-area-inset-top, 0px))" }}>
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {annonce.sponsor_logo ? (
@@ -78,7 +79,6 @@ export default function SponsoredCard({ annonce, onClose, variant = "reels" }) {
           </button>
         </div>
 
-        {/* Texte + CTA overlay bottom */}
         <div className="absolute bottom-0 inset-x-0 px-4 pb-6">
           <h3 className="text-white text-[18px] font-black mb-1 drop-shadow-lg">{annonce.title}</h3>
           {annonce.description && (
