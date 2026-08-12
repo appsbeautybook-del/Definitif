@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { adminApi } from "@/lib/adminApiClient";
 import { uploadFile } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
@@ -9,6 +9,53 @@ const EMPTY_FORM = {
   cta_label: "En savoir plus", cta_url: "",
   pages: ["reels"], status: "actif",
 };
+
+function extractVideoThumb(src) {
+  return new Promise((resolve) => {
+    const v = document.createElement("video");
+    v.src = src;
+    v.crossOrigin = "anonymous";
+    v.muted = true;
+    v.preload = "metadata";
+    v.currentTime = 0.1;
+    v.onloadeddata = () => {
+      v.currentTime = 0.5;
+    };
+    v.onseeked = () => {
+      try {
+        const c = document.createElement("canvas");
+        c.width = v.videoWidth || 320;
+        c.height = v.videoHeight || 180;
+        c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.6));
+      } catch { resolve(null); }
+    };
+    v.onerror = () => resolve(null);
+    setTimeout(() => resolve(null), 5000);
+  });
+}
+
+function VideoThumb({ src, className, iconClassName }) {
+  const [thumb, setThumb] = useState(null);
+  useEffect(() => {
+    if (!src) return;
+    extractVideoThumb(src).then(t => { if (t) setThumb(t); });
+  }, [src]);
+  return (
+    <div className={`relative ${className || ""}`}>
+      {thumb ? (
+        <img src={thumb} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+          <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
+        </div>
+      )}
+      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+        <Film className={iconClassName || "w-5 h-5 text-white"} />
+      </div>
+    </div>
+  );
+}
 
 export default function AdminAnnonces() {
   const [annonces, setAnnonces] = useState([]);
@@ -117,14 +164,7 @@ export default function AdminAnnonces() {
   };
 
   const getMediaPreview = (a) => {
-    if (a.video_url) return (
-      <div className="w-full h-full relative bg-gray-900">
-        <video src={a.video_url} className="w-full h-full object-cover" muted preload="metadata" />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-          <Film className="w-5 h-5 text-white" />
-        </div>
-      </div>
-    );
+    if (a.video_url) return <VideoThumb src={a.video_url} className="w-full h-full" />;
     if (a.image_url) return <img src={a.image_url} alt={a.title} className="w-full h-full object-cover" />;
     return <div className="w-full h-full flex items-center justify-center text-[20px]">📢</div>;
   };
@@ -180,12 +220,7 @@ export default function AdminAnnonces() {
                 {(form.image_url || form.video_url) ? (
                   <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-200">
                     {form.video_url ? (
-                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-900 flex items-center justify-center shrink-0 relative">
-                        <video src={form.video_url} className="w-full h-full object-cover" muted preload="metadata" />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                          <Film className="w-4 h-4 text-white" />
-                        </div>
-                      </div>
+                      <VideoThumb src={form.video_url} className="w-12 h-12 rounded-lg shrink-0" iconClassName="w-4 h-4 text-white" />
                     ) : (
                       <img src={form.image_url} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
                     )}
