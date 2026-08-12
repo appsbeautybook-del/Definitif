@@ -47,7 +47,7 @@ export async function signInWithOAuthMobile(provider) {
 export async function signInWithOAuthWeb(provider) {
   const redirectTo = getRedirectUrl();
 
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
       redirectTo,
@@ -55,5 +55,12 @@ export async function signInWithOAuthWeb(provider) {
     },
   });
 
-  if (error) throw error;
+  if (error) {
+    console.error(`[OAuth] ${provider} error:`, error.message);
+    // Messages d'erreur clairs pour chaque provider
+    if (error.message?.includes('provider') || error.message?.includes('not enabled')) {
+      throw new Error(`Le provider ${provider === 'google' ? 'Google' : 'Apple'} n'est pas activé. Activez-le dans le dashboard Supabase > Authentication > Providers.`);
+    }
+    throw error;
+  }
 }

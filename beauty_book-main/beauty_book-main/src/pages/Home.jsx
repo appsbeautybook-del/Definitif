@@ -353,7 +353,7 @@ export default function Home() {
             <h3 className="text-white text-[22px] font-black leading-tight">{salonDuMois?.salon_name || "L'Atelier de Beauté"}</h3>
             <div className="flex items-center gap-2 mt-1">
               <MapPin className="w-3.5 h-3.5 text-white/70" />
-              <p className="text-white/70 text-[12px] font-bold">{salonDuMois?.city || "Paris 8ème"} • ★ {salonDuMois?.rating || "4.9"}</p>
+              <p className="text-white/70 text-[12px] font-bold">{salonDuMois?.city || "Paris 8ème"}{salonDuMois?.rating > 0 ? ` • ★ ${salonDuMois.rating}` : ""}</p>
             </div>
           </div>
         </button>

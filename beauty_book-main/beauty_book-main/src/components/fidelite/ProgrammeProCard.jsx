@@ -57,16 +57,19 @@ export default function ProgrammeProCard({ user }) {
           setRecord(results[0]);
         } else {
           const code = (user.full_name || "PRO").split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") + "PRO" + Math.floor(1000 + Math.random() * 9000);
-          entities.PointsFidelitePro.create({
+          const payload = {
             pro_email: user.email,
             points_total: 0,
             points_depenses: 0,
             niveau: "Bronze",
             historique: [],
-            code_parrainage: code,
-          }).then(r => setRecord(r));
+          };
+          entities.PointsFidelitePro.create({ ...payload, code_parrainage: code })
+            .then(r => setRecord(r))
+            .catch(() => entities.PointsFidelitePro.create(payload).then(r => setRecord(r)));
         }
       })
+      .catch(() => setLoading(false))
       .finally(() => setLoading(false));
   }, [user?.email]);
 

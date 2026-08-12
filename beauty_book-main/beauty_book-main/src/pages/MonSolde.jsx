@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, ArrowDownLeft, ArrowUpRight, Wallet, History,
   Loader2, Plus, X, Check, ChevronRight, CreditCard, Gift
@@ -9,12 +9,15 @@ import { entities } from '@/api/entities';
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
+const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
+
 export default function MonSolde() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [soldeRecord, setSoldeRecord] = useState(null);
-  const [rechargeLoading, setRechargeLoading] = useState(null);
+  const [rechargeLoading, setRechargeLoading] = useState(false);
   const [retraitLoading, setRetraitLoading] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [customAmount, setCustomAmount] = useState("");
@@ -23,7 +26,13 @@ export default function MonSolde() {
   useEffect(() => {
     if (!user?.email) return;
     loadSolde();
-  }, [user]);
+
+    // Handle payment return
+    if (searchParams.get("payment") === "success") {
+      showSuccess("Paiement réussi ! Votre solde a été mis à jour.");
+      setSearchParams({}, { replace: true });
+    }
+  }, [user, searchParams]);
 
   const loadSolde = async () => {
     setLoading(true);
@@ -42,27 +51,43 @@ export default function MonSolde() {
   };
 
   const handleRecharge = async (amount) => {
-    if (!soldeRecord?.id || !amount || amount <= 0) return;
-    setRechargeLoading(amount);
+    if (!amount || amount <= 0) return;
     const numAmount = parseFloat(amount);
-    const newTx = {
-      id: Date.now().toString(),
-      label: `Rechargement Beauty Wallet`,
-      date: new Date().toISOString(),
-      amount: numAmount,
-      type: "credit",
-      category: "recharge",
-    };
-    const updated = {
-      solde: (soldeRecord.solde || 0) + numAmount,
-      transactions: [newTx, ...(soldeRecord.transactions || [])],
-    };
-    await entities.SoldeBeautyPay.update(soldeRecord.id, updated);
-    setSoldeRecord(prev => ({ ...prev, ...updated }));
-    setRechargeLoading(null);
-    setShowRechargeModal(false);
-    setCustomAmount("");
-    showSuccess(`+${numAmount.toFixed(2)}€ ajoutés à votre portefeuille`);
+    if (numAmount < 1) {
+      showSuccess("Montant minimum: 1€");
+      return;
+    }
+
+    setRechargeLoading(true);
+    try {
+      const { supabase } = await import("@/api/supabaseClient");
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token;
+
+      const res = await fetch(`${API_BASE}/api/payments/wallet-recharge`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({ amount: numAmount }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Erreur lors de la création de la session de paiement");
+      }
+
+      // Redirect to Stripe Checkout
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err) {
+      console.error("[MonSolde] Recharge error:", err);
+      showSuccess(`Erreur: ${err.message}`);
+      setRechargeLoading(false);
+    }
   };
 
   const handleRetrait = async () => {
@@ -283,10 +308,10 @@ export default function MonSolde() {
                 <button
                   key={amount}
                   onClick={() => handleRecharge(amount)}
-                  disabled={rechargeLoading === amount}
+                  disabled={rechargeLoading}
                   className="bg-gray-50 border border-gray-200 rounded-2xl py-3.5 text-center active:scale-95 transition-all disabled:opacity-60 hover:border-primary"
                 >
-                  {rechargeLoading === amount ? (
+                  {rechargeLoading ? (
                     <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
                   ) : (
                     <span className="text-[14px] font-black text-gray-900">{amount}€</span>

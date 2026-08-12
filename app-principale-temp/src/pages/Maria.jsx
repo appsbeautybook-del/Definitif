@@ -17,6 +17,7 @@ import RoutineSummaryCard from "@/components/maria/RoutineSummaryCard";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
 import { useVoiceAgent } from "@/lib/VoiceAgentContext";
+import { synthesizeQwenTTS, detectLanguage, LANG_TO_BCP47, LANG_LABEL, checkQwenTtsAvailable } from "@/lib/qwenTts";
 
 const SCAN_IMG = "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=400";
 const STYLE_IMG = "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=400";
@@ -351,12 +352,29 @@ export default function Maria() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ── Vérifier Voicebox au démarrage ──
+  // ── Vérifier Qwen3-TTS au démarrage ──
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_BACKEND_URL || ''}/ai/voicebox-status`)
-      .then(r => r.json())
-      .then(d => setVoiceboxReady(d.available))
-      .catch(() => setVoiceboxReady(false));
+    checkQwenTtsAvailable().then(setVoiceboxReady);
+  }, []);
+
+  // ── AudioContext unlock : débloquer l'audio après interaction utilisateur ──
+  // Les navigateurs exigent une interaction utilisateur avant de pouvoir jouer de l'audio.
+  // Sans cela, audio.play() échoue silencieusement après des appels async (fetch).
+  useEffect(() => {
+    const unlock = () => {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        ctx.resume().catch(() => {});
+      } catch {}
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('touchstart', unlock);
+    };
+    document.addEventListener('click', unlock);
+    document.addEventListener('touchstart', unlock);
+    return () => {
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('touchstart', unlock);
+    };
   }, []);
 
   // ── Détecter si compte pro ──
@@ -434,14 +452,20 @@ export default function Maria() {
     }, intervalMs);
   };
 
-  // ── Synthèse vocale via Voicebox (fallback: Web Speech API) ──
+  // ── Synthèse vocale : Qwen3-TTS (DashScope) → fallback Web Speech API ──
   const voiceAudioRef = useRef(null);
-  const speakResponse = (text, msgIndex, withTyping = false, voiceUrl = null) => {
+  const userLangRef = useRef('fr'); // langue détectée du dernier message utilisateur
+
+  const speakResponse = async (text, msgIndex, withTyping = false, voiceUrl = null) => {
     if (muted) return;
+    console.log('[Maria TTS] speakResponse called, text length:', text?.length, 'voiceUrl:', !!voiceUrl);
     setSpeaking(true);
     if (withTyping) startTypingEffect(text, msgIndex ?? -1);
 
-    // Si on a une URL Voicebox, l'utiliser
+    // Langue de la réponse : détectée sur le texte de Maria, sinon langue utilisateur
+    const replyLang = detectLanguage(text) || userLangRef.current || 'fr';
+
+    // 1. URL vocale fournie explicitement (backend)
     if (voiceUrl) {
       if (voiceAudioRef.current) {
         voiceAudioRef.current.pause();
@@ -453,19 +477,44 @@ export default function Maria() {
         setSpeaking(false);
         if (withTyping) { setTypingText(text); setTypingIndex(null); }
       };
-      audio.onerror = () => {
-        // Fallback to Web Speech API
-        speakWithWebSpeech(text, msgIndex, withTyping);
-      };
-      audio.play().catch(() => speakWithWebSpeech(text, msgIndex, withTyping));
+      audio.onerror = (e) => { console.warn('[Maria TTS] Audio URL error:', e); speakWithWebSpeech(text, msgIndex, withTyping, replyLang); };
+      audio.play().catch((e) => { console.warn('[Maria TTS] Audio URL play() failed:', e?.message || e); speakWithWebSpeech(text, msgIndex, withTyping, replyLang); });
       return;
     }
 
-    // Fallback: Web Speech API
-    speakWithWebSpeech(text, msgIndex, withTyping);
+    // 2. Qwen3-TTS (DashScope) — voix naturelle multilingue
+    const qwenUrl = await synthesizeQwenTTS(text, replyLang);
+    if (qwenUrl) {
+      if (muted) { URL.revokeObjectURL(qwenUrl); setSpeaking(false); return; }
+      if (voiceAudioRef.current) {
+        voiceAudioRef.current.pause();
+        voiceAudioRef.current.src = "";
+      }
+      const audio = new Audio(qwenUrl);
+      voiceAudioRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(qwenUrl);
+        setSpeaking(false);
+        if (withTyping) { setTypingText(text); setTypingIndex(null); }
+      };
+      audio.onerror = (e) => {
+        console.warn('[Maria TTS] Qwen audio error:', e);
+        URL.revokeObjectURL(qwenUrl);
+        speakWithWebSpeech(text, msgIndex, withTyping, replyLang);
+      };
+      audio.play().catch((e) => {
+        console.warn('[Maria TTS] Qwen audio play() failed:', e?.message || e);
+        URL.revokeObjectURL(qwenUrl);
+        speakWithWebSpeech(text, msgIndex, withTyping, replyLang);
+      });
+      return;
+    }
+
+    // 3. Fallback: Web Speech API du navigateur (langue détectée)
+    speakWithWebSpeech(text, msgIndex, withTyping, replyLang);
   };
 
-  const speakWithWebSpeech = (text, msgIndex, withTyping) => {
+  const speakWithWebSpeech = (text, msgIndex, withTyping, lang = 'fr') => {
     const clean = text
       .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "")
       .replace(/\*\*/g, "").replace(/\*/g, "").replace(/#{1,6}\s/g, "")
@@ -474,30 +523,28 @@ export default function Maria() {
 
     if (!clean) { setSpeaking(false); return; }
 
+    const bcp47 = LANG_TO_BCP47[lang] || 'fr-FR';
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(clean);
-    utt.lang = "fr-FR";
+    utt.lang = bcp47;
     utt.rate = 1.05;
     utt.pitch = 1.0;
 
-    // Prefer high-quality cloud/remote French female voices
+    // Choisir une voix correspondant à la langue détectée (préférence voix cloud)
     const voices = window.speechSynthesis.getVoices();
-    const frFemale = voices.filter(v => v.lang.startsWith("fr") && (v.name.includes("female") || v.name.includes("Female") || v.name.includes("Amélie") || v.name.includes("Virginie") || v.name.includes("Marie") || v.name.includes("Denise") || v.name.includes("Thomas") === false));
-    const frRemote = frFemale.filter(v => !v.localService);
-    const frLocal = frFemale.filter(v => v.localService);
-    const allFr = voices.filter(v => v.lang.startsWith("fr"));
-
-    const bestVoice = frRemote[0] || frLocal[0] || frFemale[0] || allFr[0];
+    const langVoices = voices.filter(v => v.lang.startsWith(lang));
+    const remote = langVoices.filter(v => !v.localService);
+    const bestVoice = remote[0] || langVoices[0];
     if (bestVoice) {
       utt.voice = bestVoice;
-      console.log('[Maria TTS] Using voice:', bestVoice.name, bestVoice.lang, bestVoice.localService ? 'local' : 'remote');
+      console.log('[Maria TTS] Fallback voice:', bestVoice.name, bestVoice.lang);
     }
 
     utt.onend = () => {
       setSpeaking(false);
       if (withTyping) { setTypingText(text); setTypingIndex(null); }
     };
-    utt.onerror = () => setSpeaking(false);
+    utt.onerror = (e) => { console.warn('[Maria TTS] WebSpeech error:', e); setSpeaking(false); };
     window.speechSynthesis.speak(utt);
   };
 
@@ -521,6 +568,61 @@ export default function Maria() {
     // Si on active le muet et que l'IA parle → couper immédiatement
     if (newMuted && speaking) {
       stopSpeaking();
+    }
+    // Si on démute → relancer la voix du dernier message avec Qwen3-TTS
+    if (!newMuted && messages.length > 0) {
+      const lastAssistant = [...messages].reverse().find(m => m.role === "assistant");
+      if (lastAssistant) {
+        speakResponse(lastAssistant.content, messages.length - 1, false, lastAssistant.voiceUrl);
+      }
+    }
+  };
+
+  // ── Contexte messagerie : donne à Maria accès aux vraies conversations ─────
+  const messagingCacheRef = useRef({ at: 0, text: "" });
+
+  const loadMessagingContext = async () => {
+    // Cache 60 s pour ne pas surcharger la base à chaque message
+    if (Date.now() - messagingCacheRef.current.at < 60000) return messagingCacheRef.current.text;
+    try {
+      const user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
+      if (!user?.email) return "";
+      const [sent, received] = await Promise.all([
+        entities.MessageChat.filter({ sender_email: user.email }, "-created_at", 50).catch(() => []),
+        entities.MessageChat.filter({ receiver_email: user.email }, "-created_at", 50).catch(() => []),
+      ]);
+      const all = [...sent, ...received]
+        .filter(m => !m.is_maria)
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      const unread = received.filter(m => !m.read && !m.is_read && !m.is_maria);
+
+      const byCorrespondent = new Map();
+      for (const m of all) {
+        const isMine = m.sender_email === user.email;
+        const corr = isMine
+          ? (m.receiver_name || m.receiver_email)
+          : (m.sender_name || m.sender_email);
+        if (!corr) continue;
+        if (!byCorrespondent.has(corr)) byCorrespondent.set(corr, []);
+        byCorrespondent.get(corr).push({ ...m, isMine });
+      }
+
+      const lines = [];
+      for (const [corr, msgs] of byCorrespondent) {
+        const last = msgs[0];
+        const preview = (last.content || "[fichier]").replace(/\n/g, " ").slice(0, 60);
+        const dir = last.isMine ? "envoyé par l'utilisateur" : "reçu";
+        lines.push(`• ${corr} : « ${preview} » (${dir})`);
+        if (lines.length >= 8) break;
+      }
+
+      const text = lines.length
+        ? `\n\nMESSAGERIE DE L'UTILISATEUR (données réelles, à jour) :\n- ${unread.length} message(s) non lu(s)\n- Derniers échanges :\n${lines.join("\n")}\nTu as accès à ces données : si l'utilisateur te demande ses messages ou sa messagerie, résume-les naturellement et propose d'ouvrir la page avec l'action NAVIGATE vers /messages.`
+        : "\n\nMESSAGERIE DE L'UTILISATEUR : aucune conversation pour le moment.";
+      messagingCacheRef.current = { at: Date.now(), text };
+      return text;
+    } catch {
+      return "";
     }
   };
 
@@ -550,6 +652,9 @@ export default function Maria() {
     };
 
     if (content) setRecentChats(prev => [content, ...prev.filter(c => c !== content)].slice(0, 5));
+    // Détecter la langue du message utilisateur → la réponse vocale suivra cette langue
+    const userLang = detectLanguage(content);
+    userLangRef.current = userLang;
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setAttachedFiles([]);
@@ -564,7 +669,8 @@ Tu es une experte en coiffure, soins capillaires, skincare, maquillage et bien-�
 Tu parles de manière chaleureuse, professionnelle et personnalisée.
 Tu t'adresses à l'utilisateur directement, en tutoyant ou vouvoyant selon le contexte.
 Tu donnes des conseils pratiques, des recommandations de produits réels, et des routines personnalisées.
-Tu réponds toujours en français. Tu es concise mais complète.
+LANGUE : Tu réponds TOUJOURS dans la même langue que celle utilisée par l'utilisateur dans son dernier message (français, anglais, espagnol, etc.). La langue détectée de l'utilisateur est actuellement : ${LANG_LABEL[userLang] || 'français'}.
+Tu es concise mais complète.
 Tu n'utilises JAMAIS d'emojis dans tes réponses texte.
 
 ═══════════════════════════════════════════════════════════
@@ -643,27 +749,64 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
       }));
-      console.log('[Maria] Calling /api/ai/maria...');
-      const apiRes = await fetch('/api/ai/maria', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: MARIA_SYSTEM_PROMPT },
-            ...historyMsgs,
-            { role: 'user', content: userContent },
-          ],
-          temperature: 0.7,
-          max_tokens: 512,
-        }),
-      });
-      console.log('[Maria] OpenRouter response:', apiRes.status, apiRes.statusText);
-      if (!apiRes.ok) {
-        const errBody = await apiRes.text();
-        throw new Error(`HTTP ${apiRes.status}: ${errBody.substring(0, 200)}`);
+      // Injecter le résumé des conversations (non-lus + derniers échanges)
+      const messagingContext = await loadMessagingContext();
+
+      const fullMessages = [
+        { role: 'system', content: MARIA_SYSTEM_PROMPT + messagingContext },
+        ...historyMsgs,
+        { role: 'user', content: userContent },
+      ];
+
+      let apiData = null;
+
+      // 1. Essayer le backend /api/ai/maria d'abord (si api-server tourne)
+      try {
+        console.log('[Maria] Trying /api/ai/maria...');
+        const apiRes = await fetch('/api/ai/maria', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: fullMessages,
+            temperature: 0.7,
+            max_tokens: 512,
+          }),
+        });
+        if (apiRes.ok) {
+          apiData = await apiRes.json();
+          console.log('[Maria] Backend OK');
+        }
+      } catch (e) {
+        // Backend pas disponible, on continue
       }
-      const apiData = await apiRes.json();
+
+      // 2. Fallback : appeler OpenRouter via le proxy Vite (/ai-proxy)
+      if (!apiData) {
+        const OR_KEY = __OPENROUTER_KEY__ || '';
+        console.log('[Maria] Calling OpenRouter via proxy, key:', OR_KEY ? 'present' : 'MISSING');
+        const orRes = await fetch('/ai-proxy/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(OR_KEY ? { 'Authorization': `Bearer ${OR_KEY}` } : {}),
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: fullMessages,
+            temperature: 0.7,
+            max_tokens: 512,
+          }),
+        });
+        console.log('[Maria] OpenRouter response:', orRes.status);
+        if (orRes.ok) {
+          apiData = await orRes.json();
+        } else {
+          const errText = await orRes.text().catch(() => '');
+          throw new Error(`OpenRouter ${orRes.status}: ${errText.substring(0, 200)}`);
+        }
+      }
+
       const rawReply = apiData.choices?.[0]?.message?.content || apiData.choices?.[0]?.message?.reasoning || '';
       reply = rawReply || reply;
 
@@ -709,6 +852,28 @@ Si l'utilisateur dit "Salut" → réponds normalement SANS action JSON.`;
     const finalMessages = [...newMessages, assistantMsg];
     setMessages(finalMessages);
     setLoading(false);
+
+    // ── Sauvegarder la conversation dans Supabase ──
+    try {
+      if (conversationId) {
+        await entities.MariaConversation.update(conversationId, {
+          messages: finalMessages,
+          updated_at: new Date().toISOString(),
+        });
+      } else {
+        const u = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
+        if (u?.email) {
+          const created = await entities.MariaConversation.create({
+            user_email: u.email,
+            messages: finalMessages,
+            status: 'active',
+          });
+          setConversationId(created.id);
+        }
+      }
+    } catch (saveErr) {
+      console.warn('[Maria] Failed to save conversation:', saveErr?.message || saveErr);
+    }
 
     // Lire la réponse vocalement (typing uniquement en mode vocal)
     speakResponse(reply, finalMessages.length - 1, fromVocal, voiceUrl);

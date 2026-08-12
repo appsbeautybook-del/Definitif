@@ -4,7 +4,10 @@ import { clientSendVerificationCode, clientVerifyCode } from './clientOtp';
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 function isBackendAvailable() {
-  return !window.location.hostname.includes('vercel.app');
+  const hostname = window.location.hostname;
+  if (hostname.includes('vercel.app')) return false;
+  if ((hostname === 'localhost' || hostname === '127.0.0.1' || hostname.startsWith('192.168.')) && !API_BASE_URL) return false;
+  return true;
 }
 
 export const apiClient = {
@@ -192,27 +195,45 @@ export const apiClient = {
 
   // ── Route all AI functions ──
   async _callMariaAI(functionName, payload) {
-    // simulateHairstyle: Nano Banana 2 Lite for real image generation
+    // simulateHairstyle: fal.ai for real image generation
     if (functionName === 'simulateHairstyle') {
-      return this._nanoBananaGenerate(payload);
+      return this._falHairstyleGenerate(payload);
     }
 
-    // shAiTryOn: Nano Banana 2 Lite for virtual try-on
+    // shAiTryOn: fal.ai for virtual try-on
     if (functionName === 'shAiTryOn') {
-      return this._nanoBananaTryOn(payload);
+      return this._falVirtualTryOn(payload);
     }
 
-    // analyzePhoto: use dedicated server task (Gemini vision)
+    // analyzePhoto: return default analysis (backend not available locally)
     if (functionName === 'analyzePhoto') {
+      if (!API_BASE_URL) {
+        return {
+          data: {
+            has_person: true, body_visible: true, quality_ok: true,
+            compatibility_score: 85, issues: [], body_type: '',
+            suggestion: 'Photo prête pour l\'essayage virtuel.',
+          },
+        };
+      }
       try {
+        const messages = [{
+          role: 'user',
+          content: [
+            ...(payload.photoUrl && !payload.photoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: payload.photoUrl } }] : []),
+            { type: 'text', text: `Tu es un expert en analyse de photo pour essayage virtuel. Analyse cette photo du vetement "${payload.productName || 'vetement'}".\nRetourne UNIQUEMENT ce JSON :\n{"has_person":true,"body_visible":true,"quality_ok":true,"compatibility_score":nombre 40-98,"issues":["probleme eventuel"],"body_type":"morphologie si visible","suggestion":"Conseil pour l'essayage"}` }
+          ]
+        }];
+
         const result = await this.request('/api/ai/maria', {
           method: 'POST',
-          body: JSON.stringify({
-            task: 'analyze-photo',
-            payload: { photoUrl: payload.photoUrl, productName: payload.productName },
-          }),
+          body: JSON.stringify({ messages, model: 'google/gemini-2.5-flash', temperature: 0.7, max_tokens: 1024 }),
         });
-        return { data: result };
+
+        const content = result?.choices?.[0]?.message?.content || '';
+        const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+        const parsed = JSON.parse(cleaned);
+        return { data: parsed };
       } catch (error) {
         console.error(`[apiClient._callMariaAI] analyzePhoto error:`, error);
         return {
@@ -240,6 +261,20 @@ export const apiClient = {
     const builder = chatBuilders[functionName];
     if (!builder) {
       return { data: { fallback: true, message: `Function ${functionName} not configured` } };
+    }
+
+    // No backend available locally
+    if (!API_BASE_URL) {
+      if (functionName === 'mariaAutoReply') {
+        return {
+          data: {
+            fallback: true,
+            reply: "Je suis Maria, votre assistante beauté. Comment puis-je vous aider ?",
+            message: "Maria IA nécessite le backend pour fonctionner.",
+          },
+        };
+      }
+      return { data: { fallback: true, description: 'Analyse IA indisponible.', categories: [], keywords: [], products: [] } };
     }
 
     try {
@@ -280,30 +315,62 @@ export const apiClient = {
     }
   },
 
-  // ── Nano Banana 2 Lite: real hairstyle image generation ──
-  async _nanoBananaGenerate(payload) {
-    const { userPhotoUrl, styleTitle } = payload;
-    const NANO_KEY = import.meta.env.VITE_NANO_BANANA_KEY || '';
+  // ── fal.ai: real hairstyle image generation ──
+  async _falHairstyleGenerate(payload) {
+    const { userPhotoUrl, styleTitle, referenceImages } = payload;
+    const FAL_KEY = import.meta.env.VITE_FAL_KEY || '';
+
+    // Early return if no API key - skip fetch entirely
+    if (!FAL_KEY) {
+      return {
+        data: {
+          generatedImageUrl: null,
+          fallback: true,
+          faceShape: 'Analyse par IA',
+          compatibilityScore: 70,
+          message: `Simulation du style "${styleTitle}" sera disponible prochainement.`,
+          recommendations: ['Configurez VITE_FAL_KEY dans votre .env pour activer la génération d\'images'],
+        }
+      };
+    }
 
     const prompt = `Professional hairstyle photo edit: Transform this person's hair to a beautiful ${styleTitle || 'stylish'} hairstyle. Keep the face, skin tone, expression, clothing and background exactly the same. Only change the hair. Photorealistic, high quality salon result.`;
 
-    // Try nanananobanana.com API
+    // Try fal.ai API with image-to-image
     try {
-      const nanoRes = await fetch('https://www.nananobanana.com/api/v1/generate', {
+      const falRes = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${NANO_KEY}`,
+          'Authorization': `Key ${FAL_KEY}`,
         },
         body: JSON.stringify({
           prompt,
-          selectedModel: 'nano-banana-2-lite',
-          imageUrls: userPhotoUrl && !userPhotoUrl.startsWith('data:') ? [userPhotoUrl] : undefined,
+          image_url: userPhotoUrl && !userPhotoUrl.startsWith('data:') ? userPhotoUrl : undefined,
+          strength: 0.65,
+          guidance_scale: 7.5,
+          num_images: 1,
+          enable_safety_checker: true,
         }),
       });
 
-      const nanoData = await nanoRes.json();
-      const imageUrl = nanoData?.data?.outputImageUrls?.[0] || null;
+      // Handle non-200 responses without throwing
+      if (!falRes.ok) {
+        console.warn(`[fal.ai] API returned ${falRes.status}`);
+        return {
+          data: {
+            generatedImageUrl: null,
+            fallback: true,
+            faceShape: 'Analyse par IA',
+            compatibilityScore: 70,
+            message: `Simulation du style "${styleTitle}" sera disponible prochainement.`,
+            recommendations: ['Vérifiez votre VITE_FAL_KEY dans .env'],
+          }
+        };
+      }
+
+      const falData = await falRes.json();
+      const imageUrl = falData?.images?.[0]?.url || falData?.output?.[0] || null;
 
       if (imageUrl) {
         return {
@@ -312,67 +379,80 @@ export const apiClient = {
             fallback: false,
             faceShape: 'Analyse par IA',
             compatibilityScore: 92,
-            message: `Simulation du style "${styleTitle}" generee.`,
-            recommendations: ['Montrez cette simulation a votre coiffeur'],
+            message: `Simulation du style "${styleTitle}" générée.`,
+            recommendations: ['Montrez cette simulation à votre coiffeur'],
           }
         };
       }
     } catch (err) {
-      console.warn('[NanoBanana] API failed:', err.message);
+      console.warn('[fal.ai Hairstyle] API failed:', err.message);
     }
 
-    // Fallback: Gemini analysis (no image generation)
-    try {
-      const messages = [{
-        role: 'user',
-        content: [
-          ...(userPhotoUrl && !userPhotoUrl.startsWith('data:') ? [{ type: 'image_url', image_url: { url: userPhotoUrl } }] : []),
-          { type: 'text', text: `Tu es un expert en coiffure IA. Analyse cette photo et le style demande : "${styleTitle}".\nRetourne UNIQUEMENT ce JSON :\n{"faceShape":"forme du visage","compatibilityScore":nombre 40-98,"message":"Analyse courte","recommendations":["Conseil 1","Conseil 2"]}` }
-        ]
-      }];
-
-      const result = await this.request('/api/ai/maria', {
-        method: 'POST',
-        body: JSON.stringify({ messages, model: 'google/gemini-2.5-flash', temperature: 0.7, max_tokens: 1024 }),
-      });
-
-      const content = result?.choices?.[0]?.message?.content || '';
-      const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-      const parsed = JSON.parse(cleaned);
-      return { data: { ...parsed, generatedImageUrl: null, fallback: true } };
-    } catch {
-      return { data: { generatedImageUrl: null, fallback: true, faceShape: 'Analyse par IA', compatibilityScore: 75, message: `Le style "${styleTitle}" presente une compatibilite interessante.`, recommendations: ['Consultez un coiffeur'] } };
-    }
+    // Fallback: local analysis (no image generation)
+    return {
+      data: {
+        generatedImageUrl: null, fallback: true, faceShape: 'Analyse par IA',
+        compatibilityScore: 70,
+        message: `La simulation du style "${styleTitle}" sera disponible prochainement avec une clé API fal.ai.`,
+        recommendations: ['Configurez VITE_FAL_KEY dans votre .env pour activer la génération d\'images'],
+      }
+    };
   },
 
-  // ── Nano Banana 2 Lite: virtual try-on (clothing) ──
-  async _nanoBananaTryOn(payload) {
+  // ── fal.ai: virtual try-on (clothing) ──
+  async _falVirtualTryOn(payload) {
     const { user_photo, garment_photo, garment_name, mode } = payload;
-    const NANO_KEY = import.meta.env.VITE_NANO_BANANA_KEY || '';
+    const FAL_KEY = import.meta.env.VITE_FAL_KEY || '';
 
-    const prompt = `Professional virtual try-on photo edit: Apply the clothing/garment from the second image onto the person in the first image. Keep the face, skin tone, body, pose, background and lighting exactly the same. Only change the clothing to match the garment. The result should look like the person is wearing that exact garment. Photorealistic, high quality fashion result.`;
+    // Early return if no API key - skip fetch entirely
+    if (!FAL_KEY) {
+      return {
+        data: {
+          result_url: null,
+          fallback: true,
+          compatibility_score: 70,
+          message: `Essayage virtuel de "${garment_name}" sera disponible prochainement.`,
+          recommendations: ['Configurez VITE_FAL_KEY dans votre .env'],
+        }
+      };
+    }
 
-    // Try nanananobanana.com API with both images
+    const prompt = `Professional virtual try-on photo edit: Apply the clothing/garment onto the person. Keep the face, skin tone, body, pose, background and lighting exactly the same. Only change the clothing. The result should look like the person is wearing that exact garment. Photorealistic, high quality fashion result.`;
+
+    // Try fal.ai API with image-to-image
     try {
-      const imageUrls = [];
-      if (user_photo && !user_photo.startsWith('data:')) imageUrls.push(user_photo);
-      if (garment_photo && !garment_photo.startsWith('data:')) imageUrls.push(garment_photo);
-
-      const nanoRes = await fetch('https://www.nananobanana.com/api/v1/generate', {
+      const falRes = await fetch('https://fal.run/fal-ai/flux/dev/image-to-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${NANO_KEY}`,
+          'Authorization': `Key ${FAL_KEY}`,
         },
         body: JSON.stringify({
           prompt,
-          selectedModel: 'nano-banana-2-lite',
-          imageUrls: imageUrls.length > 0 ? imageUrls : undefined,
+          image_url: user_photo && !user_photo.startsWith('data:') ? user_photo : undefined,
+          strength: 0.7,
+          guidance_scale: 7.5,
+          num_images: 1,
+          enable_safety_checker: true,
         }),
       });
 
-      const nanoData = await nanoRes.json();
-      const imageUrl = nanoData?.data?.outputImageUrls?.[0] || null;
+      // Handle non-200 responses without throwing
+      if (!falRes.ok) {
+        console.warn(`[fal.ai] TryOn API returned ${falRes.status}`);
+        return {
+          data: {
+            result_url: null,
+            fallback: true,
+            compatibility_score: 70,
+            message: `Essayage virtuel de "${garment_name}" sera disponible prochainement.`,
+            recommendations: ['Vérifiez votre VITE_FAL_KEY dans .env'],
+          }
+        };
+      }
+
+      const falData = await falRes.json();
+      const imageUrl = falData?.images?.[0]?.url || falData?.output?.[0] || null;
 
       if (imageUrl) {
         return {
@@ -385,32 +465,17 @@ export const apiClient = {
         };
       }
     } catch (err) {
-      console.warn('[NanoBanana TryOn] API failed:', err.message);
+      console.warn('[fal.ai TryOn] API failed:', err.message);
     }
 
-    // Fallback: Gemini analysis (no image generation)
-    try {
-      const messages = [{
-        role: 'user',
-        content: [
-          ...(user_photo && !user_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: user_photo } }] : []),
-          ...(garment_photo && !garment_photo.startsWith('data:') ? [{ type: 'image_url', image_url: { url: garment_photo } }] : []),
-          { type: 'text', text: `Tu es un expert en essayage virtuel. Analyse ces images pour evaluer la compatibilite entre la personne et le vetement "${garment_name}".\nRetourne UNIQUEMENT ce JSON :\n{"compatibility_score":nombre 40-98,"message":"Analyse courte","recommendations":["Conseil 1"]}` }
-        ]
-      }];
-
-      const result = await this.request('/api/ai/maria', {
-        method: 'POST',
-        body: JSON.stringify({ messages, model: 'google/gemini-2.5-flash', temperature: 0.7, max_tokens: 1024 }),
-      });
-
-      const content = result?.choices?.[0]?.message?.content || '';
-      const cleaned = content.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
-      const parsed = JSON.parse(cleaned);
-      return { data: { ...parsed, result_url: null, fallback: true } };
-    } catch {
-      return { data: { result_url: null, fallback: true, compatibility_score: 75, message: `L'essayage virtuel de "${garment_name}" sera bientôt disponible.`, recommendations: [] } };
-    }
+    // Fallback: local analysis (no image generation)
+    return {
+      data: {
+        result_url: null, fallback: true, compatibility_score: 70,
+        message: `L'essayage virtuel de "${garment_name}" sera disponible prochainement avec une clé API fal.ai.`,
+        recommendations: ['Configurez VITE_FAL_KEY dans votre .env pour activer la génération d\'images'],
+      }
+    };
   },
 
   async _sendOtpClient(payload) {

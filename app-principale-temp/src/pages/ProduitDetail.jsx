@@ -217,7 +217,7 @@ function CheckoutModal({ product, onClose }) {
 }
 
 // ── Produits recommandés ──────────────────────────────────────────────────────
-function RecommendedProducts({ currentProductId, currentCategory, title = "Recommandé pour vous" }) {
+function RecommendedProducts({ currentProductId, currentCategory, title = "Tu pourrais aimer" }) {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -227,10 +227,29 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
     const cat = (currentCategory || "").toLowerCase();
 
     (async () => {
-      const shopifyProds = [];
-      const vendeurProds = [];
+      const all = [];
 
-      // 1) Shopify Storefront API
+      // 1) Produits de la BDD (vendeurs)
+      try {
+        let items = await entities.Produit.filter({ status: "actif" }, "-created_at", 50).catch(() => []);
+        if (!items || items.length === 0) {
+          items = await entities.Produit.list("-created_at", 50).catch(() => []);
+        }
+        for (const p of (items || [])) {
+          if (p.id === currentProductId) continue;
+          all.push({
+            id: p.id,
+            img: p.image_url || (p.images && p.images[0]) || '',
+            name: p.name || p.title || '',
+            brand: p.brand || '',
+            price: parseFloat(p.price || 0),
+            category: (p.category || '').toLowerCase(),
+            _shopify: false,
+          });
+        }
+      } catch (e) { console.warn("[Recos] DB error:", e.message); }
+
+      // 2) Shopify Storefront API
       try {
         const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN || '';
         const SHOPIFY_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
@@ -260,7 +279,7 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
             if (node.id === currentProductId) continue;
             const v = node.variants?.edges?.[0]?.node;
             const img = node.images?.edges?.[0]?.node;
-            shopifyProds.push({
+            all.push({
               id: node.id,
               img: img?.url || '',
               name: node.title,
@@ -273,41 +292,16 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
         }
       } catch (e) { console.warn("[Recos] Shopify error:", e.message); }
 
-      // 2) Produits vendeurs — sans filtre de status d'abord, puis avec filtre
-      try {
-        let items = await entities.Produit.filter({ status: "actif" }, "-created_at", 50);
-        if (!items || items.length === 0) {
-          items = await entities.Produit.list("-created_at", 50);
-        }
-        for (const p of (items || [])) {
-          if (p.id === currentProductId) continue;
-          vendeurProds.push({
-            id: p.id,
-            img: p.image_url || (p.images && p.images[0]) || '',
-            name: p.name || p.title || '',
-            brand: p.brand || '',
-            price: parseFloat(p.price || 0),
-            category: (p.category || '').toLowerCase(),
-            _shopify: false,
-          });
-        }
-      } catch (e) { console.warn("[Recos] DB error:", e.message); }
-
       if (dead) return;
 
-      // 3) Fusion
-      const all = [...shopifyProds, ...vendeurProds];
-
-      // 4) Tri : même catégorie d'abord
+      // 3) Filtrer : garder seulement les produits de la même catégorie
       if (cat) {
-        all.sort((a, b) => {
-          const am = a.category.includes(cat) || cat.includes(a.category) ? 1 : 0;
-          const bm = b.category.includes(cat) || cat.includes(b.category) ? 1 : 0;
-          return bm - am;
-        });
+        const sameCat = all.filter(p => p.category.includes(cat) || cat.includes(p.category));
+        const others = all.filter(p => !p.category.includes(cat) && !cat.includes(p.category));
+        setProducts([...sameCat, ...others].slice(0, 8));
+      } else {
+        setProducts(all.slice(0, 8));
       }
-
-      setProducts(all.slice(0, 8));
       setLoading(false);
     })();
 
@@ -335,15 +329,7 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
   }
 
   if (products.length === 0) {
-    return (
-      <div className="px-4 py-5">
-        <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">{title}</h2>
-        <div className="flex flex-col items-center py-8 gap-2">
-          <ShoppingBag className="w-10 h-10 text-gray-200" />
-          <p className="text-[13px] text-gray-400 font-medium">Aucun produit similaire pour le moment</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -370,6 +356,257 @@ function RecommendedProducts({ currentProductId, currentCategory, title = "Recom
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Produits de la même boutique (slider horizontal) ──────────────────────────
+function BoutiqueProducts({ currentProduct, currentProductId }) {
+  const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      const all = [];
+      const vendorName = currentProduct?.vendor || currentProduct?.brand || '';
+      const createdBy = currentProduct?.created_by || '';
+
+      // 1) Produits BDD même vendeur
+      try {
+        let items = await entities.Produit.filter({ status: "actif" }, "-created_at", 100).catch(() => []);
+        if (!items || items.length === 0) {
+          items = await entities.Produit.list("-created_at", 100).catch(() => []);
+        }
+        for (const p of (items || [])) {
+          const sameVendor = (p.brand && vendorName && p.brand.toLowerCase() === vendorName.toLowerCase())
+            || (p.created_by && createdBy && p.created_by === createdBy);
+          if (!sameVendor) continue;
+          all.push({
+            id: p.id,
+            img: p.image_url || (p.images && p.images[0]) || '',
+            name: p.name || p.title || '',
+            brand: p.brand || '',
+            price: parseFloat(p.price || 0),
+            _shopify: false,
+          });
+        }
+      } catch (e) { console.warn("[Boutique] DB error:", e.message); }
+
+      // 2) Shopify — même vendor
+      try {
+        const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN || '';
+        const SHOPIFY_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
+        if (SHOPIFY_DOMAIN && SHOPIFY_TOKEN && vendorName) {
+          const r = await fetch(`https://${SHOPIFY_DOMAIN}/api/2024-10/graphql.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN },
+            body: JSON.stringify({
+              query: `{
+                products(first: 50, query: "vendor:${vendorName}", sortKey: BEST_SELLING) {
+                  edges { node {
+                    id title handle vendor productType
+                    images(first: 1) { edges { node { url } } }
+                    variants(first: 1) { edges { node {
+                      id price { amount } availableForSale
+                    } } }
+                  } }
+                }
+              }`
+            })
+          });
+          const json = await r.json();
+          const edges = json.data?.products?.edges || [];
+          for (const { node } of edges) {
+            if (node.id === currentProductId) continue;
+            const v = node.variants?.edges?.[0]?.node;
+            const img = node.images?.edges?.[0]?.node;
+            all.push({
+              id: node.id,
+              img: img?.url || '',
+              name: node.title,
+              brand: node.vendor || '',
+              price: parseFloat(v?.price?.amount || '0'),
+              _shopify: true,
+            });
+          }
+        }
+      } catch (e) { console.warn("[Boutique] Shopify error:", e.message); }
+
+      if (dead) return;
+
+      // Ajouter le produit actuel en tête
+      const current = {
+        id: currentProductId,
+        img: currentProduct?.image_url || currentProduct?.img || (currentProduct?.images && currentProduct.images[0]?.url) || '',
+        name: currentProduct?.title || currentProduct?.name || '',
+        brand: currentProduct?.vendor || currentProduct?.brand || '',
+        price: parseFloat(currentProduct?.price || 0),
+        _shopify: false,
+        _isCurrent: true,
+      };
+      const final = [current, ...all.filter(p => p.id !== currentProductId)];
+      setProducts(final);
+      setLoading(false);
+    })();
+    return () => { dead = true; };
+  }, [currentProductId, currentProduct?.vendor, currentProduct?.brand, currentProduct?.created_by]);
+
+  if (loading) {
+    return (
+      <div className="px-4 py-5">
+        <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">Dans la même boutique</h2>
+        <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="shrink-0 w-36 animate-pulse">
+              <div className="aspect-square bg-gray-100 rounded-2xl" />
+              <div className="p-2 space-y-1.5 mt-2">
+                <div className="h-2.5 bg-gray-100 rounded w-2/3" />
+                <div className="h-2.5 bg-gray-100 rounded w-full" />
+                <div className="h-3.5 bg-gray-100 rounded w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="px-4 py-5">
+        <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-3">Dans la même boutique</h2>
+        <p className="text-[13px] text-gray-400 italic">Aucun produit pour l'instant.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4 py-5">
+      <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">Dans la même boutique</h2>
+      <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-2">
+        {products.map(p => (
+          <div key={p.id} onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)}
+            className="shrink-0 w-36 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all">
+            <div className="aspect-square overflow-hidden bg-gray-50">
+              {p.img ? (
+                <img src={p.img} alt={p.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ShoppingBag className="w-8 h-8 text-gray-200" />
+                </div>
+              )}
+            </div>
+            <div className="p-2.5">
+              <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>
+              <p className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
+              <p className="text-[13px] font-black text-gray-900 mt-1">{p.price.toFixed(2)} €</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Détails produit (marque, ingrédients) ────────────────────────────────────
+function ProductDetailsSection({ product }) {
+  const [open, setOpen] = useState(false);
+  const brand = product?.vendor || product?.brand || '';
+  const ingredients = product?.ingredients || product?.composition || '';
+  const description = product?.description || '';
+
+  if (!brand && !ingredients && !description) return null;
+
+  return (
+    <div className="border-b border-gray-100">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between py-4 px-4">
+        <span className="text-[14px] font-black text-gray-900 uppercase tracking-wide">Détails</span>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
+      {open && (
+        <div className="pb-4 px-4 space-y-4">
+          {brand && (
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1">Marque</p>
+              <p className="text-[13px] text-gray-700 text-justify">{brand}</p>
+            </div>
+          )}
+          {ingredients && (
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1">Ingrédients</p>
+              <p className="text-[13px] text-gray-700 text-justify leading-relaxed">{ingredients}</p>
+            </div>
+          )}
+          {!ingredients && description && (
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1">Description</p>
+              <p className="text-[13px] text-gray-700 text-justify leading-relaxed">{description}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Conformité (représentant UE, fabricant, recyclage) ────────────────────────
+function ProductComplianceSection({ product }) {
+  const [open, setOpen] = useState(false);
+  const euRep = product?.eu_representative || product?.representant_ue || {};
+  const manufacturer = product?.manufacturer || product?.fabricant || {};
+  const recycling = product?.recycling || product?.recyclage || product?.conformite || '';
+
+  const hasData = euRep.name || euRep.email || euRep.phone || euRep.address
+    || manufacturer.name || manufacturer.email || manufacturer.phone || manufacturer.address
+    || recycling;
+
+  if (!hasData) return null;
+
+  return (
+    <div className="border-b border-gray-100">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between py-4 px-4">
+        <span className="text-[14px] font-black text-gray-900 uppercase tracking-wide">Conformité</span>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
+      {open && (
+        <div className="pb-4 px-4 space-y-4">
+          {/* Représentant UE */}
+          {(euRep.name || euRep.email || euRep.phone || euRep.address) && (
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Représentant dans l'Union européenne</p>
+              <div className="space-y-1.5">
+                {euRep.name && <p className="text-[13px] text-gray-700"><span className="font-bold">Nom :</span> {euRep.name}</p>}
+                {euRep.address && <p className="text-[13px] text-gray-700"><span className="font-bold">Adresse :</span> {euRep.address}</p>}
+                {euRep.phone && <p className="text-[13px] text-gray-700"><span className="font-bold">Téléphone :</span> {euRep.phone}</p>}
+                {euRep.email && <p className="text-[13px] text-gray-700"><span className="font-bold">Email :</span> {euRep.email}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Fabricant */}
+          {(manufacturer.name || manufacturer.email || manufacturer.phone || manufacturer.address) && (
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Fabricant</p>
+              <div className="space-y-1.5">
+                {manufacturer.name && <p className="text-[13px] text-gray-700"><span className="font-bold">Nom :</span> {manufacturer.name}</p>}
+                {manufacturer.address && <p className="text-[13px] text-gray-700"><span className="font-bold">Adresse :</span> {manufacturer.address}</p>}
+                {manufacturer.phone && <p className="text-[13px] text-gray-700"><span className="font-bold">Téléphone :</span> {manufacturer.phone}</p>}
+                {manufacturer.email && <p className="text-[13px] text-gray-700"><span className="font-bold">Email :</span> {manufacturer.email}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Recyclage */}
+          {recycling && (
+            <div>
+              <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1">Politiques de recyclage</p>
+              <p className="text-[13px] text-gray-700 text-justify leading-relaxed">{recycling}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -752,13 +989,7 @@ export default function ProduitDetail() {
           </div>
         )}
 
-        {/* Badge paiement BeautyBook pour produits BDD */}
-        {isDbProduct && (
-          <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3 mb-2">
-            <Shield className="w-4 h-4 text-primary shrink-0" />
-            <p className="text-[11px] font-bold text-primary">Vendu & expédié par un vendeur BeautyBook · Paiement sécurisé</p>
-          </div>
-        )}
+
 
         {/* Styliste IA — essayer ce produit */}
         <button
@@ -810,18 +1041,79 @@ export default function ProduitDetail() {
         ))}
       </div>
 
-      {/* Sections */}
-      <div className="px-4">
-        <ExpandableSection title="Description du produit" defaultOpen>
-          <p className="text-[13px] text-gray-600 leading-relaxed">{product.description || "Aucune description disponible."}</p>
+      {/* Produits de la même boutique (slider horizontal) */}
+      <div className="h-2 bg-gray-50" />
+      <BoutiqueProducts currentProduct={product} currentProductId={productId} />
+
+      <div className="h-2 bg-gray-50" />
+
+      {/* Sections produit */}
+      <div className="px-0">
+        {/* Description */}
+        <ExpandableSection title="Description" defaultOpen>
+          <div className="text-[13px] text-gray-700 leading-[1.8] text-justify">
+            {product.description ? (
+              <p>{product.description}</p>
+            ) : (
+              <p className="text-gray-400 italic">Aucune description disponible pour ce produit.</p>
+            )}
+          </div>
         </ExpandableSection>
+
+        {/* Spécifications */}
+        <ExpandableSection title="Spécifications">
+          <div className="space-y-3">
+            <table className="w-full text-[12px]">
+              <tbody>
+                {product.category && (
+                  <tr className="border-b border-gray-50">
+                    <td className="py-2.5 font-black text-gray-900 w-2/5">Catégorie</td>
+                    <td className="py-2.5 text-gray-600 text-justify">{product.category}</td>
+                  </tr>
+                )}
+                {product.productType && (
+                  <tr className="border-b border-gray-50">
+                    <td className="py-2.5 font-black text-gray-900">Type</td>
+                    <td className="py-2.5 text-gray-600 text-justify">{product.productType}</td>
+                  </tr>
+                )}
+                {displayPrice && (
+                  <tr className="border-b border-gray-50">
+                    <td className="py-2.5 font-black text-gray-900">Prix</td>
+                    <td className="py-2.5 text-gray-600 text-justify">{parseFloat(displayPrice).toFixed(2)} €</td>
+                  </tr>
+                )}
+                {isDbProduct && product.stock !== undefined && (
+                  <tr className="border-b border-gray-50">
+                    <td className="py-2.5 font-black text-gray-900">Disponibilité</td>
+                    <td className="py-2.5 text-gray-600 text-justify">{product.stock > 0 ? `${product.stock} en stock` : "Rupture de stock"}</td>
+                  </tr>
+                )}
+                {product.tags?.length > 0 && (
+                  <tr>
+                    <td className="py-2.5 font-black text-gray-900">Mots-clés</td>
+                    <td className="py-2.5 text-gray-600 text-justify">{product.tags.join(", ")}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </ExpandableSection>
+
+        {/* Détails (marque, ingrédients) */}
+        <ProductDetailsSection product={product} />
+
+        {/* Conformité (représentant UE, fabricant, recyclage) */}
+        <ProductComplianceSection product={product} />
+
+        {/* Avis clients */}
         <ExpandableSection title="Avis clients">
-          <p className="text-[13px] text-gray-400 italic">Aucun avis pour le moment.</p>
+          <p className="text-[13px] text-gray-400 italic text-justify">Aucun avis pour le moment. Soyez le premier à donner votre avis !</p>
         </ExpandableSection>
       </div>
 
       <div className="h-2 bg-gray-50 mt-2" />
-      <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="TU POURRAIS AIMER" />
+      <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="PRODUITS SIMILAIRES" />
 
       {/* Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3 z-30" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>

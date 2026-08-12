@@ -31,7 +31,8 @@ const parseOrder = (orderBy) => {
 };
 
 const KNOWN_COLUMNS = {
-  Reel: ['id','title','description','video_url','thumbnail_url','images','category','tags','status','likes','views','comments_count','author_email','author_name','author_avatar','created_at','updated_at','created_by_id'],
+  Reel: ['id','title','description','video_url','thumbnail_url','images','category','tags','status','likes','views','comments_count','author_email','author_name','author_avatar','sound','sound_preview_url','sound_duration','sound_trim_start','sound_trim_end','created_at','updated_at','created_by_id'],
+  Repub: ['id','user_email','user_name','reel_id','reel_title','reel_thumbnail','reel_images','original_author','original_author_avatar','category','created_at'],
   Style: ['id','title','description','category','images','image_url','video_url','tags','pro_email','status','likes','views','featured','author_email','author_name','author_avatar','created_at','updated_at'],
   Produit: ['id','name','description','price','old_price','images','category','brand','stock','status','tags','rating','reviews_count','shopify_id','source','featured','external_url','min_qty','created_at','updated_at','created_by_id'],
   Publication: ['id','author_email','author_name','author_avatar','content','images','video_url','type','status','likes','comments_count','tags','created_at','updated_at','created_by_id'],
@@ -58,6 +59,9 @@ const KNOWN_COLUMNS = {
   user_favorite: ['id','user_email','target_id','target_type','target_title','target_image','target_data','created_at'],
   reel_comment: ['id','reel_id','user_email','user_name','user_avatar','content','likes','parent_id','created_at','updated_at'],
   user_follow: ['id','follower_email','follower_name','follower_avatar','followed_email','created_at'],
+  social_connection: ['id','user_email','platform','credentials','account_info','status','created_at','updated_at'],
+  social_interaction: ['id','platform','external_id','user_email','author_name','author_id','content','reply','type','created_at'],
+  MariaConversation: ['id','user_email','title','messages','status','created_at','updated_at','created_by_id'],
 };
 
 const stripUnknownColumns = async (tableName, payload) => {
@@ -340,6 +344,8 @@ export const entities = {
   UserFollow:         createEntity('user_follow'),
   User:               createEntity('profiles'),
   profiles:           createEntity('profiles'),
+  SocialConnection:   createEntity('social_connection'),
+  SocialInteraction:  createEntity('social_interaction'),
 };
 
 const API_BASE = import.meta.env.VITE_BACKEND_URL || '';

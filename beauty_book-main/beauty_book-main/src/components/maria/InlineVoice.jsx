@@ -16,9 +16,8 @@ function EqBars({ active }) {
           key={i}
           className="w-[2.5px] rounded-full bg-white"
           style={{
-            height: `${h * 2}px`,
-            transition: "height 0.2s ease",
             height: active ? `${h * 2}px` : "3px",
+            transition: "height 0.2s ease",
           }}
         />
       ))}

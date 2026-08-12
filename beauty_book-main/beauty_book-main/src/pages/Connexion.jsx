@@ -1,9 +1,170 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft, CheckCircle } from "lucide-react";
 import { supabase } from "@/api/supabaseClient";
 
 const SPLASH_IMG = "https://media.base44.com/images/public/6a0ba7bd3d55dddeb85a8366/39cb4873a_generated_image.png";
+
+// ── Reset Password View ───────────────────────────────────────────────────────
+function ResetPassword({ onBack }) {
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const inputClass = "w-full bg-gray-100 rounded-2xl px-4 py-4 text-[14px] font-medium text-gray-800 outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-gray-400";
+  const labelClass = "text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block";
+
+  const pwdChecks = {
+    length: newPassword.length >= 8,
+    upper: /[A-Z]/.test(newPassword),
+    number: /[0-9]/.test(newPassword),
+    special: /[^A-Za-z0-9]/.test(newPassword),
+  };
+  const pwdScore = Object.values(pwdChecks).filter(Boolean).length;
+  const pwdStrong = pwdScore >= 3;
+  const isValid = pwdStrong && newPassword === confirmPassword && newPassword.length > 0;
+
+  const handleReset = async () => {
+    if (!isValid || loading) return;
+    setLoading(true);
+    setError("");
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+      setSuccess(true);
+    } catch (e) {
+      setError("Impossible de réinitialiser le mot de passe. Le lien a peut-être expiré.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col font-display px-6 pt-16 pb-10">
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-5">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
+            <CheckCircle className="w-10 h-10 text-green-500" />
+          </div>
+          <div>
+            <h2 className="text-[28px] font-black text-gray-900 mb-2">Mot de passe mis à jour !</h2>
+            <p className="text-[14px] text-gray-400 font-medium leading-relaxed max-w-[280px]">
+              Votre mot de passe a été réinitialisé avec succès.
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={onBack}
+          className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white active:scale-95 transition-all"
+          style={{ background: "#E8732A" }}
+        >
+          Se connecter
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white flex flex-col font-display">
+      <div className="px-5 pt-12 pb-4 flex items-center gap-3">
+        <button
+          onClick={onBack}
+          className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center active:scale-95 transition-all"
+        >
+          <ArrowLeft className="w-4 h-4 text-gray-700" />
+        </button>
+        <span className="text-[16px] font-black text-gray-900">Nouveau mot de passe</span>
+      </div>
+
+      <div className="flex-1 px-6 pt-6 pb-10 flex flex-col">
+        <div className="flex justify-center mb-8">
+          <div className="w-24 h-24 bg-orange-50 rounded-3xl flex items-center justify-center">
+            <span className="text-[48px]">🔑</span>
+          </div>
+        </div>
+
+        <h2 className="text-[28px] font-black text-gray-900 leading-tight mb-2">Créez votre<br />nouveau mot de passe</h2>
+        <p className="text-[13px] text-gray-400 font-medium mb-8 leading-relaxed">
+          Choisissez un mot de passe fort pour sécuriser votre compte.
+        </p>
+
+        <div className="space-y-4 flex-1">
+          <div>
+            <label className={labelClass}>Nouveau mot de passe</label>
+            <div className="relative">
+              <input
+                className={inputClass + " pr-12"}
+                type={showPwd ? "text" : "password"}
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+              />
+              <button onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+                {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {newPassword.length > 0 && (
+              <div className="mt-2 space-y-1.5">
+                <div className="flex gap-1">
+                  {[1,2,3,4].map(i => (
+                    <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300"
+                      style={{ background: i <= pwdScore ? (pwdScore <= 1 ? "#ef4444" : pwdScore === 2 ? "#f97316" : pwdScore === 3 ? "#eab308" : "#22c55e") : "#e5e7eb" }} />
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1">
+                  {[
+                    { check: pwdChecks.length, label: "8 car. min" },
+                    { check: pwdChecks.upper, label: "Majuscule" },
+                    { check: pwdChecks.number, label: "Chiffre" },
+                    { check: pwdChecks.special, label: "Caractère spécial" },
+                  ].map(({ check, label }) => (
+                    <span key={label} className={`text-[10px] font-bold ${check ? "text-green-500" : "text-gray-400"}`}>
+                      {check ? "✓" : "○"} {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className={labelClass}>Confirmer le mot de passe</label>
+            <div className="relative">
+              <input
+                className={inputClass + " pr-12"}
+                type={showPwd ? "text" : "password"}
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            {newPassword && confirmPassword && newPassword !== confirmPassword && (
+              <p className="text-[11px] text-red-500 font-medium mt-1">Les mots de passe ne correspondent pas.</p>
+            )}
+          </div>
+
+          {error && <p className="text-[12px] text-red-500 font-medium">{error}</p>}
+        </div>
+
+        <div className="mt-6">
+          <button
+            onClick={handleReset}
+            disabled={!isValid || loading}
+            className="w-full py-4 rounded-full font-black text-[14px] uppercase tracking-widest text-white transition-all active:scale-95"
+            style={{
+              background: isValid && !loading ? "#E8732A" : "#d1d5db",
+            }}
+          >
+            {loading ? "Enregistrement..." : "Confirmer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Forgot Password View ──────────────────────────────────────────────────────
 function ForgotPassword({ onBack }) {
@@ -130,8 +291,25 @@ export default function Connexion() {
   const [error, setError] = useState("");
   const [showForgot, setShowForgot] = useState(false);
 
+  // Détecter si l'utilisateur vient d'un lien de réinitialisation de mot de passe
+  const [isResetMode, setIsResetMode] = useState(() => {
+    const hash = window.location.hash;
+    return hash.includes('type=recovery');
+  });
+
+  useEffect(() => {
+    if (isResetMode) {
+      // Nettoyer le hash de l'URL après détection
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }, [isResetMode]);
+
   const inputClass = "w-full bg-gray-100 rounded-2xl px-4 py-4 text-[14px] font-medium text-gray-800 outline-none focus:ring-2 focus:ring-primary/40 transition-all placeholder:text-gray-400";
   const labelClass = "text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block";
+
+  if (isResetMode) {
+    return <ResetPassword onBack={() => { setIsResetMode(false); navigate('/connexion', { replace: true }); }} />;
+  }
 
   if (showForgot) {
     return <ForgotPassword onBack={() => setShowForgot(false)} />;
@@ -161,9 +339,10 @@ export default function Connexion() {
 
   const handleOAuth = async (provider) => {
     try {
+      setLoading(true);
+      setError("");
       const { isNativeApp, signInWithOAuthMobile, signInWithOAuthWeb } = await import('@/lib/oauth-mobile');
       if (isNativeApp()) {
-        setLoading(true);
         await signInWithOAuthMobile(provider);
       } else {
         await signInWithOAuthWeb(provider);
@@ -171,7 +350,14 @@ export default function Connexion() {
     } catch (e) {
       console.error(`[${provider} Auth] Error:`, e);
       setLoading(false);
-      setError(`Erreur lors de la connexion avec ${provider === 'google' ? 'Google' : 'Apple'}.`);
+      const providerName = provider === 'google' ? 'Google' : 'Apple';
+      if (e.message?.includes('not enabled') || e.message?.includes('provider')) {
+        setError(`Le provider ${providerName} n'est pas activé dans le dashboard Supabase.`);
+      } else if (e.message?.includes('popup')) {
+        setError(`Le popup a été bloqué. Autorisez les popups pour ce site.`);
+      } else {
+        setError(`Erreur avec ${providerName}: ${e.message || 'Vérifiez la configuration.'}`);
+      }
     }
   };
 
@@ -285,17 +471,6 @@ export default function Connexion() {
               </svg>
               <span className="flex-1 text-left text-[14px] font-black text-gray-800">Continuer avec Google</span>
               <span className="text-gray-300">›</span>
-            </button>
-
-            <button
-              onClick={() => handleOAuth('apple')}
-              className="w-full flex items-center gap-3 bg-black rounded-2xl px-5 py-4 active:scale-95 transition-all"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-                <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
-              </svg>
-              <span className="flex-1 text-left text-[14px] font-black text-white">Continuer avec Apple</span>
-              <span className="text-gray-500">›</span>
             </button>
           </div>
 

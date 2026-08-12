@@ -328,7 +328,7 @@ export default function Explorer() {
         reader.readAsDataURL(file);
       });
 
-      const OR_KEY = __OPENROUTER_KEY__ || '';
+      const OR_KEY = (typeof __OPENROUTER_KEY__ !== 'undefined' ? __OPENROUTER_KEY__ : '') || import.meta.env.VITE_OPENROUTER_KEY || '';
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {

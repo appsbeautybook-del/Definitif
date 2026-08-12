@@ -55,6 +55,52 @@ export const createCheckoutSession = async (req, res) => {
   }
 };
 
+// POST /api/payments/wallet-recharge
+export const createWalletRecharge = async (req, res) => {
+  try {
+    const { amount, returnPath } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Montant invalide' });
+    }
+
+    if (amount < 1) {
+      return res.status(400).json({ error: 'Montant minimum: 1€' });
+    }
+
+    const origin = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:5173';
+    const successPath = returnPath || '/mon-solde';
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'payment',
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: {
+            name: 'Rechargement Beauty Wallet',
+            description: `Ajout de ${amount.toFixed(2)}€ à votre portefeuille`,
+          },
+          unit_amount: Math.round(amount * 100),
+        },
+        quantity: 1,
+      }],
+      metadata: {
+        type: 'wallet_recharge',
+        user_email: req.user.email,
+        amount: amount.toString(),
+      },
+      success_url: `${origin}${successPath}?payment=success`,
+      cancel_url: `${origin}${successPath}?payment=cancelled`,
+    });
+
+    return res.json({ sessionId: session.id, checkoutUrl: session.url });
+  } catch (error) {
+    console.error('[Wallet Recharge Error]', error.message);
+    return res.status(500).json({ error: error.message });
+  }
+};
+
 // POST /api/payments/webhook
 export const stripeWebhook = async (req, res) => {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -77,6 +123,64 @@ export const stripeWebhook = async (req, res) => {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
     const metadata = session.metadata || {};
+
+    // ─── Wallet Recharge ───────────────────────────
+    if (metadata.type === 'wallet_recharge') {
+      const userEmail = metadata.user_email;
+      const amount = parseFloat(metadata.amount);
+
+      if (userEmail && amount > 0) {
+        try {
+          // Find existing SoldeBeautyPay record
+          const { data: existing } = await supabaseAdmin
+            .from('SoldeBeautyPay')
+            .select('*')
+            .eq('user_email', userEmail)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          const newTx = {
+            id: `tx_${Date.now()}`,
+            label: 'Rechargement Beauty Wallet',
+            date: new Date().toISOString(),
+            amount: amount,
+            type: 'credit',
+            category: 'recharge',
+            stripe_session_id: session.id,
+          };
+
+          if (existing) {
+            await supabaseAdmin.from('SoldeBeautyPay').update({
+              solde: (existing.solde || 0) + amount,
+              transactions: [newTx, ...(existing.transactions || [])],
+            }).eq('id', existing.id);
+          } else {
+            await supabaseAdmin.from('SoldeBeautyPay').insert({
+              user_email: userEmail,
+              solde: amount,
+              transactions: [newTx],
+            });
+          }
+
+          console.log(`[Webhook] ✅ Wallet recharge: ${amount}€ pour ${userEmail}`);
+
+          // Notification
+          await supabaseAdmin.from('Notification').insert({
+            user_email: userEmail,
+            type: 'wallet',
+            title: '💰 Portefeuille rechargé !',
+            body: `${amount.toFixed(2)}€ ont été ajoutés à votre Beauty Wallet.`,
+            link: '/mon-solde',
+            read: false,
+          });
+        } catch (err) {
+          console.error('[Webhook] Erreur wallet recharge:', err.message);
+        }
+      }
+    }
+
+    // ─── Reservation Payment ───────────────────────
     const reservationId = metadata.reservation_id;
     const paymentType = metadata.payment_type || 'full';
 

@@ -1693,25 +1693,28 @@ function SearchResults({ query, onClose }) {
           {results.services.length > 0 && (
             <>
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-4 pt-4 pb-2">Services ({results.services.length})</p>
-              {results.services.map(service => (
-                <button key={service.id}
-                  onClick={() => { onClose(); navigate(`/service/${service.id}`, { state: { title: service.title, price: service.price, duration: service.duration_min, cover: service.image_url } }); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 active:bg-gray-50 transition-colors text-left">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0">
-                    {service.image_url ? (
-                      <img src={service.image_url} alt={service.title} className="w-full h-full object-cover" />
-                    ) : <span className="w-full h-full flex items-center justify-center text-[20px]">💆</span>}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[14px] font-black text-gray-900 truncate">{service.title}</p>
-                    <div className="flex items-center gap-2">
-                      {service.price && <p className="text-[12px] font-black text-primary">{service.price}€</p>}
-                      {service.category && <p className="text-[11px] text-gray-400 font-medium">{service.category}</p>}
+              {results.services.map(service => {
+                const serviceImage = service.images && service.images.length > 0 ? service.images[0] : service.image_url;
+                return (
+                  <button key={service.id}
+                    onClick={() => { onClose(); navigate(`/service/${service.id}`, { state: { title: service.title, price: service.price, duration: service.duration_min, cover: serviceImage } }); }}
+                    className="w-full flex items-center gap-3 px-4 py-3 active:bg-gray-50 transition-colors text-left">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+                      {serviceImage ? (
+                        <img src={serviceImage} alt={service.title} className="w-full h-full object-cover" />
+                      ) : <span className="w-full h-full flex items-center justify-center text-[20px]">💆</span>}
                     </div>
-                  </div>
-                  <span className="text-gray-300 text-lg shrink-0">›</span>
-                </button>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-black text-gray-900 truncate">{service.title}</p>
+                      <div className="flex items-center gap-2">
+                        {service.price && <p className="text-[12px] font-black text-primary">{service.price}€</p>}
+                        {service.category && <p className="text-[11px] text-gray-400 font-medium">{service.category}</p>}
+                      </div>
+                    </div>
+                    <span className="text-gray-300 text-lg shrink-0">›</span>
+                  </button>
+                );
+              })}
             </>
           )}
         </div>

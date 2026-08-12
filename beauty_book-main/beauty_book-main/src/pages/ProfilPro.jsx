@@ -74,7 +74,7 @@ export default function ProfilPro() {
     };
 
     // 1) Fetch ProfilPro — prefer active record, then latest with data
-    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, status, type_activite, travail_nuit, galerie_urls').eq('user_email', user.email).order('created_at', { ascending: false })
+    supabase.from('ProfilPro').select('id, user_email, salon_name, phone, address, city, bio, avatar_url, cover_url, status, type_activite, travail_nuit, galerie_urls, rating, reviews_count').eq('user_email', user.email).order('created_at', { ascending: false })
       .then(({ data: profiles, error }) => {
         const all = profiles || [];
         if (all.length === 0) return null;
@@ -329,10 +329,15 @@ export default function ProfilPro() {
               {nomCommerce}
             </h1>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 text-primary">
-                <Star className="w-4 h-4" />
-                <span className="text-[14px] font-black">4.9</span>
-              </div>
+              {proInfoCurrent?.rating > 0 && (
+                <div className="flex items-center gap-1 text-primary">
+                  <Star className="w-4 h-4" />
+                  <span className="text-[14px] font-black">{proInfoCurrent.rating}</span>
+                  {proInfoCurrent?.reviews_count > 0 && (
+                    <span className="text-[11px] text-gray-400 font-medium">({proInfoCurrent.reviews_count})</span>
+                  )}
+                </div>
+              )}
               <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
               <span className="text-[13px] font-bold text-gray-500">{proInfoCurrent?.city || "Paris"}</span>
               {proInfoCurrent?.type_activite && (

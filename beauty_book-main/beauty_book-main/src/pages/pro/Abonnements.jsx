@@ -69,7 +69,7 @@ const FEATURE_ICONS = {
   "Support dédié 24/7": Headphones,
   "Publication styles": Star, "Live streaming": Mic, "Visite 3D": Eye,
   "Commission réduite": Percent, "Tout Pro inclus": Star,
-  "Mise en avant \"Salon du Mois\"": Eye, 'Mise en avant "Salon du Mois"': Eye,
+  'Mise en avant "Salon du Mois"': Eye,
   "Gestion d'équipe complète": Users, "Assistant Vocal AI inclus": Mic,
 };
 

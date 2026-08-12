@@ -4,27 +4,30 @@ import {
   ArrowLeft, ChevronRight, CheckCircle2, Sparkles, Calendar,
   Scissors, ShoppingBag, RotateCcw, X, SunMedium, Focus, Zap,
   Camera, FlipHorizontal2, ShieldCheck, Droplets, Leaf, Star,
-  ImagePlus, Upload
+  ImagePlus, Upload, Feather, Layers, Waves, MoveVertical, Sun,
+  Blend, Globe, Palette, Flower2, Flower, Flame, MoonStar, Crown,
+  ShowerHead, Container, Droplet, Wind, FlaskConical, CalendarDays,
+  Sunrise, Shell
 } from "lucide-react";
 import { entities, uploadFile } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 
 const HAIR_TYPES = [
-  { id: "fins",    label: "Fins & Fragiles",  emoji: "🪶" },
-  { id: "epais",   label: "Épais & Denses",   emoji: "🌿" },
-  { id: "boucles", label: "Bouclés & Frisés", emoji: "🌀" },
-  { id: "raides",  label: "Raides & Lisses",  emoji: "〰️" },
-  { id: "crepus",  label: "Crépus & Afro",    emoji: "✨" },
-  { id: "mixtes",  label: "Mixtes",           emoji: "🔀" },
+  { id: "fins",    label: "Fins & Fragiles",  Icon: Feather },
+  { id: "epais",   label: "Épais & Denses",   Icon: Layers },
+  { id: "boucles", label: "Bouclés & Frisés", Icon: Waves },
+  { id: "raides",  label: "Raides & Lisses",  Icon: MoveVertical },
+  { id: "crepus",  label: "Crépus & Afro",    Icon: Sun },
+  { id: "mixtes",  label: "Mixtes",           Icon: Blend },
 ];
 
 const ORIGINES = [
-  { id: "africaine",   label: "Africaine / Afro",     emoji: "🌍" },
-  { id: "metissee",    label: "Métissée / Mixte",      emoji: "🌈" },
-  { id: "asiatique",   label: "Asiatique",             emoji: "🌏" },
-  { id: "latine",      label: "Latine / Méditerranée", emoji: "🌺" },
-  { id: "europeenne",  label: "Européenne",            emoji: "🌸" },
-  { id: "moyen-orient",label: "Moyen-Orient",          emoji: "🌙" },
+  { id: "africaine",   label: "Africaine / Afro",     Icon: Globe },
+  { id: "metissee",    label: "Métissée / Mixte",      Icon: Palette },
+  { id: "asiatique",   label: "Asiatique",             Icon: Flower2 },
+  { id: "latine",      label: "Latine / Méditerranée", Icon: Flame },
+  { id: "europeenne",  label: "Européenne",            Icon: Flower },
+  { id: "moyen-orient",label: "Moyen-Orient",          Icon: MoonStar },
 ];
 
 const CONCERNS = [
@@ -49,8 +52,8 @@ const SCAN_GUIDE_STEPS = [
     title: "Bonne luminosité",
     desc: "Placez-vous face à une fenêtre ou sous une lumière directe. Évitez les contre-jours et les ombres sur vos cheveux.",
     tip: "La lumière naturelle donne les meilleurs résultats.",
-    img: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?q=80&w=600",
-    imgAlt: "Femme dans la lumière naturelle pour soin capillaire",
+    img: "https://images.unsplash.com/photo-1560066984-138dadb4c035?q=80&w=600",
+    imgAlt: "Cheveux éclairés en salon de coiffure",
   },
   {
     icon: Focus,
@@ -59,8 +62,8 @@ const SCAN_GUIDE_STEPS = [
     title: "Positionnez vos cheveux",
     desc: "Dégagez cou et épaules. Tenez la caméra à 40–60 cm. Incluez toute la longueur de vos cheveux dans le cadre.",
     tip: "Vue de dos ou de côté recommandée pour analyser la texture.",
-    img: "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?q=80&w=600",
-    imgAlt: "Positionnement idéal pour analyse capillaire",
+    img: "https://images.unsplash.com/photo-1562322140-8baeececf3df?q=80&w=600",
+    imgAlt: "Coiffeur travaillant sur des cheveux en gros plan",
   },
   {
     icon: FlipHorizontal2,
@@ -69,8 +72,8 @@ const SCAN_GUIDE_STEPS = [
     title: "Restez immobile",
     desc: "Maintenez la caméra stable pour éviter le flou. Vos cheveux doivent être clairement visibles et bien éclairés.",
     tip: "Photo de profil ou de dos : idéal pour l'analyse IA.",
-    img: "https://images.unsplash.com/photo-1519699047748-de8e457a634e?q=80&w=600",
-    imgAlt: "Prise de photo stable pour scan capillaire",
+    img: "https://images.unsplash.com/photo-1526045478516-99145907023c?q=80&w=600",
+    imgAlt: "Cheveux bouclés vus de dos pour scan capillaire",
   },
 ];
 
@@ -1188,6 +1191,427 @@ function RoutinesModal({ results, onClose }) {
   );
 }
 
+// ── Analyse réelle de la photo capturée (pixels) ─────────────────────────────
+// Mesure : luminosité, contraste, netteté (définition de la fibre), saturation
+// (vitalité/brillance), densité sombre (épaisseur), reflets chauds (coloration)
+async function analyzeHairPhoto(file) {
+  return new Promise((resolve) => {
+    if (!file) return resolve(null);
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const SW = 160, SH = 160;
+        const canvas = document.createElement("canvas");
+        canvas.width = SW; canvas.height = SH;
+        const ctx = canvas.getContext("2d");
+        const scale = Math.max(SW / img.width, SH / img.height);
+        const w = img.width * scale, h = img.height * scale;
+        ctx.drawImage(img, (SW - w) / 2, (SH - h) / 2, w, h);
+        URL.revokeObjectURL(url);
+        const d = ctx.getImageData(0, 0, SW, SH).data;
+
+        let totalLum = 0, totalSat = 0, totalR = 0, totalG = 0, totalB = 0;
+        let darkPx = 0;
+        const lums = new Float32Array(SW * SH);
+        for (let y = 0; y < SH; y++) {
+          for (let x = 0; x < SW; x++) {
+            const i = (y * SW + x) * 4;
+            const r = d[i], g = d[i + 1], b = d[i + 2];
+            const lum = r * 0.299 + g * 0.587 + b * 0.114;
+            lums[y * SW + x] = lum;
+            totalLum += lum; totalR += r; totalG += g; totalB += b;
+            const maxC = Math.max(r, g, b), minC = Math.min(r, g, b);
+            totalSat += maxC > 0 ? (maxC - minC) / maxC : 0;
+            if (lum < 80) darkPx++;
+          }
+        }
+        const n = SW * SH;
+        const avgBrightness = totalLum / n;
+        const avgSat = totalSat / n;
+        let variance = 0;
+        for (let i = 0; i < n; i++) variance += (lums[i] - avgBrightness) ** 2;
+        const contrast = Math.sqrt(variance / n);
+
+        // Netteté = Laplacien moyen → mesure la définition de la fibre / texture
+        let lapSum = 0, lapCount = 0;
+        for (let y = 1; y < SH - 1; y++) {
+          for (let x = 1; x < SW - 1; x++) {
+            const lap = Math.abs(
+              -lums[(y-1)*SW+x-1] - lums[(y-1)*SW+x] - lums[(y-1)*SW+x+1]
+              - lums[y*SW+x-1] + 8 * lums[y*SW+x] - lums[y*SW+x+1]
+              - lums[(y+1)*SW+x-1] - lums[(y+1)*SW+x] + -lums[(y+1)*SW+x+1]
+            );
+            lapSum += lap; lapCount++;
+          }
+        }
+        const sharpness = lapCount > 0 ? lapSum / lapCount : 0;
+
+        const avgR = totalR / n, avgG = totalG / n, avgB = totalB / n;
+        const warmRatio = avgR / Math.max(1, (avgG + avgB) / 2);
+
+        resolve({
+          brightness: Math.round(avgBrightness),
+          contrast: Math.round(contrast * 10) / 10,
+          sharpness: Math.round(sharpness * 10) / 10,
+          saturation: Math.round(avgSat * 100) / 100,
+          darkRatio: Math.round((darkPx / n) * 100) / 100,
+          warmRatio: Math.round(warmRatio * 100) / 100,
+        });
+      } catch { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+// ── Analyse personnalisée : profil de base + observations réelles de la photo ──
+function generateClientAnalysis(hairType, origine, concerns, hairTypeLabel, origineLabel, metrics) {
+  const HairProfiles = {
+    fins: {
+      diagnostic: `Vos cheveux ${origineLabel ? `d'origine ${origineLabel.toLowerCase()}` : ""} de type fins et fragiles nécessitent des soins légers mais nutritifs. La priorité est de renforcer la fibre sans les alourdir, tout en apportant volume et densité.`,
+      score_sante: 65,
+      points_forts: ["Texture douce et soyeuse", "Facilité de coiffage", "Séchage rapide"],
+      points_faibles: ["Manque de volume visible", "Fragilité et casse fréquente", "Résistance limitée aux coiffages"],
+      coiffures: [
+        { nom: "Coupe dégradée courte", description: "Apporte du mouvement et du volume naturel sans alourdir les longueurs." },
+        { nom: "Pixie texturé", description: "Coupe moderne qui donne du volume et de la personnalité avec peu d'entretien." },
+        { nom: "Bob mouillé", description: "Look chic et facile qui valorise la texture fine des cheveux." },
+      ],
+      produits: [
+        { nom: "Shampooing volume", type: "Shampoing", marque: "Kérastase", pourquoi: "Formule légère qui ne alourdit pas les cheveux fins tout en apportant du volume." },
+        { nom: "Masque protéiné léger", type: "Masque", marque: "Redken", pourquoi: "Renforce la fibre capillaire sans la surcharger." },
+        { nom: "Spray texturisant", type: "Spray", marque: "Bumble and bumble", pourquoi: "Crée de la texture et du volume sans résidu gras." },
+        { nom: "Sérum sans huile", type: "Sérum", marque: "L'Oréal Professionnel", pourquoi: "Protège les pointes sans alourdir les cheveux fins." },
+      ],
+      routine: {
+        Lundi: { matin: "Shampoing volume + spray lift racines", soir: "Sérum pointes léger" },
+        Mercredi: { matin: "Rinçage + soin démêlant 3 min", soir: "Pas de produit - laisser respirer" },
+        Vendredi: { matin: "Shampoing sec pour volume", soir: "Tresses lâches pour ondulation naturelle" },
+        Dimanche: { matin: "Masque protéiné 15 min", soir: "Huile légère sur pointes uniquement" },
+      },
+      conseil_pro: "Évitez les coiffages trop lourds et privilégiez les coupes courtes qui apportent du volume naturel.",
+      routines_suggeries: [
+        { nom: "Routine Volume & Force", emoji: "💪", frequence: "3x/semaine", description: "Renforcer et volumiser les cheveux fins", taches: ["Shampoing volumisant", "Après-shampoing léger uniquement sur pointes", "Spray lift racines sur cheveux humides", "Séchage tête en bas pour maximiser le volume"] },
+        { nom: "Routine Anti-Casse", emoji: "🛡️", frequence: "2x/semaine", description: "Protéger et renforcer la fibre fragilisée", taches: ["Masque protéiné 15 min", "Démêlage doux avec peigne large", "Sérum sans huile sur pointes", "Éviter la chaleur > 150°C"] },
+        { nom: "Routine Entretien Hebdo", emoji: "✨", frequence: "Hebdomadaire", description: "Maintenir la santé capillaire", taches: ["Rinçage au vinaigre de cidre", "Masque nourrissant 20 min", "Couper 1 cm de pointes", "Protésoleil capillaire si exposition"] },
+      ],
+    },
+    epais: {
+      diagnostic: `Vos cheveux ${origineLabel ? `d'origine ${origineLabel.toLowerCase()}` : ""} de type épais et denses sont naturellement résistants mais peuvent manquer de souplesse. L'enjeu principal est de dompter le volume tout en maintenant l'hydratation.`,
+      score_sante: 75,
+      points_forts: ["Résistance naturelle", "Volume impressionnant", "Polyvalence coiffage"],
+      points_faibles: ["Tendance au frisottis", "Temps de séchage long", "Peut paraître étouffant"],
+      coiffures: [
+        { nom: "Coupe en cascades", description: "Allège le volume tout en gardant la longueur avec du mouvement." },
+        { nom: "Lissage brésilien", description: "Dompte le volume pour un look sleek sans chaleur quotidienne." },
+        { nom: "Tresses jumbo", description: "Coiffure protectrice qui maîtrise le volume avec style." },
+      ],
+      produits: [
+        { nom: "Shampoing lissant", type: "Shampoing", marque: "Brazilian Blowout", pourquoi: "Aplati les cuticules et réduit le volume dès le lavage." },
+        { nom: "Masque hydratant profond", type: "Masque", marque: "SheaMoisture", pourquoi: "Nourrit intensément les cheveux épais sans les alourdir." },
+        { nom: "Huile d'argan", type: "Huile", marque: "Moroccanoil", pourquoi: "Dompte les frisottis et apporte brillance sans graisser." },
+        { nom: "Crème coiffante", type: "Crème", marque: "Cantu", pourquoi: "Définit les boucles et contrôle le volume tout en hydratant." },
+      ],
+      routine: {
+        Lundi: { matin: "Shampoing lissant + après-shampoing masque", soir: "Huile d'argan sur cheveux secs" },
+        Mercredi: { matin: "Rinçage à l'eau froide + soin démêlant", soir: "Crème coiffante + tresses pour boucles définies" },
+        Vendredi: { matin: "Shampoing sec si besoin", soir: "Masque nourrissant sous bonnet chauffant 30 min" },
+        Dimanche: { matin: "Bain d'huile d'argan 45 min", soir: "Sérum anti-frisottis + peignage large" },
+      },
+      conseil_pro: "Utilisez de l'eau froide pour le dernier rinçage - elle referme les cuticules et réduit les frisottis.",
+      routines_suggeries: [
+        { nom: "Routine Anti-Frisottis", emoji: "🌀", frequence: "Quotidienne", description: "Contrôler le volume et lisser les cheveux", taches: ["Shampoing lissant", "Après-shampoing sans rincer", "Huile d'argan sur cheveux humides", "Séchage au diffuseur ou air libre"] },
+        { nom: "Routine Hydratation Profonde", emoji: "💧", frequence: "2x/semaine", description: "Nourrir les cheveux épais en profondeur", taches: ["Masque hydratant 30 min", "Rinçage eau froide", "Leave-in conditioner", "Sceller avec huile végétale"] },
+        { nom: "Routine Protection Chaleur", emoji: "🔥", frequence: "Avant coiffage", description: "Protéger contre les outils thermiques", taches: ["Spray thermoprotecteur", "Séchage à 80% puis brushing", "Sérum brillance finale", "Pas de chaleur > 180°C"] },
+      ],
+    },
+    boucles: {
+      diagnostic: `Vos cheveux ${origineLabel ? `d'origine ${origineLabel.toLowerCase()}` : ""} bouclés et frisés ont besoin d'hydratation constante pour garder des boucles définies et élastiques. La clé est d'éviter les frisottis tout en respectant le pattern naturel.`,
+      score_sante: 70,
+      points_forts: ["Volume naturel", "Texture unique", "Polyvalence coiffage"],
+      points_faibles: ["Tendance à la sécheresse", "Boucles parfois indisciplinées", "Pointes fragilisées"],
+      coiffures: [
+        { nom: "Wash & Go", description: "Routine express qui définit les boucles naturelles avec un gel coiffant." },
+        { nom: "Pineapple updo", description: "Coiffure protectrice élégante qui préserve les boucles pendant la nuit." },
+        { nom: "Twist-out", description: "Boucles définies et lasting avec un minimum de manipulation." },
+      ],
+      produits: [
+        { nom: "Gel coiffant boucles", type: "Gel", marque: "Eco Styler", pourquoi: "Définit les boucles sans résidu tout en maintenant l'hydratation." },
+        { nom: "Leave-in conditioner", type: "Conditioner", marque: "Cantu", pourquoi: "Hydrate sans rincer et démêle les boucles en douceur." },
+        { nom: "Crème définition", type: "Crème", marque: "SheaMoisture", pourquoi: "Définit les boucles et combat les frisottis avec des huiles naturelles." },
+        { nom: "Huile de coco", type: "Huile", marque: "Vierge bio", pourquoi: "Scelle l'hydratation et pénètre la fibre capillaire en profondeur." },
+      ],
+      routine: {
+        Lundi: { matin: "Leave-in + gel coiffant sur cheveux humides", soir: "Pineapple + bonnet satin" },
+        Mercredi: { matin: "Rinçage + après-shampoing 5 min", soir: "Twist-out pour le lendemain" },
+        Vendredi: { matin: "Définir les boucles avec spray eau + gel", soir: "Huile légère sur pointes" },
+        Dimanche: { matin: "Deep conditioning 30 min + bonnet chauffant", soir: "Twists pour préserver la définition" },
+      },
+      conseil_pro: "Ne touchez jamais vos boucles une fois sèches - le toucher crée des frisottis. Utilisez un bonnet satin la nuit.",
+      routines_suggeries: [
+        { nom: "Routine Curl Definition", emoji: "🌀", frequence: "Quotidienne", description: "Définir et maintenir les boucles", taches: ["Leave-in sur cheveux gorgés d'eau", "Gel coiffant par sections", "Diffuser ou air dry", "Ne pas toucher avant séchage complet"] },
+        { nom: "Routine Deep Moisture", emoji: "💧", frequence: "2x/semaine", description: "Hydratation intense pour boucles", taches: ["Masque hydratant 30 min sous bonnet", "Rinçage eau froide", "Leave-in conditioner", "Sceller avec huile de coco"] },
+        { nom: "Routine Protective", emoji: "🛡️", frequence: "Hebdomadaire", description: "Protéger et préserver les boucles", taches: ["Twist-out sur cheveux humides", "Bonnet satin chaque nuit", "Démêlage avec doigts uniquement", "Pas de chaleur"] },
+      ],
+    },
+    raides: {
+      diagnostic: `Vos cheveux ${origineLabel ? `d'origine ${origineLabel.toLowerCase()}` : ""} raides et lisses sont faciles à coiff mais peuvent manquer de volume et de texture. L'enjeu est de leur donner de la vitalité sans alourdir la fibre.`,
+      score_sante: 78,
+      points_forts: ["Brillance naturelle", "Facilité de coiffage", "Séchage rapide"],
+      points_faibles: ["Manque de volume", "Tendance à graisser vite", "Peut paraître plat"],
+      coiffures: [
+        { nom: "Bob plongeant", description: "Coupe tendance qui apporte du mouvement et de la personnalité." },
+        { nom: "Mèches balayage", description: "Apporte de la dimension et du volume visuel sans transformation radicale." },
+        { nom: "Ondulations souples", description: "Look décontracté avec des boucles lâches pour plus de volume." },
+      ],
+      produits: [
+        { nom: "Shampoing volume", type: "Shampoing", marque: "Biolage", pourquoi: "Apporte du volume sans alourdir les cheveux raides." },
+        { nom: "Spray texturisant", type: "Spray", marque: "Sachajuan", pourquoi: "Crée de la texture et du mouvement sans résidu." },
+        { nom: "Mousse volumisante", type: "Mousse", marque: "L'Oréal Professionnel", pourquoi: "Donne du volume racine et de la tenue sans rigidité." },
+        { nom: "Sérum anti-gras", type: "Sérum", marque: "Kérastase", pourquoi: "Régule le sébum tout en apportant brillance." },
+      ],
+      routine: {
+        Lundi: { matin: "Shampoing sec pour volume", soir: "Sérum anti-gras sur racines" },
+        Mercredi: { matin: "Shampoing volume + mousse", soir: "Rinçage + après-shampoing léger" },
+        Vendredi: { matin: "Spray texturisant + séchage inversé", soir: "Tresses pour ondulation du lendemain" },
+        Dimanche: { matin: "Masque purifiant cuir chevelu", soir: "Sérum brillance sur longueurs" },
+      },
+      conseil_pro: "Lavez vos cheveux avec de l'eau tiède, jamais chaude, pour éviter de stimuler la production de sébum.",
+      routines_suggeries: [
+        { nom: "Routine Volume", emoji: "💪", frequence: "Quotidienne", description: "Donner du volume aux cheveux raides", taches: ["Shampoing aux racines uniquement", "Mousse volumisante sur cheveux humides", "Séchage tête en bas", "Froid pour fixer le volume"] },
+        { nom: "Routine Brillance", emoji: "✨", frequence: "2x/semaine", description: "Maintenir l'éclat naturel", taches: ["Rinçage eau froide", "Masque brillance 10 min", "Sérum sur longueurs", "Peignage soyeux"] },
+        { nom: "Routine Texture", emoji: "🌊", frequence: "Hebdomadaire", description: "Ajouter du mouvement et de la texture", taches: ["Spray eau de mer", "Twists lâches séchés", "Déplier sans brosser", "Fixer avec laque légère"] },
+      ],
+    },
+    crepus: {
+      diagnostic: `Vos cheveux ${origineLabel ? `d'origine ${origineLabel.toLowerCase()}` : ""} crépus et afro sont magnifiques et nécessitent une hydratation intensive. La priorité est de maintenir l'humidité, de prévenir la casse et de valoriser la texture naturelle.`,
+      score_sante: 62,
+      points_forts: ["Volume spectaculaire", "Texture unique", "Polyvalence infinie"],
+      points_faibles: ["Sécheresse chronique", "Fragilité extrême", "Démêlage difficile"],
+      coiffures: [
+        { nom: "Twist-out volumineux", description: "Boucles définies et lasting qui mettent en valeur la texture naturelle." },
+        { nom: "Bantu knots", description: "Coiffure protectrice élégante qui crée des boucles spiralées." },
+        { nom: "Afro soigné", description: "Look iconique qui célèbre la texture naturelle avec une forme parfaite." },
+      ],
+      produits: [
+        { nom: "Shampoing sans sulfates", type: "Shampoing", marque: "As I Am", pourquoi: "Nettoie en douceur sans décaper les huiles naturelles essentielles." },
+        { nom: "Masque beurre de karité", type: "Masque", marque: "SheaMoisture", pourquoi: "Nourrit intensément et adoucit la texture crépue." },
+        { nom: "Leave-in crémeux", type: "Conditioner", marque: "Cantu", pourquoi: "Hydrate longuement et facilite le démêlage." },
+        { nom: "Huile de ricin", type: "Huile", marque: "Jamaican Black Castor Oil", pourquoi: "Stimule la pousse et renforce les racines fragilisées." },
+      ],
+      routine: {
+        Lundi: { matin: "Leave-in crémeux + huile de ricin sur racines", soir: "Tresses de protection + bonnet satin" },
+        Mercredi: { matin: "Rinçage + après-shampoing démêlant 10 min", soir: "Bain d'huile 1h avant prochain lavage" },
+        Vendredi: { matin: "Twist-out sur cheveux humides", soir: "Spray hydratant + bonnet satin" },
+        Dimanche: { matin: "Deep conditioning 45 min + bonnet chauffant", soir: "Massage cuir chevelu + huile de ricin" },
+      },
+      conseil_pro: "Ne démêlez JAMAIS vos cheveux crépus à sec - toujours sur cheveux humides avec un soin démêlant et un peigne à dents larges.",
+      routines_suggeries: [
+        { nom: "Routine Hydratation Intense", emoji: "💧", frequence: "3x/semaine", description: "Maintenir l'hydratation capillaire", taches: ["Leave-in crémeux sur cheveux humides", "Huile pour sceller l'hydratation", "Bonnet satin chaque nuit", "Spray hydratant quotidiennement"] },
+        { nom: "Routine Deep Conditioning", emoji: "🛁", frequence: "Hebdomadaire", description: "Soin profond pour réparer et nourrir", taches: ["Shampoing sans sulfates", "Masque beurre de karité 45 min", "Rinçage eau froide", "Leave-in + huile de ricin"] },
+        { nom: "Routine Protective", emoji: "🛡️", frequence: "2x/semaine", description: "Protéger contre la casse", taches: ["Twists ou braids protectrices", "Huile sur les articulations", "Démêlage section par section", "Couper les fourches 1 cm/mois"] },
+      ],
+    },
+    mixtes: {
+      diagnostic: `Vos cheveux ${origineLabel ? `d'origine ${origineLabel.toLowerCase()}` : ""} mixtes présentent des textures variées qui nécessitent une approche ciblée. L'enjeu est d'équilibrer les différentes zones tout en maintenant une hydratation homogène.`,
+      score_sante: 68,
+      points_forts: ["Polyvalence naturelle", "Volume équilibré", "Adaptabilité"],
+      points_faibles: ["Hydratation inégale", " Zones grasses + sèches", "Soin complexe"],
+      coiffures: [
+        { nom: "Coupe asymétrique", description: "Compense les différentes textures en jouant sur les volumes." },
+        { nom: "Dégradé texturé", description: "Adapte la longueur aux différentes zones pour un look harmonieux." },
+        { nom: "Boucles lâches", description: "Unifie les textures en créant un pattern homogène." },
+      ],
+      produits: [
+        { nom: "Shampoing équilibrant", type: "Shampoing", marque: "Kérastase", pourquoi: "Équilibre les zones grasses tout en hydratant les zones sèches." },
+        { nom: "Masque multi-zones", type: "Masque", marque: "Redken", pourquoi: "Apporte une hydratation adaptée à chaque zone du cuir chevelu." },
+        { nom: "Huile légère polyvalente", type: "Huile", marque: "Moroccanoil", pourquoi: "Nourrit sans alourdir, idéal pour les zones grasses." },
+        { nom: "Spray équilibrant", type: "Spray", marque: "L'Oréal Professionnel", pourquoi: "Régule la production de sébum sur les zones grasses." },
+      ],
+      routine: {
+        Lundi: { matin: "Shampoing ciblé sur racines + leave-in sur pointes", soir: "Huile légère sur longueurs" },
+        Mercredi: { matin: "Rinçage + après-shampoing 5 min", soir: "Masque ciblé sur zones sèches" },
+        Vendredi: { matin: "Spray équilibrant + coiffage doux", soir: "Tresses lâches pour unifier les textures" },
+        Dimanche: { matin: "Soin profond 30 min + massage cuir chevelu", soir: "Sérum multi-zones" },
+      },
+      conseil_pro: "Appliquez les soins de manière ciblée : huile sur les pointes sèches, spray équilibrant sur les racines grasses.",
+      routines_suggeries: [
+        { nom: "Routine Équilibrante", emoji: "⚖️", frequence: "Quotidienne", description: "Équilibrer les différentes zones", taches: ["Shampoing sur racines uniquement", "Leave-in sur longueurs", "Huile légère sur pointes", "Éviter les racines avec les produits lourds"] },
+        { nom: "Routine Hydratation Ciblée", emoji: "💧", frequence: "2x/semaine", description: "Hydratation adaptée à chaque zone", taches: ["Masque sur zones sèches 20 min", "Spray équilibrant sur zones grasses", "Rinçage eau tiède", "Leave-in différencié par zone"] },
+        { nom: "Routine Réparation", emoji: "🔧", frequence: "Hebdomadaire", description: "Réparer et unifier les textures", taches: ["Masque protéiné sur zones fragiles", "Huile de coco sur zones sèches", "Démêlage section par section", "Couper 1 cm de pointes"] },
+      ],
+    },
+  };
+
+  const profile = HairProfiles[hairType] || HairProfiles.fins;
+
+  // Cloner pour ne pas muter le profil de base entre deux scans
+  const result = {
+    diagnostic: profile.diagnostic,
+    score_sante: profile.score_sante,
+    points_forts: [...profile.points_forts],
+    points_faibles: [...profile.points_faibles],
+    coiffures: [...profile.coiffures],
+    produits: [...profile.produits],
+    routine: { ...profile.routine },
+    conseil_pro: profile.conseil_pro,
+    routines_suggeries: profile.routines_suggeries.map(r => ({ ...r })),
+  };
+
+  // ── Observations RÉELLES issues de l'analyse de la photo ──
+  const observations = [];
+  let score = result.score_sante;
+
+  if (metrics) {
+    // Luminosité du scan
+    if (metrics.brightness < 65) {
+      observations.push("le scan est sombre, ce qui masque une partie des détails de votre fibre");
+      score -= 4;
+    } else if (metrics.brightness > 200) {
+      observations.push("la lumière très directe a légèrement surexposé le scan");
+      score -= 2;
+    } else {
+      observations.push("la luminosité du scan était bonne, l'analyse est fiable");
+      score += 3;
+    }
+
+    // Netteté = définition de la fibre capillaire
+    if (metrics.sharpness >= 13) {
+      observations.push("la définition de votre fibre est nette et bien structurée");
+      result.points_forts.push("Fibre bien définie sur le scan");
+      score += 6;
+    } else if (metrics.sharpness < 6) {
+      observations.push("la fibre apparaît peu définie sur le scan, signe de frisottis ou de cuticules ouvertes");
+      result.points_faibles.push("Définition de fibre faible (frisottis/porosité)");
+      score -= 7;
+    } else {
+      observations.push("la définition de la fibre est moyenne");
+      score += 1;
+    }
+
+    // Saturation = vitalité / brillance de la couleur
+    if (metrics.saturation < 0.10) {
+      observations.push("la pigmentation semble terne, ce qui indique souvent un manque d'hydratation et d'éclat");
+      result.points_faibles.push("Manque d'éclat détecté sur la photo");
+      score -= 7;
+    } else if (metrics.saturation > 0.22) {
+      observations.push("vos cheveux montrent des reflets pigmentés, signe d'une bonne vitalité");
+      result.points_forts.push("Éclat et pigmentation visibles");
+      score += 5;
+    } else {
+      score += 1;
+    }
+
+    // Contraste = texture visible
+    if (metrics.contrast >= 38) {
+      observations.push("la texture capillaire est bien marquée et volumineuse");
+      result.points_forts.push("Texture dense et présente");
+      score += 4;
+    } else if (metrics.contrast < 20) {
+      observations.push("la texture paraît uniforme et peu volumineuse");
+      score -= 3;
+    }
+
+    // Densité sombre = épaisseur de la chevelure
+    if (metrics.darkRatio > 0.45) {
+      observations.push("la densité visible de votre chevelure est élevée");
+      result.points_forts.push("Bonne densité capillaire observée");
+      score += 3;
+    } else if (metrics.darkRatio < 0.10) {
+      observations.push("la densité visible est faible sur le scan");
+      score -= 2;
+    }
+
+    // Reflets chauds = coloration / cuivré / irritation
+    if (metrics.warmRatio > 1.18) {
+      observations.push("des reflets chauds dominants sont visibles (coloration, reflets cuivrés ou exposition soleil)");
+    }
+  }
+
+  // Injecter les observations réelles dans le diagnostic
+  if (observations.length > 0) {
+    result.diagnostic = result.diagnostic.replace(/\.$/, "") +
+      ". Sur votre scan, Maria observe que " + observations.slice(0, 3).join(", ") + ".";
+  }
+
+  // Ajustements selon les préoccupations déclarées
+  score -= concerns.length * 2;
+
+  if (concerns.includes("Chute de cheveux")) {
+    result.points_faibles.push("Chute excessive signalée");
+    result.routines_suggeries.push({
+      nom: "Routine Anti-Chute",
+      emoji: "🌱",
+      frequence: "Quotidienne",
+      description: "Stimuler la pousse et renforcer les racines",
+      taches: ["Massage cuir chevelu 5 min/jour", "Sérum anti-chute sur racines", "Complexe vitamines B5+B7", "Shampoing stimulant 2x/semaine"]
+    });
+  }
+  if (concerns.includes("Sécheresse")) {
+    result.points_faibles.push("Déshydratation capillaire signalée");
+    result.routines_suggeries.push({
+      nom: "Routine Hydratation Intense",
+      emoji: "💧",
+      frequence: "3x/semaine",
+      description: "Restaurer l'hydratation en profondeur",
+      taches: ["Bain d'huile 1h avant shampoing", "Masque hydratant 30 min", "Leave-in après lavage", "Sceller avec huile végétale"]
+    });
+  }
+  if (concerns.includes("Pellicules")) {
+    result.points_faibles.push("Présence de pellicules signalée");
+    result.routines_suggeries.push({
+      nom: "Routine Anti-Pelliculaire",
+      emoji: "🍃",
+      frequence: "2x/semaine",
+      description: "Purifier le cuir chevelu et éliminer les pellicules",
+      taches: ["Shampoing anti-pelliculaire zinc pyrithione", "Massage cuir chevelu 3 min", "Rinçage au vinaigre de cidre", "Éviter les produits trop gras sur racines"]
+    });
+  }
+  if (concerns.includes("Frisottis")) {
+    result.points_faibles.push("Frisottis signalés");
+    result.routines_suggeries.push({
+      nom: "Routine Anti-Frisottis",
+      emoji: "🌀",
+      frequence: "Quotidienne",
+      description: "Dompter les frisottis et lisser la fibre",
+      taches: ["Leave-in anti-frisottis", "Huile d'argan sur cheveux humides", "Séchage au diffuseur", "Bonnet satin la nuit"]
+    });
+  }
+
+  // Routine ciblée selon la pire métrique détectée sur la photo
+  if (metrics) {
+    if (metrics.saturation < 0.10) {
+      result.routines_suggeries.unshift({
+        nom: "Routine Éclat & Vitalité",
+        emoji: "✨",
+        frequence: "2x/semaine",
+        description: "Restaurer la brillance perdue détectée sur votre scan",
+        taches: ["Rinçage au vinaigre de cidre dilué", "Masque brillance 20 min", "Huile légère sur longueurs", "Rinçage final eau froide"]
+      });
+      result.conseil_pro = "Votre scan montre un manque d'éclat : un bain d'huile hebdomadaire et un rinçage à l'eau froide vont raviver la brillance en 2-3 semaines.";
+    } else if (metrics.sharpness < 6) {
+      result.routines_suggeries.unshift({
+        nom: "Routine Définition & Anti-Porosité",
+        emoji: "🌀",
+        frequence: "2x/semaine",
+        description: "Refermer les cuticules et redéfinir la fibre détectée peu structurée",
+        taches: ["Soin protéiné 15 min", "Rinçage eau froide systématique", "Leave-in sur cheveux gorgés d'eau", "Pas de brosse sur cheveux secs"]
+      });
+      result.conseil_pro = "Votre fibre manque de définition sur le scan : les soins protéinés et le rinçage à l'eau froide vont refermer les cuticules.";
+    }
+  }
+
+  // Score final borné et légèrement arrondi
+  result.score_sante = Math.max(42, Math.min(94, Math.round(score)));
+
+  // Dédupliquer points forts/faibles (max 4)
+  result.points_forts = [...new Set(result.points_forts)].slice(0, 4);
+  result.points_faibles = [...new Set(result.points_faibles)].slice(0, 4);
+
+  return result;
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function ScanCapillaire() {
   const navigate = useNavigate();
@@ -1235,7 +1659,15 @@ export default function ScanCapillaire() {
     setAnalyseStep(0);
     setAnalyseProgress(5);
 
+    const hairTypeLabel = HAIR_TYPES.find(h => h.id === hairType)?.label || hairType;
+    const origineLabel = ORIGINES.find(o => o.id === origine)?.label || null;
+    const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
+
     try {
+      // Analyse RÉELLE des pixels de la photo capturée (luminosité, netteté,
+      // saturation, densité, reflets) — utilisée pour le diagnostic
+      const metricsPromise = analyzeHairPhoto(capturedFile);
+
       // 1. Upload de la photo pour analyse visuelle réelle
       let uploadedUrl = null;
       if (capturedFile) {
@@ -1244,9 +1676,21 @@ export default function ScanCapillaire() {
         uploadedUrl = file_url;
       }
 
+      const metrics = await metricsPromise;
       setAnalyseProgress(30);
-      const hairTypeLabel = HAIR_TYPES.find(h => h.id === hairType)?.label || hairType;
-      const origineLabel = ORIGINES.find(o => o.id === origine)?.label || null;
+
+      // Client-side analysis when no backend
+      if (!API_BASE) {
+        await new Promise(r => setTimeout(r, 2000));
+        setAnalyseProgress(60);
+
+        const fallback = generateClientAnalysis(hairType, origine, concerns, hairTypeLabel, origineLabel, metrics);
+        setAnalyseProgress(100);
+        await new Promise(r => setTimeout(r, 500));
+        setResults(fallback);
+        setPhase("results");
+        return;
+      }
 
       const prompt = `Tu es Maria, experte capillaire IA de BeautyBook spécialisée dans TOUS les types de cheveux : afro, bouclés, raides, crépus, métissés, fins, épais — de toutes origines (africaine, caribéenne, asiatique, latine, européenne, moyen-orientale...).
 
@@ -1329,36 +1773,8 @@ Génère un diagnostic professionnel ultra-personnalisé en JSON :
       }
     } catch (err) {
       console.error("Analyse error:", err);
-      const hairTypeLabel = HAIR_TYPES.find(h => h.id === hairType)?.label || hairType;
-      const fallback = {
-        diagnostic: `Vos cheveux de type ${hairTypeLabel} nécessitent un programme d'hydratation et de renforcement ciblé. L'analyse révèle des besoins en nutrition pour améliorer la vitalité et l'éclat de votre fibre capillaire.`,
-        score_sante: 68,
-        points_forts: ["Bonne densité capillaire", "Pousse régulière"],
-        points_faibles: ["Manque d'hydratation", "Pointes fragilisées"],
-        coiffures: [
-          { nom: "Chignon protecteur", description: "Protège les pointes et favorise la pousse en maintenant l'humidité." },
-          { nom: "Tresses semi-protectrices", description: "Réduit la friction et préserve l'hydratation naturelle." },
-          { nom: "Twist-out naturel", description: "Met en valeur la texture tout en minimisant la manipulation." },
-        ],
-        produits: [
-          { nom: "Masque hydratant profond", type: "Masque", marque: "SheaMoisture", pourquoi: "Restaure le film lipidique et repulpe la fibre capillaire." },
-          { nom: "Huile de jojoba bio", type: "Huile", marque: "Moroccanoil", pourquoi: "Nourrit et scelle l'humidité sans alourdir les cheveux." },
-          { nom: "Shampoing sans sulfates", type: "Shampoing", marque: "ORS", pourquoi: "Nettoie sans décaper les lipides naturels du cuir chevelu." },
-          { nom: "Sérum thermo-protecteur", type: "Sérum", marque: "Kérastase", pourquoi: "Protège la fibre contre la chaleur et les agressions externes." },
-        ],
-        routine: {
-          Lundi: { matin: "Démêlage doux sur cheveux humides + spray hydratant", soir: "Application légère d'huile sur les pointes" },
-          Mercredi: { matin: "Shampoing doux + soin démêlant 5 minutes", soir: "Masque hydratant 20 min sous bonnet chauffant" },
-          Vendredi: { matin: "Sérum lissant + coiffage doux", soir: "Tresses de protection lâches pour la nuit" },
-          Dimanche: { matin: "Bain d'huile 1h avant shampoing", soir: "Massage cuir chevelu 5 min + eau florale" },
-        },
-        conseil_pro: "Hydratez vos cheveux de l'intérieur : buvez au moins 1,5L d'eau par jour et adoptez un bain d'huile hebdomadaire.",
-        routines_suggeries: [
-          { nom: "Routine Hydratation Intense", emoji: "💧", frequence: "3x/semaine", description: "Programme deep conditioning pour restaurer l'hydratation", taches: ["Bain d'huile 1h avant le shampoing", "Masque hydratant 20 min", "Leave-in conditioner après lavage", "Sceller avec une huile légère"] },
-          { nom: "Routine Anti-Chute", emoji: "🌱", frequence: "Quotidienne", description: "Renforcer le cuir chevelu et stimuler la pousse", taches: ["Massage cuir chevelu 5 min", "Sérum anti-chute sur les racines", "Brosse à picots doux", "Complexe vitamines B5+B7"] },
-          { nom: "Routine Protectrice", emoji: "🛡️", frequence: "Hebdomadaire", description: "Préserver la longueur et minimiser la casse", taches: ["Coiffure protective le soir", "Bonnet satin pour la nuit", "Démêlage doux de pointe à racine", "Traitement protéiné 1x/mois"] },
-        ],
-      };
+      const metrics = await analyzeHairPhoto(capturedFile);
+      const fallback = generateClientAnalysis(hairType, origine, concerns, hairTypeLabel, origineLabel, metrics);
       setResults(fallback);
       setPhase("results");
     }
@@ -1423,10 +1839,12 @@ Génère un diagnostic professionnel ultra-personnalisé en JSON :
             Mon type de cheveux *
           </p>
           <div className="grid grid-cols-3 gap-2">
-            {HAIR_TYPES.map(({ id, label, emoji }) => (
+            {HAIR_TYPES.map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setHairType(id)}
-                className={`flex flex-col items-center gap-1.5 py-3.5 rounded-2xl border-2 transition-all active:scale-[0.97] ${hairType === id ? "border-primary bg-orange-50 shadow-sm shadow-primary/20" : "border-gray-100 bg-white"}`}>
-                <span className="text-[24px]">{emoji}</span>
+                className={`flex flex-col items-center gap-2 py-3.5 rounded-2xl border-2 transition-all active:scale-[0.97] ${hairType === id ? "border-primary bg-orange-50 shadow-sm shadow-primary/20" : "border-gray-100 bg-white"}`}>
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${hairType === id ? "bg-gradient-to-br from-primary to-orange-400 shadow-md shadow-primary/30" : "bg-orange-50"}`}>
+                  <Icon className={`w-5 h-5 ${hairType === id ? "text-white" : "text-primary"}`} strokeWidth={1.8} />
+                </div>
                 <span className={`text-[10px] font-black text-center leading-tight ${hairType === id ? "text-primary" : "text-gray-500"}`}>{label}</span>
               </button>
             ))}
@@ -1440,10 +1858,12 @@ Génère un diagnostic professionnel ultra-personnalisé en JSON :
             Mon origine capillaire <span className="text-gray-300 font-medium normal-case">(optionnel)</span>
           </p>
           <div className="grid grid-cols-3 gap-2">
-            {ORIGINES.map(({ id, label, emoji }) => (
+            {ORIGINES.map(({ id, label, Icon }) => (
               <button key={id} onClick={() => setOrigine(o => o === id ? null : id)}
-                className={`flex flex-col items-center gap-1.5 py-3 rounded-2xl border-2 transition-all active:scale-[0.97] ${origine === id ? "border-primary bg-orange-50 shadow-sm shadow-primary/20" : "border-gray-100 bg-white"}`}>
-                <span className="text-[20px]">{emoji}</span>
+                className={`flex flex-col items-center gap-2 py-3 rounded-2xl border-2 transition-all active:scale-[0.97] ${origine === id ? "border-primary bg-orange-50 shadow-sm shadow-primary/20" : "border-gray-100 bg-white"}`}>
+                <div className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${origine === id ? "bg-gradient-to-br from-primary to-orange-400 shadow-md shadow-primary/30" : "bg-orange-50"}`}>
+                  <Icon className={`w-4.5 h-4.5 ${origine === id ? "text-white" : "text-primary"}`} strokeWidth={1.8} />
+                </div>
                 <span className={`text-[9px] font-black text-center leading-tight ${origine === id ? "text-primary" : "text-gray-500"}`}>{label}</span>
               </button>
             ))}
@@ -1617,17 +2037,21 @@ Génère un diagnostic professionnel ultra-personnalisé en JSON :
             <Scissors className="w-4 h-4 text-primary" strokeWidth={1.5} /> Coiffures recommandées
           </p>
           <div className="space-y-2">
-            {(results.coiffures || []).map((c, i) => (
+            {(results.coiffures || []).map((c, i) => {
+              const CoiffureIcons = [Scissors, Crown, Flower2];
+              const CoiffureIcon = CoiffureIcons[i] || Sparkles;
+              return (
               <div key={i} className="bg-white rounded-2xl p-4 flex items-start gap-3 shadow-sm">
-                <div className="w-9 h-9 bg-gradient-to-br from-orange-50 to-orange-100 rounded-full flex items-center justify-center shrink-0 border border-orange-200">
-                  <span className="text-[14px]">{["✂️", "👑", "🌸"][i] || "✨"}</span>
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-orange-400 rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-primary/25">
+                  <CoiffureIcon className="w-5 h-5 text-white" strokeWidth={1.8} />
                 </div>
                 <div>
                   <p className="text-[13px] font-black text-gray-900">{c.nom}</p>
                   <p className="text-[11px] text-gray-500 font-medium mt-0.5 leading-snug">{c.description}</p>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -1638,17 +2062,17 @@ Génère un diagnostic professionnel ultra-personnalisé en JSON :
           </p>
           <div className="space-y-2">
             {(results.produits || []).map((p, i) => {
-              const typeIcons = { Shampoing: "🧴", Masque: "💜", Huile: "💧", Sérum: "✨", Conditioner: "🌊", Spray: "💨" };
-              const icon = typeIcons[p.type] || "🧪";
+              const typeIcons = { Shampoing: ShowerHead, Masque: Container, Huile: Droplet, Sérum: Sparkles, Conditioner: Waves, Spray: Wind, Gel: Shell, Crème: Droplets, Beurre: Layers, Mousse: Wind };
+              const ProdIcon = typeIcons[p.type] || FlaskConical;
               return (
                 <div key={i} className="bg-white rounded-2xl p-4 flex items-start gap-3 shadow-sm">
-                  <div className="w-9 h-9 bg-gradient-to-br from-blue-50 to-blue-100 rounded-full flex items-center justify-center shrink-0 border border-blue-200">
-                    <span className="text-[14px]">{icon}</span>
+                  <div className="w-10 h-10 bg-gradient-to-br from-primary to-orange-400 rounded-2xl flex items-center justify-center shrink-0 shadow-md shadow-primary/25">
+                    <ProdIcon className="w-5 h-5 text-white" strokeWidth={1.8} />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <p className="text-[13px] font-black text-gray-900">{p.nom}</p>
-                      <span className="bg-gray-100 text-gray-500 text-[9px] font-black px-2 py-0.5 rounded-full uppercase">{p.type}</span>
+                      <span className="bg-orange-50 text-primary text-[9px] font-black px-2 py-0.5 rounded-full uppercase border border-orange-100">{p.type}</span>
                     </div>
                     {p.marque && <p className="text-[10px] font-black text-primary mb-0.5">{p.marque}</p>}
                     <p className="text-[11px] text-gray-500 font-medium leading-snug">{p.pourquoi}</p>
@@ -1678,8 +2102,8 @@ Génère un diagnostic professionnel ultra-personnalisé en JSON :
                   className="w-full flex items-center justify-between px-4 py-3.5 active:scale-[0.99] transition-all"
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 bg-primary/10 rounded-xl flex items-center justify-center">
-                      <Calendar className="w-3.5 h-3.5 text-primary" strokeWidth={2} />
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary to-orange-400 rounded-xl flex items-center justify-center shadow-sm shadow-primary/25">
+                      <CalendarDays className="w-4 h-4 text-white" strokeWidth={2} />
                     </div>
                     <span className="text-[14px] font-black text-gray-900">{jour}</span>
                   </div>
@@ -1688,11 +2112,15 @@ Génère un diagnostic professionnel ultra-personnalisé en JSON :
                 {activeRoutineDay === jour && (
                   <div className="px-4 pb-4 space-y-2">
                     <div className="flex items-start gap-2 bg-amber-50 rounded-xl p-3">
-                      <span className="text-[14px] shrink-0">☀️</span>
+                      <div className="w-6 h-6 bg-gradient-to-br from-amber-400 to-orange-400 rounded-lg flex items-center justify-center shrink-0">
+                        <Sunrise className="w-3.5 h-3.5 text-white" strokeWidth={2} />
+                      </div>
                       <p className="text-[12px] text-gray-600 font-medium leading-snug">{soin.matin}</p>
                     </div>
                     <div className="flex items-start gap-2 bg-indigo-50 rounded-xl p-3">
-                      <span className="text-[14px] shrink-0">🌙</span>
+                      <div className="w-6 h-6 bg-gradient-to-br from-indigo-400 to-purple-400 rounded-lg flex items-center justify-center shrink-0">
+                        <MoonStar className="w-3.5 h-3.5 text-white" strokeWidth={2} />
+                      </div>
                       <p className="text-[12px] text-gray-600 font-medium leading-snug">{soin.soir}</p>
                     </div>
                   </div>

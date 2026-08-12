@@ -41,7 +41,7 @@ const KNOWN_COLUMNS = {
   UserSubscription: ['id','user_email','user_name','plan_id','plan_name','plan_price','plan_type','status','payment_method','payment_status','billing_name','billing_email','billing_phone','billing_address','billing_city','billing_postal_code','starts_at','expires_at','cancelled_at','stripe_subscription_id','stripe_customer_id','notes','created_at','updated_at'],
   VisiteVirtuelle: ['id','pro_email','title','scenes','status','created_at','updated_at','created_by_id'],
   Notification: ['id','user_email','title','message','body','type','is_read','read','icon','action_url','data','created_at','updated_at','created_by_id'],
-  MessageChat: ['id','conversation_id','sender_email','sender_name','sender_avatar','receiver_email','receiver_name','content','type','attachment_url','is_read','read','reservation_id','is_maria','created_at','updated_at','created_by_id'],
+  MessageChat: ['id','conversation_id','sender_email','sender_avatar','receiver_email','receiver_avatar','content','attachment_url','is_read','read','reservation_id','is_maria','created_at','updated_at','created_by_id'],
   Commande: ['id','client_email','client_name','items','total_price','total','subtotal','shipping','status','payment_status','payment_method','payment_intent_id','shipping_address','tracking_number','notes','created_at','updated_at','created_by_id'],
   PointsFidelite: ['id','user_email','points','points_total','total_earned','total_spent','points_depenses','level','niveau','history','historique','code_parrainage','created_at','updated_at','created_by_id'],
   SoldeBeautyPay: ['id','user_email','balance','solde','currency','transactions','created_at','updated_at','created_by_id'],

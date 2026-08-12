@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Shield, Download, Heart, Check, Search, Sparkles, ImageIcon, GalleryHorizontalEnd } from "lucide-react";
 import { entities, uploadFile } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
@@ -24,6 +25,7 @@ const PROGRESS_MSGS = [
 ];
 
 export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favoriteStyles = [] }) {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
   const [userPhoto, setUserPhoto] = useState(null);
   const [userPhotoUrl, setUserPhotoUrl] = useState(null);
@@ -692,9 +694,15 @@ export default function FiltreAIModal({ styleTitle, onClose, onResultSaved, favo
               </div>
 
               <button
+                onClick={() => {
+                  if (selectedStyle?.id) {
+                    navigate(`/style/${selectedStyle.id}`);
+                    onClose();
+                  }
+                }}
                 className="w-full bg-primary text-white font-black py-4 rounded-2xl uppercase tracking-widest active:scale-95 transition-all shadow-lg shadow-primary/30"
               >
-                ✂️ Réserver cette Coiffure
+                Ouvrir le style
               </button>
 
               <button

@@ -1,0 +1,131 @@
+{
+  "timestamp": "2026-08-09T23:13:19.934Z",
+  "summary": {
+    "passed": 11,
+    "failed": 2,
+    "warned": 0,
+    "total": 13
+  },
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "results": [
+    {
+      "page": "http://localhost:5173/",
+      "name": "Hero banner visible",
+      "status": "PASS",
+      "details": "",
+      "time": "01:11:43"
+    },
+    {
+      "page": "http://localhost:5173/",
+      "name": "Bottom nav visible",
+      "status": "PASS",
+      "details": "",
+      "time": "01:11:43"
+    },
+    {
+      "page": "http://localhost:5173/",
+      "name": "Categories section",
+      "status": "FAIL",
+      "details": "locator.waitFor: Timeout 8000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('text=Categories').first() to be visible",
+      "time": "01:11:51"
+    },
+    {
+      "page": "http://localhost:5173/services-salons",
+      "name": "BottomNav > Services tab",
+      "status": "PASS",
+      "details": "",
+      "time": "01:11:56"
+    },
+    {
+      "page": "http://localhost:5173/maria",
+      "name": "BottomNav > Maria (AI) tab",
+      "status": "PASS",
+      "details": "",
+      "time": "01:11:58"
+    },
+    {
+      "page": "http://localhost:5173/rendez-vous",
+      "name": "BottomNav > RDV tab",
+      "status": "PASS",
+      "details": "",
+      "time": "01:12:01"
+    },
+    {
+      "page": "http://localhost:5173/profil",
+      "name": "BottomNav > Profil tab",
+      "status": "PASS",
+      "details": "",
+      "time": "01:12:03"
+    },
+    {
+      "page": "http://localhost:5173/services",
+      "name": "Search bar present",
+      "status": "FAIL",
+      "details": "locator.waitFor: Timeout 5000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[placeholder*=\"echerch\"]').first()",
+      "time": "01:12:14"
+    },
+    {
+      "page": "http://localhost:5173/services",
+      "name": "Category filters present",
+      "status": "PASS",
+      "details": "",
+      "time": "01:12:14"
+    },
+    {
+      "page": "http://localhost:5173/connexion",
+      "name": "Login form visible",
+      "status": "PASS",
+      "details": "",
+      "time": "01:12:52"
+    },
+    {
+      "page": "http://localhost:5173/connexion",
+      "name": "Google OAuth button",
+      "status": "PASS",
+      "details": "",
+      "time": "01:12:52"
+    },
+    {
+      "page": "http://localhost:5173/",
+      "name": "Pull-to-refresh gesture",
+      "status": "PASS",
+      "details": "",
+      "time": "01:13:19"
+    },
+    {
+      "page": "http://localhost:5173/",
+      "name": "Touch scroll works",
+      "status": "PASS",
+      "details": "",
+      "time": "01:13:19"
+    }
+  ],
+  "screenshots": [
+    "01_homepage.png",
+    "02_home_scrolled.png",
+    "03_services_tab.png",
+    "04_maria_tab.png",
+    "05_rdv_tab.png",
+    "06_profil_tab.png",
+    "07_services_page.png",
+    "08_services_salons.png",
+    "09_messages.png",
+    "10_notifications.png",
+    "11_panier.png",
+    "12_parametres.png",
+    "13_reels.png",
+    "14_live.png",
+    "15_explorer.png",
+    "16_boutique.png",
+    "17_connexion.png",
+    "18_onboarding.png",
+    "19_admin_login.png",
+    "20_vendeur_login.png",
+    "21_profil_pro.png",
+    "22_analytics.png",
+    "23_catalogue_services.png",
+    "24_gestion_agenda.png"
+  ]
+}

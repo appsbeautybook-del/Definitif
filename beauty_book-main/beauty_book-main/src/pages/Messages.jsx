@@ -250,10 +250,9 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     setServiceCardSent(true);
     supabase.from("MessageChat").insert({
       sender_email: currentUser.email,
-      sender_name: currentUser.user_metadata?.full_name || currentUser.email,
       receiver_email: conversation.other_email,
       content: JSON.stringify({ type: "service_card", ...conversation.service }),
-      type: "text", read: false,
+      read: false,
     }).catch(e => console.error("Service card error:", e));
   }, []);
 
@@ -261,7 +260,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
   useEffect(() => {
     if (channelRef.current) supabase.removeChannel(channelRef.current);
     const channel = supabase
-      .channel(`chat_${Date.now()}`)
+      .channel(`chat_${conversation.conversation_id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "MessageChat" }, (payload) => {
         const m = payload.new;
         if (!m) return;
@@ -350,12 +349,8 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     const payload = {
       conversation_id: convId,
       sender_email: currentUser.email,
-      sender_name: currentUser.user_metadata?.full_name || currentUser.email,
-      sender_avatar: currentUser.user_metadata?.avatar_url || null,
       receiver_email: conversation.other_email,
-      receiver_name: conversation.other_name || conversation.other_email,
       content: content || (fileUrl ? "📷 Image" : ""),
-      type: fileUrl ? "image" : "text",
       attachment_url: fileUrl || "",
       is_read: false, read: false,
       created_at: now, updated_at: now,
@@ -368,7 +363,7 @@ function ChatView({ conversation, currentUser, onBack, onStartCall }) {
     const { data, error } = await supabase.from("MessageChat").insert(payload).select().single();
     if (error) {
       console.error("Send error:", error);
-      // Garder le message optimiste même en cas d'erreur
+      setMessages(prev => prev.filter(m => m.id !== tempId));
     } else if (data) {
       // Remplacer le message optimiste par le vrai
       setMessages(prev => prev.map(m => m.id === tempId ? data : m));
@@ -555,17 +550,43 @@ function CallHistory({ user }) {
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([
-      entities.CallLog.filter({ caller_email: user.email }, "-created_at", 50).catch(() => []),
-      entities.CallLog.filter({ callee_email: user.email }, "-created_at", 50).catch(() => []),
-    ]).then(([asCaller, asCallee]) => {
-      // Dédoublonner par call_id
-      const byId = {};
-      for (const c of [...asCaller, ...asCallee]) byId[c.call_id] = c;
-      const all = Object.values(byId).sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-      setCalls(all);
+    const loadCalls = async () => {
+      try {
+        // Utiliser supabase directement au lieu de entities pour éviter les erreurs silencieuses
+        const { data: asCaller, error: err1 } = await supabase
+          .from("CallLog")
+          .select("*")
+          .eq("caller_email", user.email)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        const { data: asCallee, error: err2 } = await supabase
+          .from("CallLog")
+          .select("*")
+          .eq("callee_email", user.email)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (err1) console.error("[CallHistory] Caller query error:", err1);
+        if (err2) console.error("[CallHistory] Callee query error:", err2);
+
+        const allRaw = [...(asCaller || []), ...(asCallee || [])];
+        console.log("[CallHistory] Calls loaded:", allRaw.length);
+
+        // Dédoublonner par call_id
+        const byId = {};
+        for (const c of allRaw) {
+          const key = c.call_id || c.id;
+          if (!byId[key]) byId[key] = c;
+        }
+        const all = Object.values(byId).sort((a, b) => new Date(b.created_at || b.created_date) - new Date(a.created_at || a.created_date));
+        setCalls(all);
+      } catch (e) {
+        console.error("[CallHistory] Error:", e);
+      }
       setLoading(false);
-    });
+    };
+    loadCalls();
   }, [user]);
 
   const statusConfig = {
@@ -680,53 +701,92 @@ function FollowersList({ user, onSelectConversation }) {
     setLoading(true);
     try {
       // Load people I follow
-      const { data: myFollowing } = await supabase
+      const { data: myFollowing, error: errFollow } = await supabase
         .from("user_follow")
         .select("*")
         .eq("follower_email", user.email);
       
+      if (errFollow) console.error("[FollowersList] Following query error:", errFollow);
+      
       // Load my followers
-      const { data: myFollowers } = await supabase
+      const { data: myFollowers, error: errFollowers } = await supabase
         .from("user_follow")
         .select("*")
         .eq("followed_email", user.email);
 
+      if (errFollowers) console.error("[FollowersList] Followers query error:", errFollowers);
+
+      console.log("[FollowersList] Following:", myFollowing?.length, "Followers:", myFollowers?.length);
+
       // Get profile data for following
       if (myFollowing && myFollowing.length > 0) {
-        const followingEmails = myFollowing.map(f => f.followed_email);
+        const followingEmails = [...new Set(myFollowing.map(f => f.followed_email).filter(Boolean))];
+        
+        // Essayer d'abord profiles, puis ProfilPro comme fallback
+        let profileMap = {};
         const { data: profiles } = await supabase
           .from("profiles")
           .select("email, full_name, avatar_url")
           .in("email", followingEmails);
         
-        const profileMap = {};
         (profiles || []).forEach(p => { profileMap[p.email] = p; });
+
+        // Fallback: ProfilPro pour les noms de salon
+        if (Object.keys(profileMap).length < followingEmails.length) {
+          const { data: proProfiles } = await supabase
+            .from("ProfilPro")
+            .select("user_email, salon_name, avatar_url")
+            .in("user_email", followingEmails);
+          (proProfiles || []).forEach(p => {
+            if (!profileMap[p.user_email]) {
+              profileMap[p.user_email] = { email: p.user_email, full_name: p.salon_name, avatar_url: p.avatar_url };
+            }
+          });
+        }
         
         setFollowing(myFollowing.map(f => ({
           email: f.followed_email,
-          name: profileMap[f.followed_email]?.full_name || f.followed_email,
-          avatar: profileMap[f.followed_email]?.avatar_url || null,
+          name: profileMap[f.followed_email]?.full_name || f.follower_name || f.followed_email,
+          avatar: profileMap[f.followed_email]?.avatar_url || f.follower_avatar || null,
           since: f.created_at,
         })));
+      } else {
+        setFollowing([]);
       }
 
       // Get profile data for followers
       if (myFollowers && myFollowers.length > 0) {
-        const followerEmails = myFollowers.map(f => f.follower_email);
+        const followerEmails = [...new Set(myFollowers.map(f => f.follower_email).filter(Boolean))];
+        
+        let profileMap = {};
         const { data: profiles } = await supabase
           .from("profiles")
           .select("email, full_name, avatar_url")
           .in("email", followerEmails);
         
-        const profileMap = {};
         (profiles || []).forEach(p => { profileMap[p.email] = p; });
+
+        // Fallback: ProfilPro
+        if (Object.keys(profileMap).length < followerEmails.length) {
+          const { data: proProfiles } = await supabase
+            .from("ProfilPro")
+            .select("user_email, salon_name, avatar_url")
+            .in("user_email", followerEmails);
+          (proProfiles || []).forEach(p => {
+            if (!profileMap[p.user_email]) {
+              profileMap[p.user_email] = { email: p.user_email, full_name: p.salon_name, avatar_url: p.avatar_url };
+            }
+          });
+        }
         
         setFollowers(myFollowers.map(f => ({
           email: f.follower_email,
-          name: profileMap[f.follower_email]?.full_name || f.follower_email,
-          avatar: profileMap[f.follower_email]?.avatar_url || null,
+          name: profileMap[f.follower_email]?.full_name || f.follower_name || f.follower_email,
+          avatar: profileMap[f.follower_email]?.avatar_url || f.follower_avatar || null,
           since: f.created_at,
         })));
+      } else {
+        setFollowers([]);
       }
     } catch (e) {
       console.error("[FollowersList] Error:", e);
@@ -867,6 +927,7 @@ export default function Messages() {
       // Seulement les messages reçus par le pro (user courant), pas les siens
       if (m.receiver_email !== user.email) return;
       if (m.type === "typing") return;
+      if (m.is_maria) return;
       if (processedMsgIds.current.has(event.id)) return;
       if (!mariaAIRef.current) return;
       if (deletedConvIds.current.has(m.conversation_id)) return;
@@ -882,10 +943,8 @@ export default function Messages() {
           await supabase.from("MessageChat").insert({
             conversation_id: convId,
             sender_email: user.email,
-            sender_name: "Maria AI",
             receiver_email: m.sender_email,
             content: mariaReply,
-            type: "text",
             is_read: false,
             read: false,
             is_maria: true,

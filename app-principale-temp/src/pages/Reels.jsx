@@ -936,7 +936,7 @@ export default function Reels() {
       })
       .catch(() => setReelsData([]));
 
-    entities.Annonce.filter({ status: 'active' }, '-created_at', 10)
+    entities.Annonce.filter({ status: 'actif' }, '-created_at', 10)
       .then(data => setAnnonces(data || []))
       .catch(() => {});
   }, [activeTab]);

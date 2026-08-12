@@ -48,10 +48,12 @@ export function CallManager({ children }) {
   const saveCallLog = useCallback(async (callId, callerEmail, callerName, callerAvatar, calleeEmail, calleeName, calleeAvatar, status, startedAt, endedAt) => {
     const durationSec = (startedAt && endedAt) ? Math.round((new Date(endedAt) - new Date(startedAt)) / 1000) : 0;
     try {
-      await entities.CallLog.create({
-        call_id: callId, caller_email: callerEmail, caller_name: callerName || callerEmail, caller_avatar: callerAvatar || null,
-        callee_email: calleeEmail, callee_name: calleeName || calleeEmail, callee_avatar: calleeAvatar || null,
-        status, duration_sec: durationSec, started_at: startedAt || new Date().toISOString(), ended_at: endedAt || new Date().toISOString(),
+      await supabase.from("CallLog").insert({
+        caller_email: callerEmail,
+        callee_email: calleeEmail,
+        status, duration_sec: durationSec,
+        started_at: startedAt || new Date().toISOString(),
+        ended_at: endedAt || new Date().toISOString(),
       });
     } catch (e) { console.error("saveCallLog:", e); }
   }, []);
@@ -88,7 +90,7 @@ export function CallManager({ children }) {
 
     // Envoyer l'offre via call_signals
     const { error: insertError } = await supabase.from("call_signals").insert({
-      call_id: callId, caller_email: user.email, caller_name: user.full_name || user.email,
+      call_id: callId, caller_email: user.email,
       callee_email: targetEmail, signal_type: "offer", payload: JSON.stringify(offer), status: "ringing",
     });
     if (insertError) console.error("Insert offer error:", insertError);
@@ -113,7 +115,7 @@ export function CallManager({ children }) {
       } else if (sig.signal_type === "ice-candidate") {
         await addIceCandidate(JSON.parse(sig.payload).candidate);
       } else if (sig.signal_type === "reject" || sig.signal_type === "end") {
-        saveCallLog(callId, user.email, user.full_name, user.avatar_url, targetEmail, targetName, targetAvatar, sig.signal_type === "reject" ? "outgoing" : "outgoing", null, new Date().toISOString());
+        saveCallLog(callId, user.email, user.full_name, user.avatar_url, targetEmail, targetName, targetAvatar, sig.signal_type === "reject" ? "missed" : "outgoing", null, new Date().toISOString());
         cleanup();
       }
     });
@@ -189,10 +191,12 @@ export function CallManager({ children }) {
   // ── Refuser ─────────────────────────────────────────────────────────────────
   const rejectCall = useCallback(async () => {
     if (!callState) return;
-    await supabase.from("call_signals").insert({
-      call_id: callState.callId, caller_email: user?.email || "", callee_email: callState.targetEmail,
-      signal_type: "reject", payload: "", status: "rejected",
-    }).catch(() => {});
+    try {
+      await supabase.from("call_signals").insert({
+        call_id: callState.callId, caller_email: user?.email || "", callee_email: callState.targetEmail,
+        signal_type: "reject", payload: "", status: "rejected",
+      });
+    } catch (_) {}
     await saveCallLog(callState.callId, callState.targetEmail, callState.targetName, callState.targetAvatar, user?.email, user?.full_name, user?.avatar_url, "rejected", null, new Date().toISOString());
     cleanup();
   }, [callState, user, cleanup, saveCallLog]);
@@ -201,10 +205,12 @@ export function CallManager({ children }) {
   const hangup = useCallback(async () => {
     if (!callState) return;
     const endedAt = new Date().toISOString();
-    await supabase.from("call_signals").insert({
-      call_id: callState.callId, caller_email: user?.email || "", callee_email: callState.targetEmail,
-      signal_type: "end", payload: "", status: "ended",
-    }).catch(() => {});
+    try {
+      await supabase.from("call_signals").insert({
+        call_id: callState.callId, caller_email: user?.email || "", callee_email: callState.targetEmail,
+        signal_type: "end", payload: "", status: "ended",
+      });
+    } catch (_) {}
     if (callState.isCaller) {
       await saveCallLog(callState.callId, user?.email, user?.full_name, user?.avatar_url, callState.targetEmail, callState.targetName, callState.targetAvatar, "outgoing", callStartedAtRef.current, endedAt);
     } else {
@@ -215,18 +221,20 @@ export function CallManager({ children }) {
 
   // ── Messages rapides (pour celui qui REÇOIT l'appel) ────────────────────────
   const sendQuickMessage = useCallback(async (msg) => {
-    if (!callState || callState.isCaller) return;
+    if (!callState || callState.isCaller || !user) return;
     const convId = [user?.email, callState.targetEmail].sort().join("_");
-    await supabase.from("MessageChat").insert({
-      conversation_id: convId, sender_email: user?.email,
-      sender_name: "📞 Appel", receiver_email: callState.targetEmail,
-      content: msg, type: "text", read: false,
-    }).catch(() => {});
+    try {
+      await supabase.from("MessageChat").insert({
+        conversation_id: convId, sender_email: user?.email,
+        receiver_email: callState.targetEmail,
+        content: msg, read: false,
+      });
+    } catch (_) {}
     await rejectCall();
   }, [callState, user, rejectCall]);
 
   return (
-    <CallContext.Provider value={{ startCall, hangup, inCall: !!callState, sendQuickMessage }}>
+        <CallContext.Provider value={{ startCall, hangup, acceptCall, rejectCall, inCall: !!callState, sendQuickMessage }}>
       {children}
       {callState && (
         <CallScreen mode={callState.mode} targetName={callState.targetName} targetAvatar={callState.targetAvatar}

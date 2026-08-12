@@ -7,11 +7,12 @@ import { Volume2, VolumeX } from "lucide-react";
  */
 export default function MariaMessage({ content, onSpeak, muted, onToggleMuted, voiceUrl }) {
   const playVoicebox = () => {
-    if (voiceUrl) {
+    // Toujours utiliser onSpeak (Qwen3-TTS via speakResponse) si disponible
+    if (onSpeak) {
+      onSpeak();
+    } else if (voiceUrl) {
       const audio = new Audio(voiceUrl);
       audio.play().catch(() => {});
-    } else if (onSpeak) {
-      onSpeak();
     }
   };
   return (

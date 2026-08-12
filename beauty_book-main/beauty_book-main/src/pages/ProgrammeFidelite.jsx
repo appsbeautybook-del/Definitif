@@ -87,14 +87,16 @@ export default function ProgrammeFidelite() {
           setRecord(results[0]);
         } else {
           const code = (fullName || "USER").split(" ")[0].toUpperCase().replace(/[^A-Z]/g, "") + Math.floor(1000 + Math.random() * 9000);
-          entities.PointsFidelite.create({
+          const payload = {
             user_email: email,
             points_total: 0,
             points_depenses: 0,
             niveau: "Silver",
             historique: [],
-            code_parrainage: code,
-          }).then(r => { if (!cancelled) setRecord(r); });
+          };
+          entities.PointsFidelite.create({ ...payload, code_parrainage: code })
+            .then(r => { if (!cancelled) setRecord(r); })
+            .catch(() => entities.PointsFidelite.create(payload).then(r => { if (!cancelled) setRecord(r); }));
         }
       })
       .finally(() => { if (!cancelled) setLoading(false); });

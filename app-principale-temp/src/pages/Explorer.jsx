@@ -1,46 +1,87 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Star, X, Search, ChevronRight } from "lucide-react";
-import { APIProvider, Map, AdvancedMarker } from "@vis.gl/react-google-maps";
+import { ArrowLeft, MapPin, Star, X, Search, ChevronRight, Camera, Loader2, SlidersHorizontal } from "lucide-react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 
 const CATEGORIES = ["Tous", "Coiffure", "Maquillage", "Ongles", "Soin", "Barbe", "Massage"];
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || "";
 
-function PriceMarker({ pro, price, isSelected, onClick }) {
-  const bg = isSelected ? "#E8732A" : "white";
-  const color = isSelected ? "white" : "#1a1a1a";
-  const border = isSelected ? "#E8732A" : "#e5e7eb";
+function priceIcon(price, isSelected) {
+  return L.divIcon({
+    className: "",
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+    html: `<div style="
+      background: ${isSelected ? "#222222" : "white"};
+      color: ${isSelected ? "white" : "#222222"};
+      border-radius: 24px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      white-space: nowrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.1);
+      transform: ${isSelected ? "scale(1.1) translateY(-2px)" : "scale(1)"};
+      transition: all 0.2s ease;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid ${isSelected ? "#222222" : "#e0e0e0"};
+      letter-spacing: -0.2px;
+    ">${price > 0 ? price + "€" : "Pro"}</div>`,
+  });
+}
 
-  return (
-    <AdvancedMarker
-      position={{ lat: pro.mapLat, lng: pro.mapLng }}
-      onClick={onClick}
-    >
-      <div
-        style={{
-          background: bg,
-          color: color,
-          border: `2px solid ${border}`,
-          borderRadius: "24px",
-          padding: "6px 12px",
-          fontSize: "12px",
-          fontWeight: 800,
-          fontFamily: "'Plus Jakarta Sans', sans-serif",
-          whiteSpace: "nowrap",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.22)",
-          transform: isSelected ? "scale(1.2) translateY(-2px)" : "scale(1)",
-          transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {price > 0 ? `${price}€` : "Pro"}
-      </div>
-    </AdvancedMarker>
-  );
+const userIcon = L.divIcon({
+  className: "",
+  iconSize: [28, 36],
+  iconAnchor: [14, 32],
+  html: `<div style="position: relative; width: 28px; height: 36px;">
+    <div style="
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #4285F4;
+      border: 3px solid white;
+      box-shadow: 0 0 0 3px rgba(66,133,244,0.3), 0 2px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    ">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L4 20L12 16L20 20L12 2Z" fill="white" stroke="white" stroke-width="1" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div style="
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 0;
+      height: 0;
+      border-left: 6px solid transparent;
+      border-right: 6px solid transparent;
+      border-top: 8px solid #4285F4;
+    "></div>
+  </div>`,
+});
+
+function FlyToLocation({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, map.getZoom(), { duration: 0.5 });
+    }
+  }, [center, map]);
+  return null;
 }
 
 export default function Explorer() {
@@ -52,7 +93,27 @@ export default function Explorer() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
   const listRef = useRef(null);
+
+  // UI toggles
+  const [showFilters, setShowFilters] = useState(false);
+  const [showMap, setShowMap] = useState(true);
+
+  // Image search
+  const [searchImagePreview, setSearchImagePreview] = useState(null);
+  const [imageSearchLoading, setImageSearchLoading] = useState(false);
+  const imageInputRef = useRef(null);
+
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => setUserLocation(null),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  }, []);
 
   useEffect(() => {
     entities.ProfilPro.filter({ status: "actif" }, "-created_at", 100)
@@ -87,11 +148,10 @@ export default function Explorer() {
 
   const selectedPro = allMapItems.find(p => p.id === selected);
   const mapCenter = useMemo(() => {
+    if (userLocation) return userLocation;
     if (selectedPro) return { lat: selectedPro.mapLat, lng: selectedPro.mapLng };
     return { lat: 48.866, lng: 2.333 };
-  }, [selectedPro]);
-
-  const mapId = useMemo(() => "explorer-map-" + Date.now(), []);
+  }, [userLocation, selectedPro]);
 
   const handleSelectMarker = (proId) => {
     if (selected === proId) {
@@ -101,6 +161,90 @@ export default function Explorer() {
     }
     setSelected(proId);
     setExpanded(true);
+  };
+
+  const handleToggleFilters = () => {
+    setShowFilters(f => {
+      const next = !f;
+      if (next) setShowMap(false);
+      return next;
+    });
+  };
+
+  const handleToggleMap = () => {
+    setShowMap(m => {
+      const next = !m;
+      if (next) setShowFilters(false);
+      return next;
+    });
+  };
+
+  const handleImageSearch = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageSearchLoading(true);
+    const previewUrl = URL.createObjectURL(file);
+    setSearchImagePreview(previewUrl);
+
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const OR_KEY = __OPENROUTER_KEY__ || '';
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OR_KEY}`,
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'BeautyBook Image Search',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-2.0-flash-001',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: 'Analyse cette image liée à la beauté/coiffure et renvoie uniquement un objet JSON avec {"keywords": [..], "category": "Coiffure|Maquillage|Ongles|Soin|Barbe|Massage|Tresses|Défrisage|Colour|Extensions|Épilation", "description": "bref en français" }.' },
+                { type: 'image_url', image_url: { url: `data:image/${file.type.split('/')[1]};base64,${base64}` } },
+              ],
+            },
+          ],
+          temperature: 0.3,
+          max_tokens: 200,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || '';
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.keywords?.length) {
+            setSearch(parsed.keywords.join(' '));
+          }
+          if (parsed.category && parsed.category !== 'Tous') {
+            setActiveCategory(parsed.category);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Explorer] Image search error:', err);
+    } finally {
+      setImageSearchLoading(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
+  const clearImageSearch = () => {
+    setSearchImagePreview(null);
+    setSearch('');
+    setActiveCategory('Tous');
   };
 
   const handleSelectCard = (pro) => {
@@ -118,15 +262,48 @@ export default function Explorer() {
             <ArrowLeft className="w-4 h-4 text-gray-700" />
           </button>
           <div className="flex-1 flex items-center gap-2 bg-gray-100 rounded-2xl px-3 py-2.5">
-            <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            {searchImagePreview ? (
+              <div className="relative shrink-0">
+                <img src={searchImagePreview} alt="" className="w-7 h-7 rounded-lg object-cover" />
+                <button onClick={clearImageSearch} className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                  <X className="w-2.5 h-2.5 text-white" />
+                </button>
+              </div>
+            ) : (
+              <Search className="w-4 h-4 text-gray-400 shrink-0" />
+            )}
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher un salon, une ville..."
+              placeholder={searchImagePreview ? "Résultats de la recherche par image..." : "Rechercher un salon, une ville..."}
               className="flex-1 bg-transparent text-[13px] text-gray-700 outline-none"
             />
             {search && <button onClick={() => setSearch("")} className="text-gray-400 text-[14px]">✕</button>}
+            <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageSearch} className="hidden" />
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              disabled={imageSearchLoading}
+              className="shrink-0 w-7 h-7 bg-gray-200 rounded-lg flex items-center justify-center active:scale-95 transition-all"
+            >
+              {imageSearchLoading ? (
+                <Loader2 className="w-3.5 h-3.5 text-gray-500 animate-spin" />
+              ) : (
+                <Camera className="w-3.5 h-3.5 text-gray-500" />
+              )}
+            </button>
           </div>
+          <button
+            onClick={handleToggleMap}
+            className={`flex items-center gap-1.5 px-3 h-9 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${showMap ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            <MapPin className="w-4 h-4" />
+          </button>
+          <button
+            onClick={handleToggleFilters}
+            className={`relative flex items-center gap-1.5 px-3 h-9 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all active:scale-95 shrink-0 ${showFilters ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600"}`}
+          >
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
         </div>
 
         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
@@ -145,34 +322,30 @@ export default function Explorer() {
           <div className="w-full h-full flex items-center justify-center bg-gray-100">
             <div className="w-8 h-8 border-4 border-gray-200 border-t-primary rounded-full animate-spin" />
           </div>
-        ) : !GOOGLE_MAPS_API_KEY ? (
-          <div className="w-full h-full flex items-center justify-center bg-gray-50">
-            <div className="text-center px-4">
-              <p className="text-gray-400 text-[12px] font-medium">Google Maps non configuré</p>
-              <p className="text-gray-300 text-[10px] mt-1">Ajoutez VITE_GOOGLE_MAPS_API_KEY</p>
-            </div>
-          </div>
         ) : (
-          <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
-            <Map
-              defaultCenter={mapCenter}
-              defaultZoom={12}
-              mapId={mapId}
-              gestureHandling="greedy"
-              disableDefaultUI={true}
-              style={{ width: "100%", height: "100%" }}
-            >
-              {allMapItems.map((p) => (
-                <PriceMarker
-                  key={p.id}
-                  pro={p}
-                  price={minPricesMap[p.user_email] || 0}
-                  isSelected={selected === p.id}
-                  onClick={() => handleSelectMarker(p.id)}
-                />
-              ))}
-            </Map>
-          </APIProvider>
+          <MapContainer
+            center={mapCenter}
+            zoom={12}
+            style={{ width: "100%", height: "100%" }}
+            zoomControl={false}
+            attributionControl={false}
+          >
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>' maxZoom={19} />
+            <FlyToLocation center={mapCenter} />
+            {userLocation && (
+              <Marker position={userLocation} icon={userIcon} />
+            )}
+            {allMapItems.map((p) => (
+              <Marker
+                key={p.id}
+                position={[p.mapLat, p.mapLng]}
+                icon={priceIcon(minPricesMap[p.user_email] || 0, selected === p.id)}
+                eventHandlers={{
+                  click: () => handleSelectMarker(p.id),
+                }}
+              />
+            ))}
+          </MapContainer>
         )}
 
         {/* Compteur */}

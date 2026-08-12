@@ -12,30 +12,29 @@ import { useCartSync } from "@/hooks/useCartSync";
 import { useLikedProducts } from "@/hooks/useLikedProducts";
 
 // ── Scroll to Top Button ─────────────────────────────────────────────────────
-function ScrollToTopButton({ containerRef }) {
+function ScrollToTopButton() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const el = containerRef?.current || window;
-    const onScroll = () => {
-      const y = el === window ? window.scrollY : el.scrollTop;
-      setVisible(y > 400);
-    };
+    const el = document.getElementById("app-content");
+    if (!el) return;
+    const onScroll = () => setVisible(el.scrollTop > 600);
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [containerRef]);
+  }, []);
 
   if (!visible) return null;
 
   return (
     <button
       onClick={() => {
-        const el = containerRef?.current || window;
-        el === window ? window.scrollTo({ top: 0, behavior: "smooth" }) : el.scrollTo({ top: 0, behavior: "smooth" });
+        const el = document.getElementById("app-content");
+        if (el) el.scrollTo({ top: 0, behavior: "smooth" });
       }}
-      className="fixed bottom-24 right-4 z-40 w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-xl shadow-primary/40 active:scale-90 transition-all"
+      className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 px-5 py-2.5 bg-primary/80 backdrop-blur-sm rounded-full flex items-center gap-2 shadow-lg shadow-primary/30 active:scale-90 transition-all"
     >
-      <ArrowUp className="w-5 h-5 text-white" />
+      <ArrowUp className="w-4 h-4 text-white" />
+      <span className="text-[12px] font-black text-white uppercase tracking-wide">Retour en haut</span>
     </button>
   );
 }
@@ -408,13 +407,6 @@ export default function ProduitDetail() {
 
         {product.tags?.length > 0 && <div className="flex flex-wrap gap-1.5 mb-4">{product.tags.slice(0, 4).map((tag, i) => <span key={i} className="bg-gray-100 text-gray-500 text-[11px] font-bold px-2.5 py-1 rounded-full">{tag}</span>)}</div>}
 
-        {isDbProduct && (
-          <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-3 mb-2">
-            <Shield className="w-4 h-4 text-primary shrink-0" />
-            <p className="text-[11px] font-bold text-primary">Vendu & expédié par un vendeur BeautyBook · Paiement sécurisé</p>
-          </div>
-        )}
-
         <button onClick={() => navigate("/sh-ai", { state: { preSelectedProduct: { id: product.id || productId, name: product.title || product.name, price: displayPrice, img: activeProductImg, brand: product.vendor || "" } } })}
           className="w-full flex items-center gap-3 bg-gradient-to-r from-orange-50 to-yellow-50 border border-orange-200 rounded-2xl px-4 py-3.5 active:scale-95 transition-all mb-1">
           <div className="w-10 h-10 bg-primary rounded-2xl flex items-center justify-center shadow-md shadow-primary/30 shrink-0"><Wand2 className="w-5 h-5 text-white" /></div>
@@ -500,37 +492,54 @@ export default function ProduitDetail() {
 
       {/* À propos du produit */}
       <div className="px-4">
-        <ExpandableSection title="Description du produit" defaultOpen>
-          <p className="text-[13px] text-gray-600 leading-relaxed">{product.description || "Aucune description disponible."}</p>
-        </ExpandableSection>
-        <ExpandableSection title="Spécifications">
-          <div className="space-y-2">
-            {(() => {
-              const specs = [];
-              // Extraire les specs depuis la description (Pattern: "Key: Value")
-              const desc = product.description || "";
-              const lines = desc.split(/[.\n]/).map(l => l.trim()).filter(Boolean);
-              for (const line of lines) {
-                const match = line.match(/^([A-Za-zÀ-ÿ\s&]+?)\s*[:]\s*(.+)$/);
-                if (match && match[1].trim().length < 40 && match[2].trim().length < 200) {
-                  specs.push({ label: match[1].trim(), value: match[2].trim() });
-                }
+        {(() => {
+          // Parser la description pour extraire les specs (Key: Value)
+          const desc = product.description || "";
+          const specLines = [];
+          const descLines = [];
+          const seen = new Set();
+          for (const raw of desc.split(/\n/)) {
+            const line = raw.trim();
+            if (!line) continue;
+            // Pattern: "Key: Value" ou "Key : Value"
+            const m = line.match(/^([A-Za-zÀ-ÿ\s&'()-]+?)\s*[:]\s*(.+)$/);
+            if (m && m[1].trim().length < 40 && m[2].trim().length > 0 && m[2].trim().length < 300) {
+              const key = m[1].trim();
+              const lower = key.toLowerCase();
+              if (!seen.has(lower)) {
+                seen.add(lower);
+                specLines.push({ label: key, value: m[2].trim() });
               }
-              // Ajouter des specs standard si pas assez trouvées
-              if (product.category) specs.push({ label: "Catégorie", value: product.category });
-              if (product.brand) specs.push({ label: "Marque", value: product.brand });
-              if (product.stock !== undefined) specs.push({ label: "Disponibilité", value: product.stock > 0 ? "En stock" : "Rupture de stock" });
-              if (product.tags?.length > 0) specs.push({ label: "Tags", value: product.tags.join(", ") });
-              if (specs.length === 0) specs.push({ label: "Catégorie", value: product.category || "Non spécifié" });
-              return specs.slice(0, 12).map((s, i) => (
-                <div key={i} className={`flex items-center justify-between py-2 ${i < specs.length - 1 ? "border-b border-gray-100" : ""}`}>
-                  <span className="text-[12px] font-bold text-gray-500">{s.label}</span>
-                  <span className="text-[12px] font-black text-gray-900 text-right max-w-[60%]">{s.value}</span>
+            } else {
+              descLines.push(line);
+            }
+          }
+          // Specs standard du produit BDD
+          if (product.category && !seen.has("catégorie")) specLines.push({ label: "Catégorie", value: product.category });
+          if (product.brand && !seen.has("marque")) specLines.push({ label: "Marque", value: product.brand });
+          if (product.stock !== undefined && !seen.has("disponibilité")) specLines.push({ label: "Disponibilité", value: product.stock > 0 ? "En stock" : "Rupture de stock" });
+          if (product.tags?.length > 0 && !seen.has("tags")) specLines.push({ label: "Tags", value: product.tags.join(", ") });
+
+          const cleanDesc = descLines.join("\n").trim();
+
+          return (
+            <>
+              <ExpandableSection title="Description du produit" defaultOpen>
+                <p className="text-[13px] text-gray-600 leading-relaxed text-justify">{cleanDesc || "Aucune description disponible."}</p>
+              </ExpandableSection>
+              <ExpandableSection title="Spécifications">
+                <div className="space-y-2">
+                  {specLines.length > 0 ? specLines.slice(0, 15).map((s, i) => (
+                    <div key={i} className={`flex items-center justify-between py-2 ${i < specLines.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <span className="text-[12px] font-bold text-gray-500">{s.label}</span>
+                      <span className="text-[12px] font-black text-gray-900 text-right max-w-[60%]">{s.value}</span>
+                    </div>
+                  )) : <p className="text-[13px] text-gray-400 italic">Aucune spécification disponible.</p>}
                 </div>
-              ));
-            })()}
-          </div>
-        </ExpandableSection>
+              </ExpandableSection>
+            </>
+          );
+        })()}
         <ExpandableSection title="Avis clients">
           {productReviews.length > 0 ? (
             <div className="space-y-3">
@@ -547,6 +556,51 @@ export default function ProduitDetail() {
             </div>
           ) : <p className="text-[13px] text-gray-400 italic">Aucun avis pour le moment.</p>}
         </ExpandableSection>
+
+        {/* Conformité (représentant UE, fabricant, recyclage) */}
+        {(() => {
+          const euRep = product?.eu_representative || product?.representant_ue || {};
+          const manufacturer = product?.manufacturer || product?.fabricant || {};
+          const recycling = product?.recycling || product?.recyclage || product?.conformite || "";
+          const hasData = euRep.name || euRep.email || euRep.phone || euRep.address
+            || manufacturer.name || manufacturer.email || manufacturer.phone || manufacturer.address
+            || recycling;
+          if (!hasData) return null;
+          return (
+            <ExpandableSection title="Conformité">
+              <div className="space-y-4">
+                {(euRep.name || euRep.email || euRep.phone || euRep.address) && (
+                  <div>
+                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Représentant dans l'Union européenne</p>
+                    <div className="space-y-1.5">
+                      {euRep.name && <p className="text-[13px] text-gray-700"><span className="font-bold">Nom :</span> {euRep.name}</p>}
+                      {euRep.address && <p className="text-[13px] text-gray-700"><span className="font-bold">Adresse :</span> {euRep.address}</p>}
+                      {euRep.phone && <p className="text-[13px] text-gray-700"><span className="font-bold">Téléphone :</span> {euRep.phone}</p>}
+                      {euRep.email && <p className="text-[13px] text-gray-700"><span className="font-bold">Email :</span> {euRep.email}</p>}
+                    </div>
+                  </div>
+                )}
+                {(manufacturer.name || manufacturer.email || manufacturer.phone || manufacturer.address) && (
+                  <div>
+                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">Fabricant</p>
+                    <div className="space-y-1.5">
+                      {manufacturer.name && <p className="text-[13px] text-gray-700"><span className="font-bold">Nom :</span> {manufacturer.name}</p>}
+                      {manufacturer.address && <p className="text-[13px] text-gray-700"><span className="font-bold">Adresse :</span> {manufacturer.address}</p>}
+                      {manufacturer.phone && <p className="text-[13px] text-gray-700"><span className="font-bold">Téléphone :</span> {manufacturer.phone}</p>}
+                      {manufacturer.email && <p className="text-[13px] text-gray-700"><span className="font-bold">Email :</span> {manufacturer.email}</p>}
+                    </div>
+                  </div>
+                )}
+                {recycling && (
+                  <div>
+                    <p className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-1">Politiques de recyclage</p>
+                    <p className="text-[13px] text-gray-700 text-justify leading-relaxed">{recycling}</p>
+                  </div>
+                )}
+              </div>
+            </ExpandableSection>
+          );
+        })()}
       </div>
 
       <div className="h-2 bg-gray-50 mt-2" />
@@ -574,16 +628,14 @@ export default function ProduitDetail() {
             <button className="flex-1 py-2.5 border-2 border-gray-200 rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all">
               <MessageCircle className="w-4 h-4 text-gray-600" /><span className="text-[11px] font-black text-gray-700">Message</span>
             </button>
-            <button className="flex-1 py-2.5 bg-primary rounded-xl flex items-center justify-center gap-1.5 active:scale-95 transition-all">
-              <Store className="w-4 h-4 text-white" /><span className="text-[11px] font-black text-white">Voir la boutique</span>
-            </button>
           </div>
         </div>
       </div>
 
       <div className="h-2 bg-gray-50" />
       <RelatedServices productId={productId} productName={product.title || product.name} />
-      <RecommendedProducts currentProductId={productId} currentCategory={product?.category || product?.productType || ""} title="Tu pourrais aimer" />
+      <RecommendedProducts currentProductId={productId} product={product} title="PRODUITS DE LA BOUTIQUE" />
+      <YouMayAlsoLike currentProductId={productId} />
 
       {/* Bottom CTA */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-3 flex gap-3 z-30" style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" }}>
@@ -597,67 +649,133 @@ export default function ProduitDetail() {
       </div>
 
       {showCheckout && <CheckoutModal product={product} onClose={() => setShowCheckout(false)} />}
-      <ScrollToTopButton containerRef={scrollRef} />
+      <ScrollToTopButton />
     </div>
   );
 }
 
-// ── Produits recommandés ──────────────────────────────────────────────────────
-function RecommendedProducts({ currentProductId, currentCategory, title = "Tu pourrais aimer" }) {
+// ── Produits de la même boutique (grille 2 colonnes) ─────────────────────────
+function RecommendedProducts({ currentProductId, product, title = "PRODUITS DE LA BOUTIQUE" }) {
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     let dead = false;
-    const cat = (currentCategory || "").toLowerCase();
+    const vendorName = product?.vendor || product?.brand || '';
+    const createdBy = product?.created_by || '';
+
     (async () => {
+      const all = [];
+
+      // 1) Produits BDD même vendeur
       try {
-        const items = await entities.Produit.list("-created_at", 50);
-        if (dead) return;
-        let filtered = (items || []).filter(p => p.id !== currentProductId);
-        if (cat) {
-          const sameCat = filtered.filter(p => {
-            const pc = (p.category || "").toLowerCase();
-            return pc.includes(cat) || cat.includes(pc);
-          });
-          const otherCat = filtered.filter(p => {
-            const pc = (p.category || "").toLowerCase();
-            return !pc.includes(cat) && !cat.includes(pc);
-          });
-          filtered = [...sameCat, ...otherCat];
+        let items = await entities.Produit.filter({ status: "actif" }, "-created_at", 100).catch(() => []);
+        if (!items || items.length === 0) {
+          items = await entities.Produit.list("-created_at", 100).catch(() => []);
         }
-        setProducts(filtered.slice(0, 8).map(p => ({
-          id: p.id, img: p.image_url || (p.images && p.images[0]) || '',
-          name: p.name || '', brand: p.brand || '',
-          price: parseFloat(p.price || 0),
-        })));
-      } catch (e) { console.error("[Recos] error:", e); }
-      if (!dead) setLoading(false);
+        for (const p of (items || [])) {
+          const sameVendor = (p.brand && vendorName && p.brand.toLowerCase() === vendorName.toLowerCase())
+            || (p.created_by && createdBy && p.created_by === createdBy);
+          if (!sameVendor) continue;
+          if (p.id === currentProductId) continue;
+          all.push({
+            id: p.id,
+            image_url: p.image_url || (p.images && p.images[0]) || '',
+            name: p.name || p.title || '',
+            brand: p.brand || '',
+            price: parseFloat(p.price || 0),
+          });
+        }
+      } catch (e) { console.warn("[Boutique] DB error:", e.message); }
+
+      // 2) Shopify — même vendor
+      try {
+        const SHOPIFY_DOMAIN = import.meta.env.VITE_SHOPIFY_DOMAIN || '';
+        const SHOPIFY_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || '';
+        if (SHOPIFY_DOMAIN && SHOPIFY_TOKEN && vendorName) {
+          const r = await fetch(`https://${SHOPIFY_DOMAIN}/api/2024-10/graphql.json`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': SHOPIFY_TOKEN },
+            body: JSON.stringify({
+              query: `{
+                products(first: 20, query: "vendor:${vendorName}", sortKey: BEST_SELLING) {
+                  edges { node {
+                    id title vendor
+                    images(first: 1) { edges { node { url } } }
+                    variants(first: 1) { edges { node { price { amount } } } }
+                  } }
+                }
+              }`
+            })
+          });
+          const json = await r.json();
+          const edges = json.data?.products?.edges || [];
+          for (const { node } of edges) {
+            if (node.id === currentProductId) continue;
+            const v = node.variants?.edges?.[0]?.node;
+            const img = node.images?.edges?.[0]?.node;
+            all.push({
+              id: node.id,
+              image_url: img?.url || '',
+              name: node.title,
+              brand: node.vendor || '',
+              price: parseFloat(v?.price?.amount || '0'),
+            });
+          }
+        }
+      } catch (e) { console.warn("[Boutique] Shopify error:", e.message); }
+
+      if (dead) return;
+      setProducts(all.slice(0, 8));
+      setLoading(false);
     })();
     return () => { dead = true; };
-  }, [currentProductId, currentCategory]);
+  }, [currentProductId, product?.vendor, product?.brand, product?.created_by]);
 
   return (
     <div className="px-4 py-5">
       <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">{title}</h2>
       {loading ? (
-        <div className="flex gap-3 overflow-x-auto hide-scrollbar -mx-4 px-4 pb-2">
-          {[1,2,3].map(i => <div key={i} className="min-w-[140px] h-[180px] bg-gray-100 rounded-2xl animate-pulse shrink-0" />)}
-        </div>
-      ) : products.length > 0 ? (
-        <div className="flex gap-3 overflow-x-auto hide-scrollbar -mx-4 px-4 pb-2">
-          {products.map(p => (
-            <div key={p.id} onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)} className="min-w-[140px] max-w-[140px] bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden cursor-pointer active:scale-[0.98] transition-all shrink-0">
-              <div className="aspect-square overflow-hidden bg-gray-50">{p.img ? <img src={p.img} alt={p.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300"><ShoppingCart className="w-8 h-8" /></div>}</div>
-              <div className="p-2.5">
-                {p.brand && <p className="text-[9px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
-                <p className="text-[11px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
-                <p className="text-[13px] font-black text-gray-900 mt-1">Dès {p.price.toFixed(2)} €</p>
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="animate-pulse">
+              <div className="aspect-square bg-gray-100 rounded-2xl" />
+              <div className="p-3 space-y-2 mt-2">
+                <div className="h-3 bg-gray-100 rounded w-2/3" />
+                <div className="h-3 bg-gray-100 rounded w-full" />
+                <div className="h-4 bg-gray-100 rounded w-1/2" />
               </div>
             </div>
           ))}
         </div>
-      ) : null}
+      ) : products.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3">
+          {products.map(p => (
+            <button key={p.id}
+              onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)}
+              className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-gray-100">
+              <div className="relative h-[140px]">
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                    <ShoppingCart className="w-8 h-8 text-gray-200" />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+              </div>
+              <div className="p-3">
+                {p.brand && <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
+                <p className="text-[12px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
+                <p className="text-[13px] font-black text-primary mt-1">{p.price.toFixed(2)} €</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[13px] text-gray-400 italic text-center py-4">Aucun produit de cette boutique pour l'instant.</p>
+      )}
     </div>
   );
 }
@@ -727,6 +845,89 @@ function RelatedServices({ productId, productName }) {
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ── Tu pourrais aimer (produits de la page boutique) ──────────────────────────
+function YouMayAlsoLike({ currentProductId }) {
+  const navigate = useNavigate();
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let dead = false;
+    (async () => {
+      const all = [];
+
+      try {
+        const items = await entities.Produit.filter({ status: "actif" }, "-created_at", 500).catch(() => []);
+        for (const p of (items || [])) {
+          if (p.id === currentProductId) continue;
+          all.push({
+            id: p.id,
+            image_url: p.image_url || (p.images && p.images[0]) || '',
+            name: p.name || '',
+            brand: p.brand || '',
+            price: parseFloat(p.price || 0),
+            category: p.category || '',
+          });
+        }
+      } catch {}
+
+      try {
+        const res = await fetchShopifyProducts({ first: 100 });
+        const shopifyProducts = res.data?.products || [];
+        for (const p of shopifyProducts) {
+          if (p.id === currentProductId) continue;
+          if (all.some(x => x.id === p.id)) continue;
+          all.push({
+            id: p.id,
+            image_url: p.img || p.image_url || '',
+            name: p.name || p.title || '',
+            brand: p.brand || p.vendor || '',
+            price: parseFloat(p.price || 0),
+            category: p.category || p.productType || '',
+          });
+        }
+      } catch {}
+
+      if (dead) return;
+      const shuffled = all.sort(() => Math.random() - 0.5);
+      setProducts(shuffled.slice(0, 150));
+      setLoading(false);
+    })();
+    return () => { dead = true; };
+  }, [currentProductId]);
+
+  if (loading || products.length === 0) return null;
+
+  return (
+    <div className="px-4 py-5">
+      <h2 className="text-[15px] font-black text-gray-900 uppercase tracking-tight mb-4">Tu pourrais aimer</h2>
+      <div className="grid grid-cols-2 gap-3">
+        {products.map(p => (
+          <button key={p.id}
+            onClick={() => navigate(`/produit?id=${encodeURIComponent(p.id)}`)}
+            className="bg-white rounded-[24px] overflow-hidden shadow-sm active:scale-95 transition-all text-left border border-gray-100">
+            <div className="relative h-[140px]">
+              {p.image_url ? (
+                <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                  <ShoppingCart className="w-8 h-8 text-gray-200" />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            </div>
+            <div className="p-3">
+              {p.brand && <p className="text-[10px] font-black text-primary uppercase tracking-wider truncate">{p.brand}</p>}
+              <p className="text-[12px] font-bold text-gray-900 leading-tight line-clamp-2">{p.name}</p>
+              <p className="text-[13px] font-black text-primary mt-1">{p.price.toFixed(2)} €</p>
+            </div>
+          </button>
+        ))}
       </div>
     </div>
   );

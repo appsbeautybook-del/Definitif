@@ -1,0 +1,154 @@
+name: Build iOS & Upload to TestFlight
+
+on:
+  workflow_dispatch:  # Déclenchement manuel depuis GitHub
+    inputs:
+      version:
+        description: 'Version de l app (ex: 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+env:
+  APP_VERSION: ${{ github.event.inputs.version || '1.0.0' }}
+
+jobs:
+  build-ios:
+    runs-on: macos-14  # macOS Sonoma avec Xcode 15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_BACKEND_URL: ${{ secrets.VITE_BACKEND_URL }}
+
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+
+      - name: Install CocoaPods
+        run: cd ios/App && pod install
+
+      - name: Decode Certificate
+        env:
+          IOS_CERTIFICATE: ${{ secrets.IOS_CERTIFICATE }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          # Créer le dossier certs
+          mkdir -p certs
+          
+          # Décoder le certificat P12
+          echo "$IOS_CERTIFICATE" | base64 --decode > certs/certificate.p12
+          
+          # Créer le keychain
+          security create-keychain -p "" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "" build.keychain
+          
+          # Importer le certificat
+          security import certs/certificate.p12 -k build.keychain -P "$IOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "" build.keychain
+
+      - name: Decode Provisioning Profile
+        env:
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+        run: |
+          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > certs/profile.mobileprovision
+          
+          # Installer le profil
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(security cms -D -i certs/profile.mobileprovision))
+          cp certs/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/$UUID.mobileprovision
+
+      - name: Build Xcode Archive
+        run: |
+          cd ios/App
+          
+          # Configuration
+          SCHEME="App"
+          WORKSPACE="App.xcworkspace"
+          CONFIGURATION="Release"
+          EXPORT_OPTIONS="ExportOptions.plist"
+          
+          # Créer le fichier ExportOptions.plist
+          cat > $EXPORT_OPTIONS << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>teamID</key>
+            <string>${{ secrets.APPLE_TEAM_ID }}</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          EOF
+          
+          # Archive
+          xcodebuild -workspace $WORKSPACE \
+            -scheme $SCHEME \
+            -configuration $CONFIGURATION \
+            -archivePath $PWD/build/BeautyBook.xcarchive \
+            -allowProvisioningUpdates \
+            -destination "generic/platform=iOS" \
+            clean archive | xcpretty
+
+      - name: Export IPA
+        run: |
+          cd ios/App
+          
+          xcodebuild -exportArchive \
+            -archivePath build/BeautyBook.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/output \
+            -allowProvisioningUpdates
+
+      - name: Upload to TestFlight
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER: ${{ secrets.APP_STORE_CONNECT_API_ISSUER }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          # Créer le fichier de clé API
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APP_STORE_CONNECT_API_KEY" > ~/.appstoreconnect/private_keys/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
+          
+          # Upload avec altool
+          xcrun altool --upload-app \
+            --type ios \
+            --file ios/App/build/output/*.ipa \
+            --apiKey $APP_STORE_CONNECT_API_KEY_ID \
+            --apiIssuer $APP_STORE_CONNECT_API_ISSUER
+
+      - name: Clean up keychain
+        if: always()
+        run: |
+          security delete-keychain build.keychain 2>/dev/null || true
+          rm -rf certs/
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeautyBook-iOS
+          path: ios/App/build/output/*.ipa
+          retention-days: 30

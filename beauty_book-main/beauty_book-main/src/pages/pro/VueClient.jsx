@@ -608,8 +608,8 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
       setAvis(avis);
       let followerCount = profile?.followers || 0;
       try {
-        const { data: count } = await supabase.rpc('count_followers', { target_email: targetEmail });
-        if (count !== null && count !== undefined) followerCount = count;
+        const { count } = await supabase.from('user_follow').select('*', { count: 'exact', head: true }).eq('followed_email', targetEmail);
+        if (count !== null) followerCount = count;
       } catch (e) {}
       setStats({ abonnes: followerCount, services: svcs.length, avis: avis.length });
     };
@@ -639,20 +639,20 @@ export default function VueClient({ onClose, proEmail: proEmailProp, proPhone })
     setStats(s => ({ ...s, abonnes: newCount }));
     try {
       if (newSubscribed) {
-        await supabase.from('user_follow').insert({
-          follower_email: user.email,
-          follower_name: user?.full_name || "Utilisateur",
-          follower_avatar: user?.avatar_url || "",
-          followed_email: targetEmail,
-        }).catch(() => {});
-        await supabase.rpc('increment_followers', { target_email: targetEmail });
+        try {
+          await supabase.from('user_follow').insert({
+            follower_email: user.email,
+            followed_email: targetEmail,
+          });
+        } catch (_) {}
       } else {
-        await supabase.from('user_follow')
-          .delete().eq('follower_email', user.email).eq('followed_email', targetEmail).catch(() => {});
-        await supabase.rpc('decrement_followers', { target_email: targetEmail });
+        try {
+          await supabase.from('user_follow')
+            .delete().eq('follower_email', user.email).eq('followed_email', targetEmail);
+        } catch (_) {}
       }
-      const { data: realCount } = await supabase.rpc('count_followers', { target_email: targetEmail });
-      if (realCount !== null && realCount !== undefined) {
+      const { count: realCount } = await supabase.from('user_follow').select('*', { count: 'exact', head: true }).eq('followed_email', targetEmail);
+      if (realCount !== null) {
         setStats(s => ({ ...s, abonnes: realCount }));
       }
     } catch (e) { console.warn('[Subscribe] error:', e); }

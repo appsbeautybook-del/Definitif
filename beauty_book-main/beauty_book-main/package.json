@@ -19,7 +19,10 @@
     "open:all": "start http://localhost:5173/ & start http://localhost:5174/admin & start http://localhost:5175/vendeur",
     "cap:sync": "node node_modules/@capacitor/cli/bin/capacitor sync android",
     "cap:open": "node node_modules/@capacitor/cli/bin/capacitor open android",
-    "cap:build": "npm run build && node node_modules/@capacitor/cli/bin/capacitor sync android"
+    "cap:build": "npm run build && node node_modules/@capacitor/cli/bin/capacitor sync android",
+    "cap:sync:ios": "node node_modules/@capacitor/cli/bin/capacitor sync ios",
+    "cap:open:ios": "node node_modules/@capacitor/cli/bin/capacitor open ios",
+    "cap:build:ios": "npm run build && node node_modules/@capacitor/cli/bin/capacitor sync ios"
   },
   "dependencies": {
     "@base44/vite-plugin": "^1.0.23",
@@ -70,7 +73,6 @@
     "@stripe/stripe-js": "^5.2.0",
     "@supabase/supabase-js": "^2.108.2",
     "@tanstack/react-query": "^5.84.1",
-    "@vis.gl/react-google-maps": "^1.9.0",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -87,6 +89,7 @@
     "lucide-react": "^0.475.0",
     "moment": "^2.30.1",
     "next-themes": "^0.4.4",
+    "playwright": "^1.52.0",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-day-picker": "^8.10.1",

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useCallback, useEffect } from "react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
+import { synthesizeQwenTTS, detectLanguage } from '@/lib/qwenTts';
 
 const VoiceAgentContext = createContext(null);
 
@@ -138,7 +139,7 @@ export function VoiceAgentProvider({ children }) {
     setTimeout(() => { abortSpeakRef.current = false; }, 100);
   }, []);
 
-  // ── Lecteur TTS via Voicebox (fallback: Web Speech API) ──────────────────
+  // ── Lecteur TTS via Qwen3-TTS (fallback: Web Speech API) ─────────────────
   const speakText = useCallback(async (text) => {
     if (!text?.trim()) return;
 
@@ -150,41 +151,34 @@ export function VoiceAgentProvider({ children }) {
     isSpeakingRef.current = true;
 
     try {
-      // Try Voicebox first
-      const res = await fetch(`${API_BASE}/ai/voicebox-speak`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: voiceText, profile: 'Maria', engine: 'qwen', language: 'fr' }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.audio_url) {
-          if (abortSpeakRef.current) {
-            setSpeaking(false);
-            isSpeakingRef.current = false;
-            return;
-          }
-          if (audioRef.current) {
-            audioRef.current.src = data.audio_url;
-            try { await audioRef.current.play(); } catch {}
-            await new Promise((resolve) => {
-              if (!audioRef.current) { resolve(); return; }
-              const checkAbort = setInterval(() => {
-                if (abortSpeakRef.current) {
-                  clearInterval(checkAbort);
-                  if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
-                  resolve();
-                }
-              }, 200);
-              audioRef.current.onended = () => { clearInterval(checkAbort); resolve(); };
-              audioRef.current.onerror = () => { clearInterval(checkAbort); resolve(); };
-            });
-          }
-          isSpeakingRef.current = false;
+      // Qwen3-TTS d'abord — voix naturelle multilingue
+      const qwenUrl = await synthesizeQwenTTS(voiceText, detectLanguage(voiceText));
+      if (qwenUrl) {
+        if (abortSpeakRef.current) {
+          URL.revokeObjectURL(qwenUrl);
           setSpeaking(false);
+          isSpeakingRef.current = false;
           return;
         }
+        if (audioRef.current) {
+          audioRef.current.src = qwenUrl;
+          try { await audioRef.current.play(); } catch {}
+          await new Promise((resolve) => {
+            if (!audioRef.current) { resolve(); return; }
+            const checkAbort = setInterval(() => {
+              if (abortSpeakRef.current) {
+                clearInterval(checkAbort);
+                if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
+                resolve();
+              }
+            }, 200);
+            audioRef.current.onended = () => { clearInterval(checkAbort); URL.revokeObjectURL(qwenUrl); resolve(); };
+            audioRef.current.onerror = () => { clearInterval(checkAbort); URL.revokeObjectURL(qwenUrl); resolve(); };
+          });
+        }
+        isSpeakingRef.current = false;
+        setSpeaking(false);
+        return;
       }
 
       // Fallback: Web Speech API

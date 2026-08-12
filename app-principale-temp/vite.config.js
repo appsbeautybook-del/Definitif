@@ -19,6 +19,10 @@ try {
   if (envVars.VITE_OPENROUTER_KEY) {
     extraDefines['__OPENROUTER_KEY__'] = JSON.stringify(envVars.VITE_OPENROUTER_KEY)
   }
+  // Rendre les variables serveur (DASHSCOPE_API_KEY, OPENROUTER_KEY…) dispo pour le api-server en dev
+  for (const [k, v] of Object.entries(envVars)) {
+    if (!process.env[k]) process.env[k] = v
+  }
 } catch {}
 
 export default defineConfig({
@@ -28,6 +32,10 @@ export default defineConfig({
     port: 5173,
     open: '/',
     proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
       '/ai-proxy': {
         target: 'https://openrouter.ai',
         changeOrigin: true,

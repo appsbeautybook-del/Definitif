@@ -48,27 +48,34 @@ function LoadingOverlay({ onCancel }) {
   }, []);
 
   return (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-end bg-black/50">
-      <div className="w-full px-4 pb-5 space-y-2">
-        <div className="flex justify-center mb-1">
-          <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-            <Wand2 className="w-5 h-5 text-white animate-spin" />
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full px-5 pb-6 pt-8 space-y-3">
+        {/* Animated icon */}
+        <div className="flex justify-center mb-2">
+          <div className="w-14 h-14 rounded-2xl bg-primary/20 border-2 border-primary/40 flex items-center justify-center">
+            <Wand2 className="w-7 h-7 text-primary animate-spin" />
           </div>
         </div>
+        {/* Progress text */}
         <div className="flex items-center justify-between">
-          <p className="text-white text-[12px] font-black">{msg}</p>
-          <p className="text-primary text-[13px] font-black">{progress}%</p>
+          <p className="text-white text-[13px] font-black">{msg}</p>
+          <p className="text-primary text-[15px] font-black">{progress}%</p>
         </div>
-        <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+        {/* Orange loading bar */}
+        <div className="h-3 bg-white/10 rounded-full overflow-hidden border border-white/10">
           <div
-            className="h-full bg-gradient-to-r from-primary to-orange-400 rounded-full transition-[width] duration-300 ease-out"
-            style={{ width: `${progress}%` }}
+            className="h-full rounded-full transition-[width] duration-300 ease-out"
+            style={{
+              width: `${progress}%`,
+              background: 'linear-gradient(90deg, #f97316 0%, #fb923c 50%, #fdba74 100%)',
+              boxShadow: '0 0 12px rgba(249, 115, 22, 0.6)',
+            }}
           />
         </div>
-        <p className="text-white/50 text-[10px] font-medium text-center">
-          Fond & visage préservés — seul le vêtement change ✨
+        <p className="text-white/60 text-[11px] font-medium text-center">
+          Simulation IA en cours — patientez…
         </p>
-        <button onClick={onCancel} className="w-full text-white/40 text-[10px] underline text-center">Annuler</button>
+        <button onClick={onCancel} className="w-full text-white/40 text-[11px] underline text-center mt-1">Annuler</button>
       </div>
     </div>
   );
@@ -584,23 +591,29 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
           const { file_url } = await uploadFile({ file });
           if (file_url) urlToSend = file_url;
         } catch {
-          // Keep base64 data URL — Gemini supports it directly
+          // Keep base64 data URL
         }
       }
 
-      const res = await apiClient.callFunction("analyzePhoto", {
-        photoUrl: urlToSend,
-        productName: productName || "vêtement",
-      });
+      // Run analysis + minimum 1.5s delay for UX
+      const [res] = await Promise.all([
+        apiClient.callFunction("analyzePhoto", {
+          photoUrl: urlToSend,
+          productName: productName || "vêtement",
+        }),
+        new Promise(r => setTimeout(r, 1500)),
+      ]);
+
       const d = res.data || {};
       setPhotoAnalysis({
         has_person: d.has_person !== undefined ? d.has_person : true,
         body_visible: d.body_visible !== undefined ? d.body_visible : true,
         quality_ok: d.quality_ok !== undefined ? d.quality_ok : true,
-        compatibility_score: d.compatibility_score || 85,
+        compatibility_score: d.compatibility_score || 75,
         issues: d.issues || [],
         body_type: d.body_type || "",
         suggestion: d.suggestion || "Photo prête pour l'essayage virtuel.",
+        resolution: d.resolution || "",
         ...d,
       });
     } catch (err) {
@@ -609,10 +622,10 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         has_person: true,
         body_visible: true,
         quality_ok: true,
-        compatibility_score: 85,
+        compatibility_score: 70,
         issues: [],
         body_type: "",
-        suggestion: "Photo prête pour l'essayage virtuel."
+        suggestion: "Analyse terminée — vous pouvez essayer l'article."
       });
     }
     setAnalyzingPhoto(false);
@@ -646,6 +659,7 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
       ? selectedProduct.name
       : `tenue (${[topPhoto && "haut", bottomPhoto && "bas", shoesPhoto && "chaussures"].filter(Boolean).join(", ")})`;
     try {
+      const startTime = Date.now();
       const apiCall = apiClient.callFunction("shAiTryOn", {
         user_photo: userPhoto,
         garment_photo: garmentPhoto,
@@ -657,6 +671,10 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
       }, { signal: controller.signal });
       const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
       const res = await Promise.race([apiCall, timeout]);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 5000) {
+        await new Promise(r => setTimeout(r, 5000 - elapsed));
+      }
       setLoading(false);
       if (res.data?.result_url) {
         const resultUrl = res.data.result_url;
@@ -773,7 +791,7 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
         <div className="relative rounded-2xl overflow-hidden aspect-[3/4] shadow-md">
           {userPhoto ? (
             <>
-              <img src={userPhoto} alt="" className="w-full h-full object-cover" />
+              <img src={userPhoto} alt="" className={`w-full h-full object-cover transition-opacity duration-300 ${loading ? 'opacity-30' : 'opacity-100'}`} />
               {loading && <LoadingOverlay onCancel={cancelTryOn} />}
               {!loading && (
                 <button onClick={() => { setUserPhoto(null); setResult(null); }}
@@ -834,7 +852,14 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
             {/* Body type */}
             {photoAnalysis.body_type && (
               <p className="text-[10px] font-medium text-gray-500">
-                Morphologie détectée : <span className="font-black text-gray-700">{photoAnalysis.body_type}</span>
+                Morphologie : <span className="font-black text-gray-700">{photoAnalysis.body_type}</span>
+              </p>
+            )}
+            {/* Resolution */}
+            {photoAnalysis.resolution && (
+              <p className="text-[10px] font-medium text-gray-500">
+                Résolution : <span className="font-black text-gray-700">{photoAnalysis.resolution}</span>
+                {photoAnalysis.megapixels ? ` (${photoAnalysis.megapixels} MP)` : ''}
               </p>
             )}
             {/* Issues */}
@@ -847,8 +872,8 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
                 ))}
               </div>
             )}
-            {/* Suggestion si score faible */}
-            {photoAnalysis.suggestion && photoAnalysis.compatibility_score < 70 && (
+            {/* Suggestion */}
+            {photoAnalysis.suggestion && (
               <p className="text-[10px] font-bold text-gray-600 bg-white/70 rounded-lg px-2 py-1.5">
                 💡 {photoAnalysis.suggestion}
               </p>
@@ -951,8 +976,8 @@ function CabineEssayage({ products, likedProducts, preSelectedProduct }) {
       )}
 
       {error && (
-        <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3">
-          <p className="text-[12px] text-red-600 font-medium">{error}</p>
+        <div className="bg-orange-50/80 border border-orange-100 rounded-2xl px-4 py-3">
+          <p className="text-[12px] text-orange-600/80 font-medium leading-relaxed">{error}</p>
         </div>
       )}
 
@@ -1041,10 +1066,17 @@ function EchangeTenues() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await apiClient.callFunction("shAiTryOn", {
+      const startTime = Date.now();
+      const apiCall = apiClient.callFunction("shAiTryOn", {
         user_photo: userPhoto, garment_photo: referencePhoto, garment_name: "tenue de référence",
         preserve_face: true, preserve_background: true, mode: "exchange",
       });
+      const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 60000));
+      const res = await Promise.race([apiCall, timeout]);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 5000) {
+        await new Promise(r => setTimeout(r, 5000 - elapsed));
+      }
       setLoading(false);
       if (res.data?.result_url) {
         const resultUrl = res.data.result_url;
@@ -1159,7 +1191,7 @@ function EchangeTenues() {
           </div>
         </div>
       )}
-      {error && <div className="bg-red-50 border border-red-100 rounded-2xl px-4 py-3"><p className="text-[12px] text-red-600 font-medium">{error}</p></div>}
+      {error && <div className="bg-orange-50/80 border border-orange-100 rounded-2xl px-4 py-3"><p className="text-[12px] text-orange-600/80 font-medium">{error}</p></div>}
       <button onClick={exchange} disabled={!userPhoto || !referencePhoto || loading}
         className="w-full bg-primary text-white font-black text-[14px] uppercase tracking-widest py-4 rounded-2xl shadow-lg shadow-primary/30 active:scale-95 transition-all disabled:opacity-40 flex items-center justify-center gap-3">
         <Repeat2 className="w-5 h-5" /> Échanger la tenue

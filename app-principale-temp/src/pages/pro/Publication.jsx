@@ -2278,15 +2278,18 @@ function PublicationWizard({ onClose, onPublish, onDraft, editData }) {
                   product_id: null, product_name: null, product_img: null,
                 }))}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all active:scale-[0.98] ${form.service_id === s.id ? "border-primary bg-primary/10" : stepIsDark ? "border-white/10 bg-white/5" : "border-gray-100 bg-gray-50"}`}>
-                  {s.image_url ? (
-                    <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0">
-                      <img src={s.image_url} alt={s.title} className="w-full h-full object-cover" />
-                    </div>
-                  ) : (
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                      <Star className="w-6 h-6 text-primary" />
-                    </div>
-                  )}
+                  {(() => {
+                    const sImg = s.images && s.images.length > 0 ? s.images[0] : s.image_url;
+                    return sImg ? (
+                      <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0">
+                        <img src={sImg} alt={s.title} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                        <Star className="w-6 h-6 text-primary" />
+                      </div>
+                    );
+                  })()}
                   <div className="flex-1 text-left">
                     <p className={`text-[13px] font-black ${stepIsDark ? "text-white" : "text-gray-900"}`}>{s.title}</p>
                     <p className="text-[11px] font-bold text-primary">{s.price}€ • {s.duration_min} min</p>

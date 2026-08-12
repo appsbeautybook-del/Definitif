@@ -1,53 +1,120 @@
 import { useState, useEffect, useRef } from "react";
-import { PhoneOff, Mic, MicOff, Volume2, VolumeX, MessageSquare } from "lucide-react";
-import { supabase } from "@/api/supabaseClient";
+import { PhoneOff, Mic, MicOff, Volume2, VolumeX, MessageSquare, Phone } from "lucide-react";
+import { useTheme } from "@/hooks/useTheme";
 
-// Sonnerie via Web Audio API
 function useRingTone(active) {
   const ctxRef = useRef(null);
   const intervalRef = useRef(null);
 
-  const playRing = () => {
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      ctxRef.current = ctx;
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.setValueAtTime(660, ctx.currentTime + 0.2);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.5);
-    } catch {}
-  };
-
   useEffect(() => {
-    if (active) {
-      playRing();
-      intervalRef.current = setInterval(playRing, 1500);
+    if (!active) {
+      clearInterval(intervalRef.current);
+      ctxRef.current?.close().catch(() => {});
+      ctxRef.current = null;
+      return;
     }
+    const playRing = () => {
+      try {
+        if (!ctxRef.current || ctxRef.current.state === "closed") {
+          ctxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const ctx = ctxRef.current;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(660, ctx.currentTime + 0.2);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.5);
+      } catch {}
+    };
+    playRing();
+    intervalRef.current = setInterval(playRing, 1500);
     return () => {
       clearInterval(intervalRef.current);
       ctxRef.current?.close().catch(() => {});
+      ctxRef.current = null;
     };
   }, [active]);
 }
 
-/**
- * CallScreen — UI d'un appel en cours (sonnerie, appel actif, raccroché)
- * Props:
- *  - mode: "calling" | "ringing" | "active" | "ended"
- *  - targetName, targetAvatar
- *  - onHangup
- *  - onAccept (mode ringing uniquement)
- *  - onReject (mode ringing uniquement)
- *  - remoteAudioRef: ref à attacher à <audio>
- */
+const THEME_COLORS = {
+  light: {
+    bg: "linear-gradient(180deg, #FFF5ED 0%, #FFFFFF 50%, #FFF5ED 100%)",
+    cardBg: "rgba(0,0,0,0.04)",
+    textPrimary: "#111827",
+    textSecondary: "#6B7280",
+    textMuted: "#9CA3AF",
+    accent: "#E8732A",
+    accentGlow: "rgba(232,115,42,0.25)",
+    ringBg: "rgba(232,115,42,0.08)",
+    controlBg: "rgba(0,0,0,0.05)",
+    controlActive: "rgba(232,115,42,0.15)",
+    hangupBg: "#EF4444",
+    hangupShadow: "rgba(239,68,68,0.4)",
+    acceptBg: "#22C55E",
+    acceptShadow: "rgba(34,197,94,0.4)",
+    equalizerBar: "#E8732A",
+    avatarBorder: "rgba(232,115,42,0.3)",
+    avatarBg: "#F3E8FF",
+    quickMsgBg: "rgba(0,0,0,0.04)",
+    quickMsgBorder: "rgba(0,0,0,0.08)",
+    overlay: "rgba(255,255,255,0.1)",
+  },
+  dark: {
+    bg: "linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%)",
+    cardBg: "rgba(255,255,255,0.05)",
+    textPrimary: "#F9FAFB",
+    textSecondary: "#9CA3AF",
+    textMuted: "#6B7280",
+    accent: "#F97316",
+    accentGlow: "rgba(249,115,22,0.3)",
+    ringBg: "rgba(249,115,22,0.1)",
+    controlBg: "rgba(255,255,255,0.08)",
+    controlActive: "rgba(249,115,22,0.2)",
+    hangupBg: "#EF4444",
+    hangupShadow: "rgba(239,68,68,0.5)",
+    acceptBg: "#22C55E",
+    acceptShadow: "rgba(34,197,94,0.5)",
+    equalizerBar: "#F97316",
+    avatarBorder: "rgba(249,115,22,0.3)",
+    avatarBg: "#312E81",
+    quickMsgBg: "rgba(255,255,255,0.06)",
+    quickMsgBorder: "rgba(255,255,255,0.1)",
+    overlay: "rgba(0,0,0,0.15)",
+  },
+  night: {
+    bg: "linear-gradient(180deg, #000000 0%, #0a0a1a 50%, #000000 100%)",
+    cardBg: "rgba(255,255,255,0.03)",
+    textPrimary: "#F9FAFB",
+    textSecondary: "#9CA3AF",
+    textMuted: "#4B5563",
+    accent: "#F97316",
+    accentGlow: "rgba(249,115,22,0.25)",
+    ringBg: "rgba(249,115,22,0.08)",
+    controlBg: "rgba(255,255,255,0.05)",
+    controlActive: "rgba(249,115,22,0.15)",
+    hangupBg: "#DC2626",
+    hangupShadow: "rgba(220,38,38,0.5)",
+    acceptBg: "#16A34A",
+    acceptShadow: "rgba(22,163,74,0.5)",
+    equalizerBar: "#F97316",
+    avatarBorder: "rgba(249,115,22,0.25)",
+    avatarBg: "#1E1B4B",
+    quickMsgBg: "rgba(255,255,255,0.04)",
+    quickMsgBorder: "rgba(255,255,255,0.08)",
+    overlay: "rgba(0,0,0,0.2)",
+  },
+};
+
 export default function CallScreen({ mode, targetName, targetAvatar, onHangup, onAccept, onReject, remoteAudioRef, targetEmail, currentUserEmail, isCallee, sendQuickMessage }) {
+  const { theme } = useTheme();
+  const t = THEME_COLORS[theme] || THEME_COLORS.light;
+
   const [muted, setMuted] = useState(false);
   const [speaker, setSpeaker] = useState(true);
   const [seconds, setSeconds] = useState(0);
@@ -55,7 +122,7 @@ export default function CallScreen({ mode, targetName, targetAvatar, onHangup, o
   const timerRef = useRef(null);
 
   const QUICK_MESSAGES = [
-    "Je te rappelle plus tard 👋",
+    "Je te rappelle plus tard",
     "Disponible dans 5 min",
     "En réunion, rappelle-moi",
     "Merci, pas maintenant",
@@ -63,13 +130,14 @@ export default function CallScreen({ mode, targetName, targetAvatar, onHangup, o
 
   const handleQuickMsg = (msg) => {
     if (sendQuickMessage) sendQuickMessage(msg);
+    setShowQuickMsgs(false);
   };
 
-  // Sonnerie active pendant "calling" et "ringing"
   useRingTone(mode === "calling" || mode === "ringing");
 
   useEffect(() => {
     if (mode === "active") {
+      setSeconds(0);
       timerRef.current = setInterval(() => setSeconds(s => s + 1), 1000);
     }
     return () => clearInterval(timerRef.current);
@@ -84,64 +152,71 @@ export default function CallScreen({ mode, targetName, targetAvatar, onHangup, o
     ended: "Appel terminé",
   }[mode] || "";
 
+  const initials = (targetName || "?")[0]?.toUpperCase() || "?";
+
   return (
-    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-between bg-gradient-to-b from-[#1a1a2e] to-[#16213e] px-6 pt-16 pb-14">
-      {/* Audio element pour le son distant */}
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-between px-6 pt-16 pb-14" style={{ background: t.bg }}>
       <audio ref={remoteAudioRef} autoPlay playsInline />
 
       {/* Avatar + nom */}
       <div className="flex flex-col items-center gap-4">
         <div className="relative">
-          <div className="w-28 h-28 rounded-full overflow-hidden border-4 border-white/20 shadow-2xl bg-gray-700">
+          <div className="w-32 h-32 rounded-full overflow-hidden shadow-2xl" style={{ border: `4px solid ${t.avatarBorder}`, background: t.avatarBg }}>
             {targetAvatar
               ? <img src={targetAvatar} alt={targetName} className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-[40px] font-black text-white/50">{(targetName || "?")[0]}</div>
+              : <div className="w-full h-full flex items-center justify-center text-[44px] font-black" style={{ color: t.accent }}>{initials}</div>
             }
           </div>
-          {/* Anneaux d'animation si sonnerie */}
           {(mode === "calling" || mode === "ringing") && (
             <>
-              <div className="absolute inset-0 rounded-full border-2 border-green-400/40 animate-ping" />
-              <div className="absolute -inset-4 rounded-full border border-green-400/20 animate-ping" style={{ animationDelay: "0.4s" }} />
+              <div className="absolute inset-0 rounded-full animate-ping" style={{ border: `2px solid ${t.accent}`, opacity: 0.4 }} />
+              <div className="absolute -inset-5 rounded-full animate-ping" style={{ border: `1.5px solid ${t.accent}`, opacity: 0.2, animationDelay: "0.5s" }} />
             </>
           )}
+          {mode === "active" && (
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 flex items-center justify-center" style={{ borderColor: t.bg.includes("000") ? "#0a0a1a" : "#FFF5ED" }}>
+              <div className="w-2 h-2 bg-white rounded-full" />
+            </div>
+          )}
         </div>
-        <p className="text-white text-[24px] font-black">{targetName || "Inconnu"}</p>
-        <p className={`text-[14px] font-medium ${mode === "active" ? "text-green-400 font-black" : "text-white/50"}`}>
+
+        <p className="text-[26px] font-black" style={{ color: t.textPrimary }}>{targetName || "Inconnu"}</p>
+        <p className={`text-[14px] font-bold ${mode === "active" ? "" : ""}`} style={{ color: mode === "active" ? t.accent : t.textMuted }}>
           {statusLabel}
         </p>
       </div>
 
-      {/* Equalizer si appel actif */}
+      {/* Equalizer */}
       {mode === "active" && (
-        <div className="flex items-center gap-1 h-12">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div key={i} className="w-1 bg-green-400/60 rounded-full animate-pulse"
-              style={{ height: `${8 + (i % 5) * 6}px`, animationDelay: `${i * 0.08}s` }} />
+        <div className="flex items-end gap-[3px] h-14">
+          {Array.from({ length: 24 }).map((_, i) => (
+            <div key={i} className="w-[3px] rounded-full animate-pulse"
+              style={{ height: `${6 + Math.sin(Date.now() / 300 + i) * 10 + (i % 4) * 4}px`, background: t.equalizerBar, opacity: 0.5 + (i % 3) * 0.15, animationDelay: `${i * 0.06}s`, transition: "height 0.3s ease" }} />
           ))}
         </div>
       )}
 
       {/* Contrôles */}
-      <div className="w-full">
+      <div className="w-full max-w-sm">
         {mode === "ringing" ? (
-          /* Appel entrant : refuser + accepter + messages rapides */
           <div className="flex flex-col items-center gap-6">
-            {/* Messages rapides (seulement pour celui qui reçoit) */}
             {isCallee && (
               <div className="w-full max-w-xs">
                 {showQuickMsgs ? (
                   <div className="space-y-2">
                     {QUICK_MESSAGES.map(msg => (
                       <button key={msg} onClick={() => handleQuickMsg(msg)}
-                        className="w-full bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-white text-[13px] font-medium text-left active:scale-95 transition-all border border-white/10">
+                        className="w-full rounded-xl px-4 py-3 text-[13px] font-semibold text-left active:scale-95 transition-all"
+                        style={{ background: t.quickMsgBg, color: t.textPrimary, border: `1px solid ${t.quickMsgBorder}` }}>
                         {msg}
                       </button>
                     ))}
-                    <button onClick={() => setShowQuickMsgs(false)} className="w-full text-white/40 text-[12px] font-bold py-2">Annuler</button>
+                    <button onClick={() => setShowQuickMsgs(false)} className="w-full text-[12px] font-bold py-2" style={{ color: t.textMuted }}>Annuler</button>
                   </div>
                 ) : (
-                  <button onClick={() => setShowQuickMsgs(true)} className="w-full bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-white text-[13px] font-medium flex items-center justify-center gap-2 active:scale-95 border border-white/10">
+                  <button onClick={() => setShowQuickMsgs(true)}
+                    className="w-full rounded-xl px-4 py-3 text-[13px] font-semibold flex items-center justify-center gap-2 active:scale-95 transition-all"
+                    style={{ background: t.quickMsgBg, color: t.textSecondary, border: `1px solid ${t.quickMsgBorder}` }}>
                     <MessageSquare className="w-4 h-4" /> Message rapide
                   </button>
                 )}
@@ -149,51 +224,49 @@ export default function CallScreen({ mode, targetName, targetAvatar, onHangup, o
             )}
             <div className="flex items-center justify-around w-full">
               <div className="flex flex-col items-center gap-2">
-                <button onClick={onReject} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
-                  <PhoneOff className="w-8 h-8 text-white" />
+                <button onClick={onReject} className="w-[72px] h-[72px] rounded-full flex items-center justify-center active:scale-95 transition-all" style={{ background: t.hangupBg, boxShadow: `0 8px 24px ${t.hangupShadow}` }}>
+                  <PhoneOff className="w-7 h-7 text-white" />
                 </button>
-                <p className="text-white/40 text-[11px] font-medium">Refuser</p>
+                <p className="text-[11px] font-semibold" style={{ color: t.textMuted }}>Refuser</p>
               </div>
               <div className="flex flex-col items-center gap-2">
-                <button onClick={onAccept} className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-xl shadow-green-500/40 active:scale-95 animate-pulse">
-                  <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.47 11.47 0 003.58.57 1 1 0 011 1V21a1 1 0 01-1 1A17 17 0 013 5a1 1 0 011-1h3.5a1 1 0 011 1 11.47 11.47 0 00.57 3.58 1 1 0 01-.25 1.02z"/>
-                  </svg>
+                <button onClick={onAccept} className="w-[72px] h-[72px] rounded-full flex items-center justify-center active:scale-95 animate-pulse transition-all" style={{ background: t.acceptBg, boxShadow: `0 8px 24px ${t.acceptShadow}` }}>
+                  <Phone className="w-7 h-7 text-white" />
                 </button>
-                <p className="text-white/40 text-[11px] font-medium">Accepter</p>
+                <p className="text-[11px] font-semibold" style={{ color: t.textMuted }}>Accepter</p>
               </div>
             </div>
           </div>
         ) : mode === "calling" ? (
-          /* Appel sortant en attente : raccrocher seulement */
           <div className="flex items-center justify-around">
             <div className="flex flex-col items-center gap-2">
-              <button onClick={onHangup} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
-                <PhoneOff className="w-8 h-8 text-white" />
+              <button onClick={onHangup} className="w-[72px] h-[72px] rounded-full flex items-center justify-center active:scale-95 transition-all" style={{ background: t.hangupBg, boxShadow: `0 8px 24px ${t.hangupShadow}` }}>
+                <PhoneOff className="w-7 h-7 text-white" />
               </button>
-              <p className="text-white/40 text-[11px] font-medium">Raccrocher</p>
+              <p className="text-[11px] font-semibold" style={{ color: t.textMuted }}>Raccrocher</p>
             </div>
           </div>
         ) : (
-          /* Appel actif : micro + HP + raccrocher */
           <div className="flex items-center justify-around">
             <div className="flex flex-col items-center gap-2">
-              <button onClick={() => setMuted(m => !m)} className={`w-14 h-14 rounded-full flex items-center justify-center ${muted ? "bg-white/20" : "bg-white/10"} active:scale-95`}>
-                {muted ? <MicOff className="w-6 h-6 text-white" /> : <Mic className="w-6 h-6 text-white" />}
+              <button onClick={() => setMuted(m => !m)} className="w-14 h-14 rounded-full flex items-center justify-center active:scale-95 transition-all"
+                style={{ background: muted ? t.controlActive : t.controlBg }}>
+                {muted ? <MicOff className="w-6 h-6" style={{ color: muted ? t.accent : t.textSecondary }} /> : <Mic className="w-6 h-6" style={{ color: t.textSecondary }} />}
               </button>
-              <p className="text-white/40 text-[10px] font-medium">{muted ? "Muet" : "Micro"}</p>
+              <p className="text-[10px] font-semibold" style={{ color: t.textMuted }}>{muted ? "Muet" : "Micro"}</p>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <button onClick={() => setSpeaker(s => !s)} className={`w-14 h-14 rounded-full flex items-center justify-center ${speaker ? "bg-white/20" : "bg-white/10"} active:scale-95`}>
-                {speaker ? <Volume2 className="w-6 h-6 text-white" /> : <VolumeX className="w-6 h-6 text-white" />}
+              <button onClick={() => setSpeaker(s => !s)} className="w-14 h-14 rounded-full flex items-center justify-center active:scale-95 transition-all"
+                style={{ background: speaker ? t.controlActive : t.controlBg }}>
+                {speaker ? <Volume2 className="w-6 h-6" style={{ color: t.accent }} /> : <VolumeX className="w-6 h-6" style={{ color: t.textSecondary }} />}
               </button>
-              <p className="text-white/40 text-[10px] font-medium">HP</p>
+              <p className="text-[10px] font-semibold" style={{ color: t.textMuted }}>HP</p>
             </div>
             <div className="flex flex-col items-center gap-2">
-              <button onClick={onHangup} className="w-20 h-20 bg-red-500 rounded-full flex items-center justify-center shadow-xl shadow-red-500/40 active:scale-95">
-                <PhoneOff className="w-8 h-8 text-white" />
+              <button onClick={onHangup} className="w-[72px] h-[72px] rounded-full flex items-center justify-center active:scale-95 transition-all" style={{ background: t.hangupBg, boxShadow: `0 8px 24px ${t.hangupShadow}` }}>
+                <PhoneOff className="w-7 h-7 text-white" />
               </button>
-              <p className="text-white/40 text-[11px] font-medium">Raccrocher</p>
+              <p className="text-[11px] font-semibold" style={{ color: t.textMuted }}>Raccrocher</p>
             </div>
           </div>
         )}

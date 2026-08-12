@@ -1,5 +1,4 @@
 import { useRef, useCallback } from "react";
-import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
 
 const ICE_SERVERS = {
@@ -11,6 +10,13 @@ const ICE_SERVERS = {
 
 export function useWebRTC({ callId, localStreamRef, onRemoteStream, onEnd }) {
   const pcRef = useRef(null);
+  const callIdRef = useRef(callId);
+  const onEndRef = useRef(onEnd);
+  const disconnectedTimerRef = useRef(null);
+
+  // Toujours garder la valeur à jour
+  callIdRef.current = callId;
+  onEndRef.current = onEnd;
 
   const createPC = useCallback(() => {
     const pc = new RTCPeerConnection(ICE_SERVERS);
@@ -21,25 +27,40 @@ export function useWebRTC({ callId, localStreamRef, onRemoteStream, onEnd }) {
 
     pc.onicecandidate = async (event) => {
       if (event.candidate) {
-        await entities.CallSignal.create({
-          call_id: callId,
-          caller_email: "_ice_",
-          callee_email: "_ice_",
-          type: "ice-candidate",
-          payload: JSON.stringify({ candidate: event.candidate, callId }),
-        }).catch(() => {});
+        try {
+          await supabase.from("call_signals").insert({
+            call_id: callIdRef.current || "",
+            caller_email: "_ice_",
+            callee_email: "_ice_",
+            signal_type: "ice-candidate",
+            payload: JSON.stringify({ candidate: event.candidate, callId: callIdRef.current }),
+          });
+        } catch (_) {}
       }
     };
 
     pc.onconnectionstatechange = () => {
-      if (["disconnected", "failed", "closed"].includes(pc.connectionState)) {
-        onEnd && onEnd();
+      const state = pc.connectionState;
+      if (["failed", "closed"].includes(state)) {
+        clearTimeout(disconnectedTimerRef.current);
+        onEndRef.current && onEndRef.current();
+      }
+      if (state === "disconnected") {
+        // Attendre 10s avant de couper (le disconnected est souvent transitoire)
+        disconnectedTimerRef.current = setTimeout(() => {
+          if (pcRef.current?.connectionState === "disconnected") {
+            onEndRef.current && onEndRef.current();
+          }
+        }, 10000);
+      }
+      if (state === "connected") {
+        clearTimeout(disconnectedTimerRef.current);
       }
     };
 
     pcRef.current = pc;
     return pc;
-  }, [callId, onRemoteStream, onEnd]);
+  }, [onRemoteStream]);
 
   const addLocalTracks = useCallback((pc, stream) => {
     stream.getTracks().forEach(track => pc.addTrack(track, stream));
@@ -75,6 +96,7 @@ export function useWebRTC({ callId, localStreamRef, onRemoteStream, onEnd }) {
   }, []);
 
   const close = useCallback(() => {
+    clearTimeout(disconnectedTimerRef.current);
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;

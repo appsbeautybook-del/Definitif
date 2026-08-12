@@ -1,5 +1,5 @@
 import { Toaster } from "@/components/ui/toaster"
-import React, { useEffect, Component } from 'react';
+import React, { useEffect, useState, Component } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate, useLocation } from 'react-router-dom';
@@ -11,6 +11,7 @@ import { VoiceAgentProvider } from '@/lib/VoiceAgentContext';
 import FloatingVoiceAgent from '@/components/voice/FloatingVoiceAgent';
 import { LocaleProvider } from '@/lib/LocaleContext.jsx';
 import { LocationProvider } from '@/contexts/LocationContext';
+import { CallManager } from '@/components/call/CallManager';
 
 // Appliquer la config apparence depuis la BDD au démarrage
 entities.AppConfig.filter({ key: "appearance_config" }, "-created_at", 50).then(rows => {
@@ -117,7 +118,8 @@ import Contact from '@/pages/Contact';
 import AuthCallback from '@/pages/AuthCallback';
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, isAuthenticated } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, isAuthenticated, profile } = useAuth();
+  const [onboarded, setOnboarded] = useState(() => !!localStorage.getItem("bb_onboarded"));
 
   const isSpecialRoute = window.location.pathname.startsWith('/admin') || window.location.pathname.startsWith('/vendeur');
 
@@ -131,6 +133,39 @@ const AuthenticatedApp = () => {
       window.location.href = '/vendeur';
     }
   }, []);
+
+  // Si l'utilisateur est authentifié mais pas onboardé, vérifier le profil automatiquement
+  useEffect(() => {
+    if (!isAuthenticated || isSpecialRoute || onboarded) return;
+
+    const checkProfile = async () => {
+      try {
+        const { supabase } = await import('@/api/supabaseClient');
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Chercher le profil par ID ou email
+        let profile = null;
+        const { data: byId } = await supabase.from('profiles').select('id').eq('id', user.id).maybeSingle();
+        if (byId) { profile = byId; }
+        else {
+          const { data: byEmail } = await supabase.from('profiles').select('id').eq('email', user.email).maybeSingle();
+          if (byEmail) { profile = byEmail; }
+        }
+
+        if (profile) {
+          // Profil existant → marquer onboardé
+          localStorage.setItem('bb_onboarded', '1');
+          setOnboarded(true);
+        }
+        // Si pas de profil, laisse l'onboarding se faire
+      } catch (e) {
+        console.error('[App] Profile check error:', e);
+      }
+    };
+
+    checkProfile();
+  }, [isAuthenticated, profile, onboarded, isSpecialRoute]);
 
   // Afficher le loading UNIQUEMENT pour les routes normales (pas admin/vendeur)
   if (!isSpecialRoute && (isLoadingPublicSettings || isLoadingAuth)) {
@@ -146,13 +181,12 @@ const AuthenticatedApp = () => {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
       navigateToLogin();
       return null;
     }
   }
 
-  const hasOnboarded = localStorage.getItem("bb_onboarded");
+  const hasOnboarded = onboarded || localStorage.getItem("bb_onboarded");
 
   // Redirect to onboarding if first time and not on a special route
   if (!hasOnboarded && !isSpecialRoute) {
@@ -266,7 +300,9 @@ function App() {
         <Router>
           <LocaleProvider>
             <VoiceAgentProvider>
-              <AuthenticatedApp />
+              <CallManager>
+                <AuthenticatedApp />
+              </CallManager>
               <FloatingVoiceAgent />
             </VoiceAgentProvider>
           </LocaleProvider>

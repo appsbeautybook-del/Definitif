@@ -369,6 +369,13 @@ export default function ModifierProfilPro() {
               </div>
               <div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg> Email du compte
+                </p>
+                <input value={user?.email || ""} readOnly className={inputCls + " bg-gray-100 text-gray-500 cursor-not-allowed"} />
+                <p className="text-[10px] text-gray-400 mt-1">Email utilisé pour la connexion au compte</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
                   <Phone className="w-3 h-3" /> Téléphone
                 </p>
                 <input value={data.phone} onChange={e => setData(d => ({ ...d, phone: e.target.value }))} placeholder="+33 6 00 00 00 00" className={inputCls} />

@@ -209,11 +209,8 @@ export default function AdminMessages() {
     const { data: msgData } = await adminApi.createMessage({
       conversation_id: activeConv.id,
       sender_email: ADMIN_EMAIL,
-      sender_name: "BeautyBook Admin",
       receiver_email: activeConv.sender_email,
-      receiver_name: activeConv.sender_name,
       content,
-      type: "text",
       read: false,
     });
     setMessages(prev => [...prev, msgData.result]);

@@ -1,10 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@/hooks/useTheme";
+import { entities } from "@/api/entities";
+import { supabase } from "@/api/supabaseClient";
 import {
   ArrowLeft, CheckCircle2, Shield, Eye, EyeOff, ChevronRight,
-  ExternalLink, Settings, Power, PowerOff, BarChart3, MessageCircle,
-  Bot, Users, TrendingUp, Clock
+  ExternalLink, Power, PowerOff, BarChart3, MessageCircle,
+  Bot, Users, TrendingUp, AlertCircle
 } from "lucide-react";
 
 const PLATFORMS = [
@@ -15,7 +17,7 @@ const PLATFORMS = [
     desc: "DMs, commentaires et stories avec IA",
     fields: [
       { key: "accessToken", label: "Token d'accès", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/", required: true },
-      { key: "businessId", label: "Business Account ID", placeholder: "17841400...", type: "text", link: "https://business.facebook.com/settings/", required: true },
+      { key: "businessId", label: "Business Account ID", placeholder: "17841400...", type: "text", link: "https://business.facebook.com/settings/", required: true, numeric: true },
     ],
     features: ["Réponses auto DM", "Réponses commentaires", "Story replies", "Gestion mentions"]
   },
@@ -26,7 +28,7 @@ const PLATFORMS = [
     desc: "Messenger et commentaires automatisés",
     fields: [
       { key: "pageAccessToken", label: "Page Access Token", placeholder: "EAA...", type: "password", link: "https://developers.facebook.com/tools/explorer/", required: true },
-      { key: "pageId", label: "Page ID", placeholder: "123456789...", type: "text", link: "https://www.facebook.com/settings/pages/", required: true },
+      { key: "pageId", label: "Page ID", placeholder: "123456789...", type: "text", link: "https://www.facebook.com/settings/pages/", required: true, numeric: true },
     ],
     features: ["Messenger auto-reply", "Comment auto-reply", "Broadcast", "Lead generation"]
   },
@@ -36,7 +38,7 @@ const PLATFORMS = [
     color: "#25D366", gradient: "from-emerald-500 to-green-500",
     desc: "Convertissez les prospects via WhatsApp",
     fields: [
-      { key: "phoneNumberId", label: "Phone Number ID", placeholder: "123456789...", type: "text", link: "https://developers.facebook.com/apps/", required: true },
+      { key: "phoneNumberId", label: "Phone Number ID", placeholder: "123456789...", type: "text", link: "https://developers.facebook.com/apps/", required: true, numeric: true },
       { key: "accessToken", label: "Token permanent", placeholder: "EAA...", type: "password", link: "https://business.facebook.com/wa/manage/", required: true },
     ],
     features: ["Messages texte/image", "Templates WhatsApp", "Catalogue produits", "Paiements"]
@@ -48,7 +50,7 @@ const PLATFORMS = [
     desc: "Commentaires et DMs TikTok automatisés",
     fields: [
       { key: "accessToken", label: "Access Token", placeholder: "TikTok access token...", type: "password", link: "https://developers.tiktok.com/", required: true },
-      { key: "openId", label: "Open ID", placeholder: "open_id...", type: "text", link: "https://business.tiktok.com/", required: true },
+      { key: "openId", label: "Open ID", placeholder: "open_id...", type: "text", link: "https://business.tiktok.com/", required: false },
     ],
     features: ["Réponses commentaires", "DM automation", "Analytics"]
   },
@@ -70,30 +72,122 @@ export default function SocialMedia() {
   const [activeTab, setActiveTab] = useState("platforms");
   const [expandedId, setExpandedId] = useState(null);
   const [validating, setValidating] = useState(null);
+  const [userEmail, setUserEmail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errors, setErrors] = useState({});
+  const [stats, setStats] = useState(null);
   const [platforms, setPlatforms] = useState(
-    PLATFORMS.map(p => ({ ...p, connected: false, keys: {}, showKeys: {}, validKeys: {} }))
+    PLATFORMS.map(p => ({ ...p, connected: false, keys: {}, showKeys: {}, account: null, connectionId: null }))
   );
 
-  const areKeysValid = (p) => {
-    return p.fields.filter(f => f.required).every(f => p.keys[f.key]?.trim());
+  // ── Charger l'utilisateur + ses connexions existantes ──────────────────────
+  useEffect(() => {
+    (async () => {
+      const user = await supabase.auth.getUser().then(({ data }) => data?.user).catch(() => null);
+      if (!user?.email) { setLoading(false); return; }
+      setUserEmail(user.email);
+      const conns = await entities.SocialConnection.filter({ user_email: user.email }).catch(() => []);
+      setPlatforms(prev => prev.map(p => {
+        const conn = conns.find(c => c.platform === p.id && c.status === "active");
+        return conn
+          ? { ...p, connected: true, account: conn.account_info || null, connectionId: conn.id, keys: {} }
+          : p;
+      }));
+      setLoading(false);
+    })();
+  }, []);
+
+  // ── Charger les vraies statistiques ────────────────────────────────────────
+  useEffect(() => {
+    if (activeTab !== "stats" || !userEmail) return;
+    (async () => {
+      const interactions = await entities.SocialInteraction.filter({ user_email: userEmail }).catch(() => []);
+      const clients = await entities.Client.filter({ pro_email: userEmail }).catch(() => []);
+      const prospects = clients.filter(c => (c.source || "").startsWith("social_"));
+      setStats({
+        messages: interactions.length,
+        replies: interactions.filter(i => i.reply).length,
+        prospects: prospects.length,
+        conversions: prospects.filter(c => (c.total_rdv || 0) > 0).length,
+      });
+    })();
+  }, [activeTab, userEmail]);
+
+  const areKeysValid = (p) => p.fields.filter(f => f.required).every(f => p.keys[f.key]?.trim());
+
+  // ── Validation de format côté client (avant l'appel API) ───────────────────
+  const validateFormat = (p) => {
+    for (const f of p.fields) {
+      const v = p.keys[f.key]?.trim();
+      if (f.required && !v) return `Le champ « ${f.label} » est requis.`;
+      if (!v) continue;
+      if (f.key.toLowerCase().includes("token") && v.length < 20)
+        return `« ${f.label} » est trop court pour être un token valide.`;
+      if (f.numeric && !/^\d{5,}$/.test(v))
+        return `« ${f.label} » doit être un identifiant numérique (au moins 5 chiffres).`;
+    }
+    return null;
   };
 
+  // ── Connexion : validation RÉELLE via /api/ai/social puis persistance ──────
   const toggleConnect = async (id) => {
     const platform = platforms.find(p => p.id === id);
+    setErrors(prev => ({ ...prev, [id]: null }));
+
+    // Déconnexion
     if (platform.connected) {
-      setPlatforms(prev => prev.map(p => p.id === id ? { ...p, connected: false, validKeys: {} } : p));
+      if (platform.connectionId) await entities.SocialConnection.delete(platform.connectionId).catch(() => {});
+      setPlatforms(prev => prev.map(p => p.id === id ? { ...p, connected: false, account: null, connectionId: null, keys: {} } : p));
       return;
     }
-    if (!areKeysValid(platform)) return;
+
+    // Validations préliminaires
+    const formatError = validateFormat(platform);
+    if (formatError) { setErrors(prev => ({ ...prev, [id]: formatError })); return; }
+    if (!userEmail) { setErrors(prev => ({ ...prev, [id]: "Connectez-vous à votre compte BeautyBook pour continuer." })); return; }
 
     setValidating(id);
-    await new Promise(r => setTimeout(r, 800));
-    setPlatforms(prev => prev.map(p => p.id === id ? { ...p, connected: true, validKeys: { ...p.keys } } : p));
+    try {
+      // 1. Tester les identifiants contre la vraie API (Meta Graph / TikTok)
+      const res = await fetch("/api/ai/social", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task: "validate", platform: id, credentials: platform.keys }),
+      });
+      const result = await res.json();
+
+      if (!result.ok) {
+        setErrors(prev => ({ ...prev, [id]: result.error || "Identifiants invalides." }));
+        setValidating(null);
+        return;
+      }
+
+      // 2. Persister la connexion (remplace une éventuelle connexion existante)
+      const existing = await entities.SocialConnection.filter({ user_email: userEmail, platform: id }).catch(() => []);
+      for (const old of existing) await entities.SocialConnection.delete(old.id).catch(() => {});
+
+      const cleanKeys = Object.fromEntries(Object.entries(platform.keys).map(([k, v]) => [k, v.trim()]));
+      const saved = await entities.SocialConnection.create({
+        user_email: userEmail,
+        platform: id,
+        credentials: cleanKeys,
+        account_info: result.account,
+        status: "active",
+      });
+
+      setPlatforms(prev => prev.map(p => p.id === id
+        ? { ...p, connected: true, account: result.account, connectionId: saved?.id || null }
+        : p
+      ));
+    } catch {
+      setErrors(prev => ({ ...prev, [id]: "Erreur réseau — vérifiez votre connexion et réessayez." }));
+    }
     setValidating(null);
   };
 
   const setKey = (id, key, value) => {
-    setPlatforms(prev => prev.map(p => p.id === id ? { ...p, keys: { ...p.keys, [key]: value }, connected: false } : p));
+    setPlatforms(prev => prev.map(p => p.id === id ? { ...p, keys: { ...p.keys, [key]: value }, connected: false, account: null } : p));
+    setErrors(prev => ({ ...prev, [id]: null }));
   };
 
   const toggleShowKey = (id, key) => {
@@ -110,9 +204,7 @@ export default function SocialMedia() {
     text: isDark ? "text-white" : "text-gray-900",
     textSub: isDark ? "text-gray-400" : "text-gray-500",
     input: isDark ? "bg-white/5 border-white/10 text-white placeholder:text-gray-600" : "bg-gray-50 border-gray-200 text-gray-900 placeholder:text-gray-400",
-    inputError: "border-red-300 dark:border-red-500/30",
     tag: isDark ? "bg-white/5 text-gray-400" : "bg-gray-100 text-gray-500",
-    divider: isDark ? "border-white/[0.06]" : "border-gray-100",
     statCard: isDark ? "bg-white/[0.04] border-white/[0.06]" : "bg-white border-gray-100",
   };
 
@@ -152,7 +244,7 @@ export default function SocialMedia() {
               <div className="flex items-center gap-3">
                 <div className={`w-2.5 h-2.5 rounded-full ${connectedCount > 0 ? "bg-green-400 animate-pulse" : isDark ? "bg-gray-600" : "bg-gray-300"}`} />
                 <span className={`text-[13px] font-medium ${c.textSub}`}>
-                  {connectedCount > 0 ? `${connectedCount} plateforme${connectedCount > 1 ? "s" : ""} active${connectedCount > 1 ? "s" : ""}` : "Aucune plateforme connectée"}
+                  {loading ? "Chargement…" : connectedCount > 0 ? `${connectedCount} plateforme${connectedCount > 1 ? "s" : ""} active${connectedCount > 1 ? "s" : ""}` : "Aucune plateforme connectée"}
                 </span>
               </div>
               {connectedCount > 0 && <CheckCircle2 className="w-5 h-5 text-green-500" />}
@@ -162,6 +254,7 @@ export default function SocialMedia() {
             {platforms.map(p => {
               const isExpanded = expandedId === p.id;
               const keysValid = areKeysValid(p);
+              const error = errors[p.id];
               return (
                 <div key={p.id} className={`rounded-3xl overflow-hidden transition-all border ${p.connected ? c.cardActive : c.card}`}>
                   {/* Header */}
@@ -179,7 +272,14 @@ export default function SocialMedia() {
                           </div>
                         )}
                       </div>
-                      <p className={`text-[12px] ${c.textSub} mt-0.5`}>{p.desc}</p>
+                      {p.connected && p.account ? (
+                        <p className={`text-[12px] ${c.textSub} mt-0.5`}>
+                          @{p.account.username}
+                          {p.account.followers_count != null && ` · ${Number(p.account.followers_count).toLocaleString("fr-FR")} abonnés`}
+                        </p>
+                      ) : (
+                        <p className={`text-[12px] ${c.textSub} mt-0.5`}>{p.desc}</p>
+                      )}
                     </div>
                   </div>
 
@@ -195,17 +295,18 @@ export default function SocialMedia() {
                   )}
 
                   {/* Expanded config */}
-                  {isExpanded && (
+                  {isExpanded && !p.connected && (
                     <div className="px-4 pb-4 space-y-3">
                       <div className={`${c.card} border rounded-2xl p-3.5 space-y-3`}>
                         <p className={`text-[11px] font-bold ${c.textSub} uppercase tracking-wider`}>Clés API</p>
                         {p.fields.map(field => {
                           const hasValue = p.keys[field.key]?.trim();
-                          const showError = field.required && !hasValue && p.connected === false;
                           return (
                             <div key={field.key}>
                               <div className="flex items-center justify-between mb-1.5">
-                                <p className={`text-[12px] font-medium ${c.textSub}`}>{field.label}</p>
+                                <p className={`text-[12px] font-medium ${c.textSub}`}>
+                                  {field.label}{!field.required && <span className="opacity-50"> (optionnel)</span>}
+                                </p>
                                 {field.link && (
                                   <a href={field.link} target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-1 text-[11px] text-primary font-medium">
@@ -235,7 +336,17 @@ export default function SocialMedia() {
 
                       <div className="flex items-center gap-2.5 bg-green-500/5 border border-green-500/10 rounded-2xl p-3.5">
                         <Shield className="w-4 h-4 text-green-500 shrink-0" />
-                        <p className={`text-[11px] ${c.textSub}`}>Clés chiffrées et stockées de manière sécurisée.</p>
+                        <p className={`text-[11px] ${c.textSub}`}>Vos clés sont vérifiées auprès de {p.id === "tiktok" ? "TikTok" : "Meta"} avant activation, puis rattachées à votre compte.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Erreur de validation */}
+                  {error && (
+                    <div className="px-4 pb-3">
+                      <div className="flex items-start gap-2.5 bg-red-500/5 border border-red-500/20 rounded-2xl p-3.5">
+                        <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                        <p className="text-[12px] text-red-500 font-medium">{error}</p>
                       </div>
                     </div>
                   )}
@@ -255,7 +366,7 @@ export default function SocialMedia() {
                       {validating === p.id ? (
                         <span className="flex items-center gap-2">
                           <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          Validation…
+                          Vérification auprès de {p.id === "tiktok" ? "TikTok" : "Meta"}…
                         </span>
                       ) : p.connected ? (
                         <><PowerOff className="w-4 h-4" /> Déconnecter</>
@@ -283,15 +394,15 @@ export default function SocialMedia() {
                 </div>
                 <div>
                   <p className={`text-[16px] font-black ${c.text}`}>Performance globale</p>
-                  <p className={`text-[12px] ${c.textSub}`}>Derniers 30 jours</p>
+                  <p className={`text-[12px] ${c.textSub}`}>Activité de Maria sur vos réseaux</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: "Messages", value: "—", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-500/10" },
-                  { label: "Réponses auto", value: "—", icon: Bot, color: "text-purple-500", bg: "bg-purple-500/10" },
-                  { label: "Prospects", value: "—", icon: Users, color: "text-orange-500", bg: "bg-orange-500/10" },
-                  { label: "Conversions", value: "—", icon: TrendingUp, color: "text-green-500", bg: "bg-green-500/10" },
+                  { label: "Messages reçus", value: stats ? stats.messages : "—", icon: MessageCircle, color: "text-blue-500", bg: "bg-blue-500/10" },
+                  { label: "Réponses auto", value: stats ? stats.replies : "—", icon: Bot, color: "text-purple-500", bg: "bg-purple-500/10" },
+                  { label: "Prospects captés", value: stats ? stats.prospects : "—", icon: Users, color: "text-orange-500", bg: "bg-orange-500/10" },
+                  { label: "Devenus clients", value: stats ? stats.conversions : "—", icon: TrendingUp, color: "text-green-500", bg: "bg-green-500/10" },
                 ].map((s, i) => {
                   const Icon = s.icon;
                   return (
@@ -328,7 +439,7 @@ export default function SocialMedia() {
                       </div>
                       <div className="flex-1">
                         <p className={`text-[13px] font-bold ${c.text}`}>{p.name}</p>
-                        <p className={`text-[11px] ${c.textSub}`}>Connecté</p>
+                        <p className={`text-[11px] ${c.textSub}`}>{p.account?.username ? `@${p.account.username}` : "Connecté"}</p>
                       </div>
                       <div className="flex items-center gap-1">
                         <Power className="w-3.5 h-3.5 text-green-500" />

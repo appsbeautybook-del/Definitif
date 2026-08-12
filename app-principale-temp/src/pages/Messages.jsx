@@ -127,15 +127,18 @@ function ServiceCard({ service, navigate }) {
       onClick={() => navigate(`/service/${service.id}`)}
       className="w-full text-left rounded-2xl overflow-hidden border border-gray-200 bg-white shadow-sm active:scale-[0.98] transition-all"
     >
-      {service.image_url ? (
-        <div className="h-32 w-full overflow-hidden">
-          <img src={service.image_url} alt={service.title} className="w-full h-full object-cover" />
-        </div>
-      ) : (
-        <div className="h-32 w-full bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
-          <Scissors className="w-10 h-10 text-primary/40" />
-        </div>
-      )}
+      {(() => {
+        const sImg = service.images && service.images.length > 0 ? service.images[0] : service.image_url;
+        return sImg ? (
+          <div className="h-32 w-full overflow-hidden">
+            <img src={sImg} alt={service.title} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          <div className="h-32 w-full bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center">
+            <Scissors className="w-10 h-10 text-primary/40" />
+          </div>
+        );
+      })()}
       <div className="p-3">
         <p className="text-[13px] font-black text-gray-900">{service.title}</p>
         <div className="flex items-center justify-between mt-1">
@@ -977,41 +980,70 @@ export default function Messages() {
   // Écouter les nouveaux messages entrants pour Maria AI
   useEffect(() => {
     if (!user) return;
-    const unsub = entities.MessageChat.subscribe(async (event) => {
-      if (event.type !== "create") return;
-      const m = event.data;
-      // Seulement les messages reçus par le pro (user courant), pas les siens
-      if (m.receiver_email !== user.email) return;
-      if (m.type === "typing") return;
-      if (processedMsgIds.current.has(event.id)) return;
-      if (!mariaAIRef.current) return;
-      if (deletedConvIds.current.has(m.conversation_id)) return;
 
-      processedMsgIds.current.add(event.id);
+    // Utiliser directement supabase.channel pour un meilleur contrôle
+    const channel = supabase
+      .channel(`maria_ai_${user.email}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "MessageChat" },
+        (payload) => {
+          const m = payload.new;
+          if (!m) return;
 
-      // Délai naturel (~2s) avant que Maria réponde
-      setTimeout(async () => {
-        try {
-          const convId = m.conversation_id;
-          const clientName = m.sender_name || m.sender_email;
-          const mariaReply = `Merci ${clientName} ! Je prends note de votre message. Je vous réponds très rapidement 😊`;
-          await supabase.from("MessageChat").insert({
-            conversation_id: convId,
-            sender_email: user.email,
-            sender_name: "Maria AI",
-            receiver_email: m.sender_email,
-            content: mariaReply,
-            type: "text",
-            is_read: false,
-            read: false,
-            is_maria: true,
-          });
-        } catch (e) {
-          console.error("Maria AI reply error:", e);
+          // Seulement les messages reçus par le pro (user courant)
+          if (m.receiver_email !== user.email) return;
+          if (m.type === "typing") return;
+          if (processedMsgIds.current.has(m.id)) return;
+          if (!mariaAIRef.current) return;
+          if (deletedConvIds.current.has(m.conversation_id)) return;
+          // Ne pas répondre à ses propres messages
+          if (m.sender_email === user.email) return;
+
+          processedMsgIds.current.add(m.id);
+
+          console.log("[Maria AI] Message reçu, préparation réponse pour:", m.sender_name || m.sender_email);
+
+          // Délai naturel (~2s) avant que Maria réponde
+          setTimeout(async () => {
+            try {
+              const convId = m.conversation_id;
+              const clientName = m.sender_name || m.sender_email;
+              const mariaReply = `Merci ${clientName} ! Je prends note de votre message. Je vous réponds très rapidement 😊`;
+
+              console.log("[Maria AI] Envoi réponse:", mariaReply);
+
+              const { error } = await supabase.from("MessageChat").insert({
+                conversation_id: convId,
+                sender_email: user.email,
+                sender_name: "Maria AI",
+                receiver_email: m.sender_email,
+                content: mariaReply,
+                type: "text",
+                is_read: false,
+                read: false,
+                is_maria: true,
+              });
+
+              if (error) {
+                console.error("[Maria AI] Erreur envoi:", error);
+              } else {
+                console.log("[Maria AI] Réponse envoyée avec succès");
+              }
+            } catch (e) {
+              console.error("[Maria AI] Erreur reply:", e);
+            }
+          }, 1800 + Math.random() * 1200);
         }
-      }, 1800 + Math.random() * 1200);
-    });
-    return () => unsub();
+      )
+      .subscribe((status) => {
+        console.log("[Maria AI] Subscription status:", status);
+      });
+
+    return () => {
+      console.log("[Maria AI] Nettoyage subscription");
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const MSG_COLS = 'id,conversation_id,sender_email,sender_name,sender_avatar,receiver_email,receiver_name,receiver_avatar,content,type,attachment_url,is_read,read,is_maria,created_at,updated_at';
@@ -1117,15 +1149,21 @@ export default function Messages() {
   // Temps réel sur la liste des conversations
   useEffect(() => {
     if (!user) return;
-    const unsub = entities.MessageChat.subscribe((event) => {
-      if (event.type === "create") {
-        const m = event.data;
-        if (m.sender_email !== user.email && m.receiver_email !== user.email) return;
-        // Rafraîchir la liste
-        loadConversations();
-      }
-    });
-    return unsub;
+    const channel = supabase
+      .channel(`conv_list_${user.email}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "MessageChat" },
+        (payload) => {
+          const m = payload.new;
+          if (!m) return;
+          if (m.sender_email !== user.email && m.receiver_email !== user.email) return;
+          // Rafraîchir la liste
+          loadConversations();
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   // Ouvrir directement une conv si ?to= dans l'URL

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { X, Mic, MicOff, Volume2, Bot } from "lucide-react";
 import { entities } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
+import { synthesizeQwenTTS, detectLanguage } from '@/lib/qwenTts';
 
 export default function VocalChat({ onClose, onMessage }) {
   const [status, setStatus] = useState("idle"); // idle | listening | thinking | speaking
@@ -14,18 +15,35 @@ export default function VocalChat({ onClose, onMessage }) {
   const speak = async (text) => {
     setStatus("speaking");
     setResponse(text);
-    try {
-      const res = await base44.integrations.Core.GenerateSpeech({
-        text: text.slice(0, 500),
-        voice: "honey", // voix féminine douce
-        language_code: "fr",
-      });
-      if (audioRef.current) {
-        audioRef.current.src = res.url;
-        audioRef.current.play();
-        audioRef.current.onended = () => setStatus("idle");
-      }
-    } catch {
+    // 1. Essayer Qwen3-TTS
+    const lang = detectLanguage(text);
+    const qwenUrl = await synthesizeQwenTTS(text, lang);
+    if (qwenUrl) {
+      audioRef.current.src = qwenUrl;
+      audioRef.current.play();
+      audioRef.current.onended = () => {
+        URL.revokeObjectURL(qwenUrl);
+        setStatus("idle");
+      };
+      audioRef.current.onerror = () => {
+        URL.revokeObjectURL(qwenUrl);
+        setStatus("idle");
+      };
+      return;
+    }
+    // 2. Fallback Web Speech API
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const utt = new SpeechSynthesisUtterance(text.slice(0, 400));
+      utt.lang = detectLanguage(text) === 'fr' ? 'fr-FR' : detectLanguage(text) === 'en' ? 'en-US' : detectLanguage(text);
+      utt.rate = 1.05;
+      const voices = window.speechSynthesis.getVoices();
+      const voice = voices.find(v => v.lang.startsWith(utt.lang.split('-')[0]));
+      if (voice) utt.voice = voice;
+      utt.onend = () => setStatus("idle");
+      utt.onerror = () => setStatus("idle");
+      window.speechSynthesis.speak(utt);
+    } else {
       setStatus("idle");
     }
   };
@@ -56,7 +74,8 @@ export default function VocalChat({ onClose, onMessage }) {
       return;
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = "fr-FR";
+    const userLang = detectLanguage(transcript || 'fr');
+    recognition.lang = userLang === 'fr' ? 'fr-FR' : userLang === 'en' ? 'en-US' : userLang;
     recognition.continuous = false;
     recognition.interimResults = false;
     recognition.onstart = () => setStatus("listening");

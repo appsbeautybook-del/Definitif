@@ -48,11 +48,8 @@ function MessageModal({ listing, onClose }) {
       await entities.MessageChat.create({
         conversation_id: convId,
         sender_email: user?.email || email,
-        sender_name: name || user?.full_name || email,
         receiver_email: ADMIN_EMAIL,
-        receiver_name: "BeautyBook Admin",
         content: `📍 Offre immobilière : "${listing.title}"\n\n${msg}`,
-        type: "text",
         read: false,
       });
       // Notifier l'admin (via Notification entity)
