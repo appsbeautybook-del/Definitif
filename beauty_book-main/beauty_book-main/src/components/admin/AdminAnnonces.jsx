@@ -2,12 +2,19 @@ import { useState, useEffect, useRef } from "react";
 import { adminApi } from "@/lib/adminApiClient";
 import { uploadFile } from '@/api/entities';
 import { supabase } from '@/api/supabaseClient';
-import { Trash2, Plus, Eye, EyeOff, Upload, Loader2, Film, Image, Link } from "lucide-react";
+import { Trash2, Plus, Eye, EyeOff, Upload, Loader2, Film, Link, Pencil, X } from "lucide-react";
+
+const EMPTY_FORM = {
+  title: "", sponsor_name: "", image_url: "", video_url: "",
+  cta_label: "En savoir plus", cta_url: "",
+  pages: ["reels"], status: "actif",
+};
 
 export default function AdminAnnonces() {
   const [annonces, setAnnonces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -22,17 +29,39 @@ export default function AdminAnnonces() {
     { value: "social", label: "Social" },
   ];
 
-  const [form, setForm] = useState({
-    title: "", sponsor_name: "", image_url: "", video_url: "",
-    cta_label: "En savoir plus", cta_url: "",
-    pages: ["reels"], status: "actif",
-  });
+  const [form, setForm] = useState({ ...EMPTY_FORM });
 
   useEffect(() => {
     adminApi.listAnnonces().then(setAnnonces).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   const isVideoUrl = (url) => url && (url.includes(".mp4") || url.includes(".webm") || url.includes(".mov") || url.includes("video"));
+
+  const resetForm = () => {
+    setForm({ ...EMPTY_FORM });
+    setEditingId(null);
+    setCreating(false);
+    setUploadError("");
+    setMediaMode("upload");
+  };
+
+  const startEdit = (a) => {
+    setForm({
+      title: a.title || "",
+      sponsor_name: a.sponsor_name || "",
+      image_url: a.image_url || "",
+      video_url: a.video_url || "",
+      cta_label: a.cta_label || "En savoir plus",
+      cta_url: a.cta_url || "",
+      pages: a.pages || [a.type || "reels"],
+      status: a.status || "actif",
+    });
+    setEditingId(a.id);
+    setCreating(true);
+    setUploadError("");
+    setMediaMode("url");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const uploadMedia = async (e) => {
     const file = e.target.files[0];
@@ -68,18 +97,22 @@ export default function AdminAnnonces() {
     setAnnonces(prev => prev.filter(a => a.id !== id));
   };
 
-  const createAnnonce = async (e) => {
+  const submitAnnonce = async (e) => {
     e.preventDefault();
     if (!form.title || !form.sponsor_name || (!form.image_url && !form.video_url)) return;
     setSaving(true);
     try {
-      const created = await adminApi.createAnnonce(form);
-      setAnnonces(prev => [created, ...prev]);
-      setCreating(false);
-      setForm({ title: "", sponsor_name: "", image_url: "", video_url: "", cta_label: "En savoir plus", cta_url: "", pages: ["reels"], status: "actif" });
-      setUploadError("");
-      setMediaMode("upload");
-    } catch {}
+      if (editingId) {
+        const updated = await adminApi.updateAnnonce(editingId, form);
+        setAnnonces(prev => prev.map(a => a.id === editingId ? { ...a, ...updated } : a));
+      } else {
+        const created = await adminApi.createAnnonce(form);
+        setAnnonces(prev => [created, ...prev]);
+      }
+      resetForm();
+    } catch (err) {
+      console.error('[AdminAnnonces] Save error:', err);
+    }
     setSaving(false);
   };
 
@@ -100,14 +133,21 @@ export default function AdminAnnonces() {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => setCreating(v => !v)}
-        className="flex items-center gap-2 bg-primary text-white px-4 py-3 rounded-xl text-[13px] font-black active:scale-95 transition-all">
-        <Plus className="w-4 h-4" /> Nouvelle annonce
-      </button>
+      {!creating && (
+        <button onClick={() => { setCreating(true); setEditingId(null); setForm({ ...EMPTY_FORM }); }}
+          className="flex items-center gap-2 bg-primary text-white px-4 py-3 rounded-xl text-[13px] font-black active:scale-95 transition-all">
+          <Plus className="w-4 h-4" /> Nouvelle annonce
+        </button>
+      )}
 
       {creating && (
-        <form onSubmit={createAnnonce} className="bg-white rounded-2xl p-5 border border-gray-200 space-y-3 shadow-sm">
-          <h3 className="text-gray-900 text-[14px] font-black">Créer une annonce</h3>
+        <form onSubmit={submitAnnonce} className="bg-white rounded-2xl p-5 border border-gray-200 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="text-gray-900 text-[14px] font-black">{editingId ? "Modifier l'annonce" : "Créer une annonce"}</h3>
+            <button type="button" onClick={resetForm} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             placeholder="Titre *" required
@@ -115,6 +155,10 @@ export default function AdminAnnonces() {
 
           <input value={form.sponsor_name} onChange={e => setForm(f => ({ ...f, sponsor_name: e.target.value }))}
             placeholder="Nom du sponsor *" required
+            className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary" />
+
+          <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+            placeholder="Description"
             className="w-full bg-gray-50 border border-gray-200 text-gray-800 rounded-xl px-4 py-3 text-[13px] outline-none focus:border-primary" />
 
           {/* Media selector */}
@@ -211,9 +255,9 @@ export default function AdminAnnonces() {
           <div className="flex gap-3">
             <button type="submit" disabled={saving}
               className="flex-1 bg-primary text-white py-3 rounded-xl text-[13px] font-black disabled:opacity-60 flex items-center justify-center gap-2">
-              {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Création...</> : "Créer →"}
+              {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> {editingId ? "Modification..." : "Création..."}</> : editingId ? "Modifier →" : "Créer →"}
             </button>
-            <button type="button" onClick={() => { setCreating(false); setUploadError(""); setMediaMode("upload"); }}
+            <button type="button" onClick={resetForm}
               className="flex-1 bg-gray-100 text-gray-600 py-3 rounded-xl text-[13px] font-black">Annuler</button>
           </div>
         </form>
@@ -234,6 +278,9 @@ export default function AdminAnnonces() {
               </span>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              <button onClick={() => startEdit(a)} className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center active:scale-95" title="Modifier">
+                <Pencil className="w-4 h-4 text-blue-500" />
+              </button>
               <button onClick={() => toggleStatus(a)} className="w-9 h-9 bg-gray-100 rounded-xl flex items-center justify-center active:scale-95">
                 {a.status === "actif" ? <EyeOff className="w-4 h-4 text-amber-500" /> : <Eye className="w-4 h-4 text-green-500" />}
               </button>
