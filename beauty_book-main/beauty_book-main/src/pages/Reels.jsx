@@ -675,8 +675,8 @@ function ReelCard({ reel, isActive, muted, onMuteToggle, liked, onLike, repub, o
   const likesCount = reel.likes ?? 0;
 
   return (
-    <div className="relative w-full shrink-0 overflow-hidden bg-black"
-      style={{ height: "calc(100dvh - 0px)", scrollSnapAlign: "start", scrollSnapStop: "always" }}>
+    <div className="relative w-full h-full shrink-0 overflow-hidden bg-black"
+      style={{ scrollSnapAlign: "start", scrollSnapStop: "always" }}>
 
       {/* Audio externe (piste musicale) */}
       {hasMusicTrack && <audio ref={audioRef} loop />}
@@ -1179,7 +1179,8 @@ export default function Reels() {
           }
           const { reel, idx } = item;
           return (
-            <div key={reel.id} data-idx={feedIdx} style={{ height: "100dvh" }}>
+            <div key={reel.id} data-idx={feedIdx}
+              style={{ height: "100dvh", scrollSnapAlign: "start", scrollSnapStop: "always" }}>
               <ReelCard
                 reel={reel}
                 isActive={currentIdx === feedIdx}
