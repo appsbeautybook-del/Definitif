@@ -148,35 +148,49 @@ function StylesAd({ annonce, onClose }) {
 
   return (
     <div className="relative w-full h-full flex flex-col bg-white overflow-hidden rounded-none">
-      {/* Skip / Close buttons */}
-      <div className="absolute top-3 right-3 z-20" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
-        {isVideo ? (
-          !showSkip ? (
-            <AdCountdown total={5} onSkip={() => setShowSkip(true)} />
+      {/* Sponsor — directement en dessous des catégories (coiffure, maquillage, etc.) */}
+      <div className="px-4 py-3 bg-white">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {annonce.sponsor_logo ? (
+              <img src={annonce.sponsor_logo} alt={annonce.sponsor_name} className="w-9 h-9 rounded-full object-cover border border-gray-100 shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <span className="text-primary text-[13px] font-black">{(annonce.sponsor_name || "S")[0]}</span>
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-[13px] font-black text-gray-900 truncate">{annonce.sponsor_name}</p>
+              <p className="text-[10px] text-gray-400 font-medium">Sponsorisé</p>
+            </div>
+          </div>
+          {isVideo ? (
+            !showSkip ? (
+              <AdCountdown total={5} onSkip={() => setShowSkip(true)} />
+            ) : (
+              <button onClick={onClose} className="bg-gray-100 rounded-full px-3 py-1.5 text-[11px] font-black text-gray-600 active:scale-95 transition-all">
+                Ignorer
+              </button>
+            )
           ) : (
-            <button onClick={onClose} className="bg-white/90 backdrop-blur-sm rounded-full px-3 py-1.5 text-[11px] font-black text-gray-900 active:scale-95 transition-all shadow-lg">
-              Ignorer
+            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center text-gray-400 shrink-0">
+              <X className="w-4 h-4" />
             </button>
-          )
-        ) : (
-          <button onClick={onClose} className="w-7 h-7 bg-black/30 backdrop-blur-sm rounded-full flex items-center justify-center text-white/80 shrink-0">
-            <X className="w-4 h-4" />
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Media */}
+      {/* Image / Vidéo — redimensionnée pour remplir l'espace entre sponsor et CTA */}
       <div className="flex-1 relative overflow-hidden">
         {isVideo ? (
           <VideoPlayer src={annonce.video_url} poster={annonce.image_url} className="w-full h-full object-cover" style={{ width: "100%", height: "100%" }} />
         ) : (
           <img src={annonce.image_url} alt={annonce.title} className="w-full h-full object-cover" />
         )}
-        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black/60 to-transparent" />
       </div>
 
-      {/* CTA */}
-      <div className="px-4 py-3 bg-white border-b border-gray-100">
+      {/* CTA — directement au-dessus du menu navigation */}
+      <div className="px-4 py-3 bg-white">
         <button
           onClick={() => { if (annonce.cta_url) window.open(annonce.cta_url, "_blank"); }}
           className="w-full flex items-center justify-between bg-primary rounded-2xl px-4 py-3 active:scale-[0.98] transition-all shadow-md shadow-primary/20"
@@ -184,24 +198,6 @@ function StylesAd({ annonce, onClose }) {
           <span className="text-[14px] font-black text-white">{annonce.cta_label || "En savoir plus"}</span>
           <ExternalLink className="w-4 h-4 text-white/70" />
         </button>
-      </div>
-
-      {/* Sponsor */}
-      <div className="px-4 py-3 bg-white">
-        <div className="flex items-center gap-3">
-          {annonce.sponsor_logo ? (
-            <img src={annonce.sponsor_logo} alt={annonce.sponsor_name} className="w-10 h-10 rounded-full object-cover border border-gray-100 shrink-0" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-              <span className="text-primary text-[14px] font-black">{(annonce.sponsor_name || "S")[0]}</span>
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="text-[14px] font-black text-gray-900 truncate">{annonce.sponsor_name}</p>
-            <p className="text-[11px] text-gray-400 font-medium">Sponsorisé</p>
-          </div>
-        </div>
-        {annonce.title && <p className="text-[13px] text-gray-700 font-semibold mt-2 line-clamp-1">{annonce.title}</p>}
       </div>
     </div>
   );
