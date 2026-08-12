@@ -1165,10 +1165,10 @@ export default function Reels() {
     : feed;
 
   return (
-    <div className="relative w-full h-screen bg-black overflow-hidden font-display">
+    <div className="relative w-full bg-black overflow-hidden font-display" style={{ height: "100dvh" }}>
 
       {/* Scroll container */}
-      <div ref={scrollRef} className="w-full h-full overflow-y-scroll hide-scrollbar" style={{ scrollSnapType: "y mandatory" }}>
+      <div ref={scrollRef} className="w-full overflow-y-scroll hide-scrollbar" style={{ height: "100dvh", scrollSnapType: "y mandatory" }}>
         {filteredFeed.map((item, feedIdx) => {
           if (item.type === "ad") {
             const adKey = item.adKey;
